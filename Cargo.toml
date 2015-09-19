@@ -1,0 +1,5 @@
+[package]
+
+name = "libfriendship"
+version = "0.0.1"
+authors = [ "Colin Wallace <wallacoloo@gmail.com>" ]
