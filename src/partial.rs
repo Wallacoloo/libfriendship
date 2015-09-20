@@ -6,6 +6,7 @@ use self::num::complex::Complex32;
 /// where u(t) is the unit step function,
 /// and coeff is a complex exponential, which is used to encode both the
 /// amplitude and phase shift of the sinusoid.
+#[derive(Copy, Clone)]
 pub struct Partial {
     /// time at which the partial should be gated on, in microseconds
     start_usec : u64,
