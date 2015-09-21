@@ -13,6 +13,7 @@ use partial::Partial;
 /// Another example is a "Sum" effect, which has two slots: "sig0", "sig1" and
 /// outputs the sum of all waves sent to either slot.
 pub trait Effect {
+    fn new() -> Self where Self : Sized;
     /// Given @partial as an input to the effect through the slot at @slot_no,
     /// returns an iterator that will enerate every future output, where each
     /// generated output's start_usec value increases monotonically.

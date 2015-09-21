@@ -20,6 +20,9 @@ impl Iterator for SumProcessIter {
 }
 
 impl Effect for Sum {
+    fn new() -> Sum {
+        Sum
+    }
     fn process(&mut self, partial : &Partial, slot_no : u32) -> Box<Iterator<Item=Partial>> {
         Box::new(SumProcessIter {partial:*partial, iter_complete:false})
     }
