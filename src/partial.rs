@@ -23,4 +23,7 @@ impl Partial {
     pub fn new() -> Partial {
         Partial{ start_usec:0, coeff:Complex32::new(0.0f32, 0.0f32), ang_freq:0.0f32, channel:0 }
     }
+    pub fn start_time(&self) -> u64 {
+        self.start_usec
+    }
 }

@@ -4,6 +4,7 @@ mod effect_node;
 mod effect_send;
 mod effect_tree;
 mod partial;
+mod renderer;
 
 use std::mem;
 
