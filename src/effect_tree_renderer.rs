@@ -20,8 +20,10 @@ pub struct PartialStream<'a> {
 }
 
 /// Takes an EffectTree and some partials inserted at specific locations and
-/// renders a waveform (i.e. PCM signal)
-pub struct Renderer<'a> {
+/// returns a stream of Partials outputted by the tree's root. These partials
+/// can then be directly converted into a PCM/waveform signal by a separate
+/// renderer.
+pub struct EffectTreeRenderer<'a> {
     /// Reference to the tree that describes the connections of each effect
     tree : &'a EffectTree<'a>,
     /// Set of iterators that generate new partials packaged with information
@@ -61,15 +63,15 @@ impl<'a> PartialStream<'a> {
     }
 }
 
-impl<'a> Renderer <'a> {
-    pub fn new(tree : &'a EffectTree<'a>) -> Renderer<'a> {
-        Renderer {tree:tree, partial_streams:BinaryHeap::new(),
+impl<'a> EffectTreeRenderer <'a> {
+    pub fn new(tree : &'a EffectTree<'a>) -> EffectTreeRenderer<'a> {
+        EffectTreeRenderer {tree:tree, partial_streams:BinaryHeap::new(),
             effect_states:HashMap::new()
         }
     }
     /// if `iter` has another item, push its next item, `destination` & `iter`
     /// onto the heap of PartialStreams
-    pub fn check_add_stream(&mut self, mut iter : Box<Iterator<Item=Partial>>,
+    fn check_add_stream(&mut self, mut iter : Box<Iterator<Item=Partial>>,
       destination : Option<EffectSend<'a>> ) {
         iter.next().map(|partial| {
             let stream = PartialStream::new(iter, destination, partial);
