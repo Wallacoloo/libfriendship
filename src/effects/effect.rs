@@ -1,5 +1,10 @@
 use partial::Partial;
 
+/// In order to separate the layout of the effect tree from any state info
+/// mutated during the render process, effect-specific render state (userdata)
+/// is stored separately
+pub struct EffectRenderState;
+
 /// An effect creates Partial outputs from a sequence of Partial inputs and
 /// some extra parameters.
 ///
@@ -17,7 +22,7 @@ pub trait Effect {
     /// Given @partial as an input to the effect through the slot at @slot_no,
     /// returns an iterator that will enerate every future output, where each
     /// generated output's start_usec value increases monotonically.
-    fn process(&mut self, partial : &Partial, slot_no : u32) -> Box<Iterator<Item=Partial>>;
+    fn process(&self, state : &mut EffectRenderState, partial : &Partial, slot_no : u32) -> Box<Iterator<Item=Partial>>;
     /// Returns information (currently just the friendly label) about the slot
     /// at index @index, or None if the slot doesn't exist.
     /// Slots are not sparse, so the lowest index for which get_input_slot

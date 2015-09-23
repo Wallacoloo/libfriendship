@@ -16,4 +16,6 @@ fn main() {
     print!("Size of Option<&u32>: {}\n", mem::size_of::<Option<&u32>>());
     print!("Size of Option<&EffectNode>: {}\n", mem::size_of::<Option<&effect_node::EffectNode>>());
     print!("Size of &u32: {}\n", mem::size_of::<&u32>());
+    print!("Size of PartialStream: {}\n", mem::size_of::<renderer::PartialStream>())
+    //print!("Size of Ptr<'a, Effect>: {}\n", mem::size_of::<ptr::Ptr<effects::effect::Effect>>());
 }
