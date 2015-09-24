@@ -26,4 +26,13 @@ impl Partial {
     pub fn start_time(&self) -> u64 {
         self.start_usec
     }
+    pub fn coeff(&self) -> Complex32 {
+        self.coeff
+    }
+    pub fn ang_freq(&self) -> f32 {
+        self.ang_freq
+    }
+    pub fn channel(&self) -> u8 {
+        self.channel
+    }
 }

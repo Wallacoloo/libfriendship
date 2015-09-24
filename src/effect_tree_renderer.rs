@@ -65,8 +65,11 @@ impl<'a> PartialStream<'a> {
 
 impl<'a> EffectTreeRenderer <'a> {
     pub fn new(tree : &'a EffectTree<'a>) -> EffectTreeRenderer<'a> {
-        EffectTreeRenderer {tree:tree, partial_streams:BinaryHeap::new(),
-            effect_states:HashMap::new()
+        EffectTreeRenderer{
+            tree:tree,
+            partial_streams:BinaryHeap::new(),
+            // Create an EffectRenderState for each node in the tree
+            effect_states:tree.iter().map(|node| (node, Box::new(EffectRenderState))).collect()
         }
     }
     /// if `iter` has another item, push its next item, `destination` & `iter`

@@ -80,11 +80,17 @@ impl<'a> EffectNodeBi<'a> {
     fn new_from_node(node : EffectNode) -> EffectNodeBi {
         EffectNodeBi{ node:node, children:vec![] }
     }
+    pub fn node(&'a self) -> &'a EffectNode<'a> {
+        &self.node
+    }
     /// Add a new child that sends its output to this node at the given slot.
     pub fn add_child(&'a mut self, child : Box<Effect>, slot : u32) {
         let send = EffectSend::new(&self.node, slot);
         let child_node = EffectNode::new(child, Some(send));
         let child_node_bi = EffectNodeBi::new_from_node(child_node);
         self.children.push(Box::new(child_node_bi));
+    }
+    pub fn child_node_bi(&'a self, idx: usize) -> Option<&'a EffectNodeBi<'a>> {
+        self.children.get(idx).map(|boxed_type| &**boxed_type)
     }
 }
