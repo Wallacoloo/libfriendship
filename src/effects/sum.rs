@@ -1,3 +1,5 @@
+use std::iter;
+
 use super::effect::{Effect, EffectRenderState};
 use partial::Partial;
 
@@ -5,24 +7,14 @@ use partial::Partial;
 /// slots.
 pub struct Sum;
 
-pub struct SumProcessIter {
-    partial : Option<Partial>,
-}
-
-impl Iterator for SumProcessIter {
-    type Item=Partial;
-
-    fn next(&mut self) -> Option<Partial> {
-        self.partial.take()
-    }
-}
-
 impl Effect for Sum {
     fn new() -> Sum {
         Sum
     }
     fn process(&self, state : &mut EffectRenderState, partial : &Partial, slot_no : u32) -> Box<Iterator<Item=Partial>> {
-        Box::new(SumProcessIter {partial:Some(*partial)})
+        // return an iterator that will provide Some(*partial) upon the first
+        // call and None upon any future calls
+        Box::new(iter::once(*partial))
     }
     fn get_input_slot(&self, index : u32) -> Option<&str> {
         match index {
