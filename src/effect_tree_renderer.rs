@@ -29,7 +29,7 @@ pub struct EffectTreeRenderer<'a> {
     /// Set of iterators that generate new partials packaged with information
     /// regarding where to send those partials.
     partial_streams : BinaryHeap<PartialStream<'a>>,
-    effect_states : HashMap<&'a EffectNode<'a>, Box<EffectRenderState>>,
+    effect_states : HashMap<&'a EffectNode<'a>, EffectRenderState>,
 }
 
 
@@ -69,7 +69,7 @@ impl<'a> EffectTreeRenderer <'a> {
             tree:tree,
             partial_streams:BinaryHeap::new(),
             // Create an EffectRenderState for each node in the tree
-            effect_states:tree.iter().map(|node| (node, Box::new(EffectRenderState))).collect()
+            effect_states:tree.iter().map(|node| (node, node.effect().new_render_state())).collect()
         }
     }
     /// send a partial to the given `dest`
