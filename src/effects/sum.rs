@@ -4,18 +4,14 @@ use partial::Partial;
 pub struct Sum;
 
 pub struct SumProcessIter {
-    partial : Partial,
-    iter_complete : bool,
+    partial : Option<Partial>,
 }
 
 impl Iterator for SumProcessIter {
     type Item=Partial;
 
     fn next(&mut self) -> Option<Partial> {
-        match self.iter_complete {
-            false => { self.iter_complete=true; Some(self.partial) }
-            true => None
-        }
+        self.partial.take()
     }
 }
 
@@ -24,7 +20,7 @@ impl Effect for Sum {
         Sum
     }
     fn process(&self, state : &mut EffectRenderState, partial : &Partial, slot_no : u32) -> Box<Iterator<Item=Partial>> {
-        Box::new(SumProcessIter {partial:*partial, iter_complete:false})
+        Box::new(SumProcessIter {partial:Some(*partial)})
     }
     fn get_input_slot(&self, index : u32) -> Option<&str> {
         match index {
