@@ -56,9 +56,9 @@ impl<'a> EffectTree<'a> {
     pub fn iter(&'a self) -> EffectTreeIter<'a> {
         EffectTreeIter{ path:vec![(&self.root, 0)] }
     }
-    /*pub fn root(&self) -> &EffectNodeBi {
+    pub fn root(&self) -> &EffectNodeBi {
         &self.root
-    }*/
+    }
 }
 
 impl<'a> Iterator for EffectTreeIter<'a> {

@@ -72,6 +72,15 @@ impl<'a> EffectTreeRenderer <'a> {
             effect_states:tree.iter().map(|node| (node, Box::new(EffectRenderState))).collect()
         }
     }
+    /// send a partial to the given `dest`
+    pub fn feed(&mut self, dest : EffectSend<'a>, partial : &Partial) {
+        // send the partial to the effect, which creates an iterator for the effect's output
+        let new_iter = dest.send(
+            self.effect_states.get_mut(dest.effect_node()).unwrap(),
+            partial);
+        // add the new Partial Iterator into our heap
+        self.check_add_stream(new_iter, *dest.effect_node().effect_send());
+    }
     /// if `iter` has another item, push its next item, `destination` & `iter`
     /// onto the heap of PartialStreams
     fn check_add_stream(&mut self, mut iter : Box<Iterator<Item=Partial>>,
@@ -91,12 +100,7 @@ impl<'a> EffectTreeRenderer <'a> {
                 None => Some(stream.pending),
                 Some(effect_send) => {
                     // send the partial to the destination effect/slot
-                    // to obtain a new Partial Iterator
-                    let new_iter = effect_send.send(
-                        self.effect_states.get_mut(effect_send.effect_node()).unwrap(),
-                        &stream.pending);
-                    // add the new Partial Iterator into our heap
-                    self.check_add_stream(new_iter, *effect_send.effect_node().effect_send());
+                    self.feed(effect_send, &stream.pending);
                     // since we popped the original stream, we have to re-add it as well:
                     self.check_add_stream(stream.stream, Some(effect_send));
                     None
