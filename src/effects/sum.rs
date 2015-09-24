@@ -1,6 +1,8 @@
 use super::effect::{Effect, EffectRenderState};
 use partial::Partial;
 
+/// The output for a Sum effect is the sum of all partials sent to any of its
+/// slots.
 pub struct Sum;
 
 pub struct SumProcessIter {
