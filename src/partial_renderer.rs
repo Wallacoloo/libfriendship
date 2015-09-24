@@ -10,15 +10,19 @@ use super::partial::Partial;
 /// Any angular frequencies within this distance from eachother will be
 /// considere equal, and the difference is attributed to float rounding.
 const FREQ_DELTA : f32 = 0.00001;
+/// Any waves with amplitude less than this delta are considered safe to drop
+const AMP_DELTA : f32 = 0.000000001;
 /// Provides a type that compares equal if to frequencies are nearly
 /// indistinguishable.
 /// The threshold for "indistinguishable" is not whether or not they are
 /// audibly different, but rather, could both frequencies feasibly be obtained
 /// from the same calculation by reordering the mathematical operations?
+#[derive(Debug)]
 struct ApproxFreq (f32);
 
 /// Takes a series of Partials and turns them into a PCM/audio signal.
 /// TODO: Allow multiple channels (everything is currently funneled into 1)
+#[derive(Debug)]
 pub struct PartialRenderer {
     /// Maps the angular frequency of a wave to its amplitude coefficient.
     partials : BTreeMap<ApproxFreq, Complex32>,
@@ -39,11 +43,30 @@ impl PartialRenderer {
         }
     }
     pub fn feed(&mut self, partial : &Partial) {
-        // get a &mut reference to the coefficient of any frequency *close* to
-        // that being inserted. Then add our coefficient to that.
-        let entry : &mut Complex32 = self.partials.entry(ApproxFreq(partial.ang_freq()))
-            .or_insert(Complex32::new(0.0f32, 0.0f32));
-        *entry = *entry + partial.coeff();
+        // If there's already an entry for a frequency very close to ours,
+        // then add our coefficient into that entry. Otherwise, create a new
+        // entry. In either case, delete the entry if the amplitude of the wave
+        // is less than some threshold.
+        //
+        // Deleting the entry means that calling feed(p) followed by feed(-p)
+        // will always work to remove p from the table.
+        match self.partials.entry(ApproxFreq(partial.ang_freq())) {
+            btree_map::Entry::Vacant(entry) => {
+                let new_val = partial.coeff();
+                if new_val.norm_sqr() >= AMP_DELTA*AMP_DELTA {
+                    entry.insert(new_val);
+                }
+            },
+            btree_map::Entry::Occupied(entry_) => {
+                let mut entry = entry_;
+                let new_val = entry.get() + partial.coeff();
+                if new_val.norm_sqr() >= AMP_DELTA*AMP_DELTA {
+                    entry.insert(new_val);
+                } else {
+                    entry.remove();
+                }
+            }
+        };
     }
     pub fn step(&mut self) -> f32 {
         let seconds = self.frame_idx as f64 * self.inv_sample_rate;

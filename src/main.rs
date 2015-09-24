@@ -37,7 +37,17 @@ fn main() {
         print!("New partial: {:?}\n", partial);
         partial_rend.feed(&partial);
     }
-    for i in (0..100) {
+    for _ in (0..100) {
         print!("Output: {}\n", partial_rend.step());
     }
+    print!("partial_rend: {:?}\n", partial_rend);
+
+    // Remove the partial by feeding its opposite
+
+    tree_rend.feed(EffectSend::new(tree.root().node(), 0), &Partial::new(0, Complex32::new(0.0f32, 1.0f32), 1000.000000001f32, 0));
+
+    while let Some(partial) = tree_rend.step() {
+        partial_rend.feed(&partial);
+    }
+    print!("partial_rend: {:?}\n", partial_rend);
 }
