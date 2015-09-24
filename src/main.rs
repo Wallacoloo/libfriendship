@@ -25,6 +25,7 @@ fn main() {
     print!("Size of Option<&EffectNode>: {}\n", mem::size_of::<Option<&effect_node::EffectNode>>());
     print!("Size of &u32: {}\n", mem::size_of::<&u32>());
     print!("Size of PartialStream: {}\n", mem::size_of::<effect_tree_renderer::PartialStream>());
+    print!("Size of PartialRenderer: {}\n", mem::size_of::<PartialRenderer>());
     //print!("Size of Ptr<'a, Effect>: {}\n", mem::size_of::<ptr::Ptr<effects::effect::Effect>>());
 
     // Test it out: try to render a 1000 rad/sec sine wave.
@@ -38,9 +39,11 @@ fn main() {
         partial_rend.feed(&partial);
     }
     for _ in (0..100) {
-        print!("Output: {}\n", partial_rend.step());
+        let mut output = [0.0f32; 2];
+        partial_rend.step(&mut output);
+        print!("Output: {}, {}\n", output[0], output[1]);
     }
-    print!("partial_rend: {:?}\n", partial_rend);
+    //print!("partial_rend: {:?}\n", partial_rend);
 
     // Remove the partial by feeding its opposite
 
@@ -49,5 +52,5 @@ fn main() {
     while let Some(partial) = tree_rend.step() {
         partial_rend.feed(&partial);
     }
-    print!("partial_rend: {:?}\n", partial_rend);
+    //print!("partial_rend: {:?}\n", partial_rend);
 }
