@@ -66,22 +66,20 @@ impl<'a> Iterator for EffectTreeIter<'a> {
 
     fn next(&mut self) -> Option<&'a EffectNode<'a>> {
         let ret = self.path.last().map(|last| last.0.node());
-        loop {
-            match self.path.last().cloned() {
-                // if path==[] then we have fully iterated the tree
-                None => break,
-                Some(active_node) => {
-                    // if the next node in the tree is valid, then append that.
-                    // otherwise, walk back up a step and move one child right
-                    match active_node.0.child_node_bi(active_node.1) {
-                        Some(node) => self.path.push((node, 0)),
-                        None => {
-                            self.path.pop();
-                            self.path.last_mut().map(|new_last| {
-                                new_last.1 += 1
-                            });
-                        }
-                    }
+        // Walk the tree until we find the next node, or reach its end
+        while let Some(active_node) = self.path.last().cloned() {
+            // if the next node in the tree is valid, then append that and break.
+            // otherwise, walk back up a step and move one child right
+            match active_node.0.child_node_bi(active_node.1) {
+                Some(node) => {
+                    self.path.push((node, 0));
+                    break;
+                },
+                None => {
+                    self.path.pop();
+                    self.path.last_mut().map(|new_last| {
+                        new_last.1 += 1
+                    });
                 }
             }
         }
