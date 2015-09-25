@@ -21,7 +21,7 @@ implemented very trivially and encourages more unique effects that are
 difficult to achieve in the time-domain (like detuning each harmonic individually).
 It also moves most of the computationally-intensive portions of audio synthesis
 into a single location so that anyone extending the library doesn't need to
-worry as much about ruthleslly optimizing their code.
+worry as much about ruthlessly optimizing their code.
 
 # Design goals
 libfriendship aims to be *safe*, *easy to use/understand* and *versatile*
