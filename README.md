@@ -32,7 +32,7 @@ handling audio playback - there are other libraries for those tasks.
 # License
 libfriendship is published under the MIT license (a fairly liberal license).
 If distributed in a project licensed under something more restrictive, like the
-GPL, I ask that you make it clear to your developers that the libfriendship
+GPL, I encourage you to make it clear to your developers that the libfriendship
 code is available under the MIT license (for example, in the license portion
 of your readme, mention "this code is licensed under [x], with the following
-exceptions: lib/libfriendship (MIT License)")
+exceptions: lib/libfriendship (MIT License)"), but this is not required.
