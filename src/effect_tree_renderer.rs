@@ -2,6 +2,8 @@ use std::cmp::PartialEq;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
+use std::collections::hash_map;
+use std::rc::Rc;
 
 use effects::effect::{Effect, EffectRenderState};
 use super::effect_node::EffectNode;
@@ -15,7 +17,7 @@ use super::partial::Partial;
 /// partials can be handled based on how soon they must be rendered.
 pub struct PartialStream<'a> {
     stream : Box<Iterator<Item=Partial>>,
-    destination : Option<EffectSend<'a>>,
+    destinations : Vec<EffectSend<'a>>,
     pending : Partial,
 }
 
@@ -29,7 +31,7 @@ pub struct EffectTreeRenderer<'a> {
     /// Set of iterators that generate new partials packaged with information
     /// regarding where to send those partials.
     partial_streams : BinaryHeap<PartialStream<'a>>,
-    effect_states : HashMap<&'a EffectNode<'a>, EffectRenderState>,
+    effect_states : HashMap<Rc<EffectNode<'a>>, EffectRenderState>,
 }
 
 
@@ -57,9 +59,9 @@ impl<'a> PartialOrd for PartialStream<'a> {
 
 impl<'a> PartialStream<'a> {
     pub fn new(stream : Box<Iterator<Item=Partial>>,
-      destination : Option<EffectSend<'a>>, pending : Partial)
+      destinations : Vec<EffectSend<'a>>, pending : Partial)
       -> PartialStream<'a> {
-          PartialStream{ stream:stream, destination:destination, pending:pending }
+          PartialStream{ stream:stream, destinations:destinations, pending:pending }
     }
 }
 
@@ -69,24 +71,29 @@ impl<'a> EffectTreeRenderer <'a> {
             tree:tree,
             partial_streams:BinaryHeap::new(),
             // Create an EffectRenderState for each node in the tree
-            effect_states:tree.iter().map(|node| (node, node.effect().new_render_state())).collect()
+            effect_states:HashMap::new(),
         }
     }
     /// send a partial to the given `dest`
     pub fn feed(&mut self, dest : EffectSend<'a>, partial : &Partial) {
         // send the partial to the effect, which creates an iterator for the effect's output
         let new_iter = dest.send(
-            self.effect_states.get_mut(dest.effect_node()).unwrap(),
+            match self.effect_states.entry(dest.effect_node().clone()) {
+                hash_map::Entry::Vacant(entry) => {
+                    entry.insert(dest.effect_node().effect().new_render_state())
+                },
+                hash_map::Entry::Occupied(ref mut entry) => entry.get_mut()
+            },
             partial);
         // add the new Partial Iterator into our heap
-        self.check_add_stream(new_iter, *dest.effect_node().effect_send());
+        self.check_add_stream(new_iter, dest.effect_node().sends().clone());
     }
-    /// if `iter` has another item, push its next item, `destination` & `iter`
+    /// if `iter` has another item, push its next item, `destinations` & `iter`
     /// onto the heap of PartialStreams
     fn check_add_stream(&mut self, mut iter : Box<Iterator<Item=Partial>>,
-      destination : Option<EffectSend<'a>> ) {
+      destinations : Vec<EffectSend<'a>> ) {
         iter.next().map(|partial| {
-            let stream = PartialStream::new(iter, destination, partial);
+            let stream = PartialStream::new(iter, destinations, partial);
             self.partial_streams.push(stream);
         });
     }
@@ -95,16 +102,19 @@ impl<'a> EffectTreeRenderer <'a> {
     /// from the root of the tree (ready to be rendered to audio), else None.
     pub fn step(&mut self) -> Option<Partial> {
         self.partial_streams.pop().map_or(None, |stream| {
-            match stream.destination {
-                // destination=None means this partial has been fully processed
-                None => Some(stream.pending),
-                Some(effect_send) => {
-                    // send the partial to the destination effect/slot
-                    self.feed(effect_send, &stream.pending);
-                    // since we popped the original stream, we have to re-add it as well:
-                    self.check_add_stream(stream.stream, Some(effect_send));
-                    None
+            if stream.destinations.is_empty() {
+                // Partial has been fully processed
+                Some(stream.pending)
+            } else {
+                // send the partial to the destination effects/slots
+                for send in &stream.destinations {
+                    self.feed(send.clone(), &stream.pending);
                 }
+                // since we popped the original stream, we have to re-add it as well:
+                // NOTE: popping & re-pushing IS necessary, since by advancing the iterator,
+                // we alter this stream's position in the queue.
+                self.check_add_stream(stream.stream, stream.destinations);
+                None
             }
         })
     }
