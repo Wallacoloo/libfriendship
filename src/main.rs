@@ -32,22 +32,21 @@ fn main() {
     let tree = EffectTree::new();
     let mut tree_rend = EffectTreeRenderer::new(&tree);
     let mut partial_rend = PartialRenderer::new(44100);
-    tree_rend.feed(EffectSend::new(tree.root().node(), 0), &Partial::new(0, Complex32::new(0.0f32, -1.0f32), 1000.0f32, 0));
+    tree_rend.feed(EffectSend::new(tree.root().node(), 0), &Partial::new(0, Complex32::new(0.0f32, -1.0f32), 1000.0f32));
 
     while let Some(partial) = tree_rend.step() {
         print!("New partial: {:?}\n", partial);
         partial_rend.feed(&partial);
     }
     for _ in (0..100) {
-        let mut output = [0.0f32; 2];
-        partial_rend.step(&mut output);
-        print!("Output: {}, {}\n", output[0], output[1]);
+        let output = partial_rend.step();
+        print!("Output: {}\n", output);
     }
     //print!("partial_rend: {:?}\n", partial_rend);
 
     // Remove the partial by feeding its opposite
 
-    tree_rend.feed(EffectSend::new(tree.root().node(), 0), &Partial::new(0, Complex32::new(0.0f32, 1.0f32), 1000.000000001f32, 0));
+    tree_rend.feed(EffectSend::new(tree.root().node(), 0), &Partial::new(0, Complex32::new(0.0f32, 1.0f32), 1000.000000001f32));
 
     while let Some(partial) = tree_rend.step() {
         partial_rend.feed(&partial);

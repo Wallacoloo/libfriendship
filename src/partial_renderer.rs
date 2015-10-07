@@ -28,11 +28,7 @@ pub struct PartialRenderer {
     frame_idx : u64,
     inv_sample_rate : f64,
     /// Maps the angular frequency of a wave to its amplitude coefficient.
-    /// There is one of these for each possible channel.
-    /// Note that a BTreeMap consumes ~64 bytes of memory, so 16 kb for 256.
-    /// On the other hand, this saves us the overhead of bounds checking.
-    /// For cache efficiency, this should be kept at the end of the struct.
-    partials : [BTreeMap<ApproxFreq, Complex32>; 256],
+    partials : BTreeMap<ApproxFreq, Complex32>,
 }
 
 impl PartialRenderer {
@@ -40,75 +36,7 @@ impl PartialRenderer {
     /// results in 1 second of audio.
     pub fn new(sample_rate : u32) -> PartialRenderer {
         PartialRenderer{
-            // Very ugly, but this is the only way to safely initialize an array
-            // of non-copiable items like this
-            // `partials: [BTreeMap::new(); 256]` fails for non-copiable types
-            partials: [
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-                BTreeMap::new(), BTreeMap::new(), BTreeMap::new(), BTreeMap::new(),
-            ],
+            partials: BTreeMap::new(),
             frame_idx: 0,
             inv_sample_rate: 1.0f64/(sample_rate as f64)
         }
@@ -121,7 +49,7 @@ impl PartialRenderer {
         //
         // Deleting the entry means that calling feed(p) followed by feed(-p)
         // will always work to remove p from the table.
-        match self.partials[partial.channel() as usize].entry(ApproxFreq(partial.ang_freq())) {
+        match self.partials.entry(ApproxFreq(partial.ang_freq())) {
             btree_map::Entry::Vacant(entry) => {
                 let new_val = partial.coeff();
                 if new_val.norm_sqr() >= AMP_DELTA*AMP_DELTA {
@@ -139,10 +67,8 @@ impl PartialRenderer {
             }
         };
     }
-    /// Obtain the next sample for all channels.
-    /// The output for channel i is written into output[i],
-    /// Any output[i] for i > 255 is not guaranteed to be initialized
-    pub fn step(&mut self, output : &mut [f32]) {
+    /// Obtain the next sample
+    pub fn step(&mut self) -> f32 {
         let seconds = self.frame_idx as f64 * self.inv_sample_rate;
         self.frame_idx += 1;
 
@@ -150,12 +76,10 @@ impl PartialRenderer {
         // we only care about the real portion of the signal
         // exp(i*w) = cos(w) + i*sin(w)
         // Therefore signal = sum: coeff*Complex32(cos(w), sin(w)).re
-        for (value, channel_table) in output.iter_mut().zip(self.partials.iter()) {
-            *value = channel_table.iter().fold(0.0f32, |accum, (freq, coeff)| {
-                let (res_sin, res_cos) = f64::sin_cos(seconds*freq.0 as f64);
-                accum + (coeff*Complex32::new(res_cos as f32, res_sin as f32)).re
-            });
-        };
+        self.partials.iter().fold(0.0f32, |accum, (freq, coeff)| {
+            let (res_sin, res_cos) = f64::sin_cos(seconds*freq.0 as f64);
+            accum + (coeff*Complex32::new(res_cos as f32, res_sin as f32)).re
+        })
     }
 }
 
