@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::collections::hash_map;
 use std::rc::Rc;
 
-use super::effect::{EffectProcessIter, EffectRenderState};
+use super::effect::Effect;
 use super::effect_node::EffectNode;
 use super::effect_send::EffectSend;
 use super::effect_tree::EffectTree;
@@ -34,6 +34,17 @@ pub struct EffectTreeRenderer<'a> {
     effect_states : HashMap<Rc<EffectNode<'a>>, EffectRenderState>,
 }
 
+/// State info about each node in the effect tree
+pub struct EffectRenderState {
+    /// Intentionally not a reference - we keep this to know the effect's type
+    effect : Effect,
+}
+
+/// Each partial sent to an effect creates an iterator that describes the
+/// output.
+pub struct EffectProcessIter {
+    p : Option<Partial>,
+}
 
 impl<'a> Ord for PartialStream<'a> {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -79,7 +90,7 @@ impl<'a> EffectTreeRenderer <'a> {
         // send the partial to the effect, which creates an iterator for the effect's output
         let new_iter = match self.effect_states.entry(dest.effect_node().clone()) {
             hash_map::Entry::Vacant(entry) => {
-                entry.insert(dest.effect_node().effect().new_render_state())
+                entry.insert(EffectRenderState::new(dest.effect_node().effect()))
             },
             hash_map::Entry::Occupied(ref mut entry) => entry.get_mut()
         }.process(partial, dest.send_slot());
@@ -115,5 +126,29 @@ impl<'a> EffectTreeRenderer <'a> {
                 None
             }
         })
+    }
+}
+
+impl EffectRenderState {
+    pub fn new(effect : &Effect) -> EffectRenderState {
+        EffectRenderState{ effect: (*effect).clone() }
+    }
+    /// Given @partial as an input to the effect through the slot at @slot_no,
+    /// returns an iterator that will enerate every future output, where each
+    /// generated output's start_usec value increases monotonically.
+    pub fn process(&self, partial : &Partial, _slot_no : u32) -> EffectProcessIter {
+        match &self.effect {
+            &Effect::AmpScale => unimplemented!(),
+            &Effect::StartTimeOffset => EffectProcessIter{ p:Some(*partial) },
+            &Effect::FreqScale => unimplemented!(),
+        }
+    }
+}
+
+impl Iterator for EffectProcessIter {
+    type Item = Partial;
+
+    fn next(&mut self) -> Option<Partial> {
+        self.p.take()
     }
 }
