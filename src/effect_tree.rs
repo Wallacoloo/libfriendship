@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::slice;
 
 use super::effect_node::EffectNode;
 
@@ -16,7 +17,10 @@ impl<'a> EffectTree<'a> {
         EffectTree{ roots:roots }
     }
     /// access the @n'th root (channel) of the tree
-    pub fn root(&'a self, n : u8) -> &'a Rc<EffectNode> {
+    pub fn root(&self, n : u8) -> &Rc<EffectNode<'a>> {
         &self.roots[n as usize]
+    }
+    pub fn iter_roots(&'a self) -> slice::Iter<'a, Rc<EffectNode<'a>>> {
+        self.roots.iter()
     }
 }

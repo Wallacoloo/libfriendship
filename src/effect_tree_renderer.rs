@@ -97,8 +97,10 @@ impl<'a> EffectTreeRenderer <'a> {
         EffectTreeRenderer{
             tree:tree,
             partial_streams:BinaryHeap::new(),
-            // Create an EffectRenderState for each node in the tree
-            effect_states:HashMap::new(),
+            // Create an EffectRenderState::ChannelSink for each root of the tree
+            effect_states: tree.iter_roots().enumerate().map(|(ch, root)| {
+                (root.clone(), EffectRenderState::new_channel_sink(root.effect(), ch as u8))
+            }).collect()
         }
     }
     /// send a partial to the given `dest`
@@ -170,8 +172,15 @@ impl EffectRenderState {
             &EffectNodeType::EffectNode(Effect::FreqScale) =>
                 EffectRenderState::FreqScale,
             // Don't allow arbitrary sinks; the EffectTree must explicitly specify them.
-            &EffectNodeType::Sink => EffectRenderState::ChannelSink(0), /*panic!(
-                "EffectNodeType::Sink objects must be explicitly declared by EffectTree ahead-of-time"),*/
+            &EffectNodeType::Sink => panic!("EffectNodeType::Sink objects \
+                must be explicitly declared by EffectTree ahead-of-time"),
+        }
+    }
+    pub fn new_channel_sink(effect : &EffectNodeType, ch : u8) -> EffectRenderState {
+        match effect {
+            &EffectNodeType::Sink => EffectRenderState::ChannelSink(ch),
+            _ => panic!("Tried to create an EffectRenderState::ChannelSink \
+                from an EffectNode whose type was not EffectNodeType::Sink"),
         }
     }
     /// Given @partial as an input to the effect through the slot at @slot_no,
