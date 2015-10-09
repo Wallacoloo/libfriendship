@@ -3,7 +3,7 @@ use std::hash::{self, Hash};
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
 use std::sync::atomic;
 
-use effects::effect::Effect;
+use super::effect::Effect;
 use super::effect_send::EffectSend;
 
 /// This variable is incremented every time a new EffectNode is created in

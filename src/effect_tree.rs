@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use super::effect_node::EffectNode;
-use effects::effect::Effect;
+use super::effect::Effect;
 
 pub struct EffectTree<'a> {
     root : Rc<EffectNode<'a>>,

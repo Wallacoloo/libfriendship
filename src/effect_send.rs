@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use effects::effect::{EffectProcessIter, EffectRenderState};
+use super::effect::{EffectProcessIter, EffectRenderState};
 use super::effect_node::EffectNode;
 use super::partial::Partial;
 

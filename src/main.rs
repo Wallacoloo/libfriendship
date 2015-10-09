@@ -1,8 +1,7 @@
 extern crate num;
 use self::num::complex::Complex32;
 
-mod effects;
-
+mod effect;
 mod effect_node;
 mod effect_send;
 mod effect_tree;
@@ -20,13 +19,13 @@ use partial_renderer::PartialRenderer;
 fn main() {
     print!("Size of effect_node: {}\n", mem::size_of::<effect_node::EffectNode>());
     print!("Size of effect_send: {}\n", mem::size_of::<effect_send::EffectSend>());
-    print!("Size of Option<&Effect>: {}\n", mem::size_of::<Option<&effects::effect::Effect>>());
+    print!("Size of Option<&Effect>: {}\n", mem::size_of::<Option<&effect::Effect>>());
     print!("Size of Option<&u32>: {}\n", mem::size_of::<Option<&u32>>());
     print!("Size of Option<&EffectNode>: {}\n", mem::size_of::<Option<&effect_node::EffectNode>>());
     print!("Size of &u32: {}\n", mem::size_of::<&u32>());
     print!("Size of PartialStream: {}\n", mem::size_of::<effect_tree_renderer::PartialStream>());
     print!("Size of PartialRenderer: {}\n", mem::size_of::<PartialRenderer>());
-    //print!("Size of Ptr<'a, Effect>: {}\n", mem::size_of::<ptr::Ptr<effects::effect::Effect>>());
+    //print!("Size of Ptr<'a, Effect>: {}\n", mem::size_of::<ptr::Ptr<effect::Effect>>());
 
     // Test it out: try to render a 1000 rad/sec sine wave.
     let tree = EffectTree::new();

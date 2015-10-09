@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::collections::hash_map;
 use std::rc::Rc;
 
-use effects::effect::{EffectProcessIter, EffectRenderState};
+use super::effect::{EffectProcessIter, EffectRenderState};
 use super::effect_node::EffectNode;
 use super::effect_send::EffectSend;
 use super::effect_tree::EffectTree;
