@@ -17,18 +17,18 @@ pub struct EffectNode<'a> {
     /// in order to store this structure as a key in an associative container,
     /// e.g. a HashMap, we need some way to uniquely tag effects, hence `id`
     id : u32,
-    effect : Box<Effect>,
+    effect : Effect,
     sends : Vec<EffectSend<'a>>,
 }
 
 impl<'a> EffectNode<'a> {
-    pub fn new(effect : Box<Effect>, sends : Vec<EffectSend<'a>>)
+    pub fn new(effect : Effect, sends : Vec<EffectSend<'a>>)
       -> EffectNode<'a> {
         let id = unsafe { effect_id_gen.fetch_add(1, atomic::Ordering::SeqCst) };
         EffectNode{ effect:effect, sends:sends, id:id as u32 }
     }
     pub fn effect(&self) -> &Effect {
-        &*self.effect
+        &self.effect
     }
     pub fn sends(&self) -> &Vec<EffectSend<'a>> {
         &self.sends

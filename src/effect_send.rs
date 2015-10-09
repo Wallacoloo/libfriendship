@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use effects::effect::EffectRenderState;
+use effects::effect::{EffectProcessIter, EffectRenderState};
 use super::effect_node::EffectNode;
 use super::partial::Partial;
 
@@ -15,7 +15,7 @@ impl<'a> EffectSend<'a> {
     pub fn new(node : Rc<EffectNode<'a>>, slot : u32) -> EffectSend<'a> {
         EffectSend{ send_node:node, send_slot:slot }
     }
-    pub fn send(&self, state : &mut EffectRenderState, partial : &Partial) -> Box<Iterator<Item=Partial>> {
+    pub fn send(&self, state : &mut EffectRenderState, partial : &Partial) -> EffectProcessIter {
         self.send_node.effect().process(state, partial, self.send_slot)
     }
     pub fn effect_node(&self) -> &Rc<EffectNode<'a>> {

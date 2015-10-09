@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::collections::hash_map;
 use std::rc::Rc;
 
-use effects::effect::{Effect, EffectRenderState};
+use effects::effect::{EffectProcessIter, EffectRenderState};
 use super::effect_node::EffectNode;
 use super::effect_send::EffectSend;
 use super::effect_tree::EffectTree;
@@ -16,7 +16,7 @@ use super::partial::Partial;
 /// These streams can be sorted based on pending partial's start time so that
 /// partials can be handled based on how soon they must be rendered.
 pub struct PartialStream<'a> {
-    stream : Box<Iterator<Item=Partial>>,
+    stream : EffectProcessIter,
     destinations : Vec<EffectSend<'a>>,
     pending : Partial,
 }
@@ -58,7 +58,7 @@ impl<'a> PartialOrd for PartialStream<'a> {
 }
 
 impl<'a> PartialStream<'a> {
-    pub fn new(stream : Box<Iterator<Item=Partial>>,
+    pub fn new(stream : EffectProcessIter,
       destinations : Vec<EffectSend<'a>>, pending : Partial)
       -> PartialStream<'a> {
           PartialStream{ stream:stream, destinations:destinations, pending:pending }
@@ -90,7 +90,7 @@ impl<'a> EffectTreeRenderer <'a> {
     }
     /// if `iter` has another item, push its next item, `destinations` & `iter`
     /// onto the heap of PartialStreams
-    fn check_add_stream(&mut self, mut iter : Box<Iterator<Item=Partial>>,
+    fn check_add_stream(&mut self, mut iter : EffectProcessIter,
       destinations : Vec<EffectSend<'a>> ) {
         iter.next().map(|partial| {
             let stream = PartialStream::new(iter, destinations, partial);
