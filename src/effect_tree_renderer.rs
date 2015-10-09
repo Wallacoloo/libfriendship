@@ -77,14 +77,12 @@ impl<'a> EffectTreeRenderer <'a> {
     /// send a partial to the given `dest`
     pub fn feed(&mut self, dest : EffectSend<'a>, partial : &Partial) {
         // send the partial to the effect, which creates an iterator for the effect's output
-        let new_iter = dest.send(
-            match self.effect_states.entry(dest.effect_node().clone()) {
-                hash_map::Entry::Vacant(entry) => {
-                    entry.insert(dest.effect_node().effect().new_render_state())
-                },
-                hash_map::Entry::Occupied(ref mut entry) => entry.get_mut()
+        let new_iter = match self.effect_states.entry(dest.effect_node().clone()) {
+            hash_map::Entry::Vacant(entry) => {
+                entry.insert(dest.effect_node().effect().new_render_state())
             },
-            partial);
+            hash_map::Entry::Occupied(ref mut entry) => entry.get_mut()
+        }.process(partial, dest.send_slot());
         // add the new Partial Iterator into our heap
         self.check_add_stream(new_iter, dest.effect_node().sends().clone());
     }
