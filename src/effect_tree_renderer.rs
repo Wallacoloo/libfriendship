@@ -31,8 +31,6 @@ pub struct PartialStream<'a> {
 /// can then be directly converted into a PCM/waveform signal by a separate
 /// renderer.
 pub struct EffectTreeRenderer<'a> {
-    /// Reference to the tree that describes the connections of each effect
-    tree : &'a EffectTree<'a>,
     /// Set of iterators that generate new partials packaged with information
     /// regarding where to send those partials.
     partial_streams : BinaryHeap<PartialStream<'a>>,
@@ -95,7 +93,6 @@ impl<'a> PartialStream<'a> {
 impl<'a> EffectTreeRenderer <'a> {
     pub fn new(tree : &'a EffectTree<'a>) -> EffectTreeRenderer<'a> {
         EffectTreeRenderer{
-            tree:tree,
             partial_streams:BinaryHeap::new(),
             // Create an EffectRenderState::ChannelSink for each root of the tree
             effect_states: tree.iter_roots().enumerate().map(|(ch, root)| {
