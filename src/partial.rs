@@ -14,18 +14,14 @@ pub struct Partial {
     coeff : Complex32,
     /// frequency of the sinusoid, in radians/second
     ang_freq : f32,
-    /// index of the stereo/surround channel that this wave occupies
-    /// e.g. 0 for left, 1 for right.
-    channel : u8,
 }
 
 impl Partial {
-    pub fn new(start_usec : u64, coeff : Complex32, ang_freq : f32, channel : u8) -> Partial {
+    pub fn new(start_usec : u64, coeff : Complex32, ang_freq : f32) -> Partial {
         Partial{
             start_usec: start_usec,
             coeff: coeff,
             ang_freq: ang_freq,
-            channel: channel
         }
     }
     pub fn start_time(&self) -> u64 {
@@ -36,8 +32,5 @@ impl Partial {
     }
     pub fn ang_freq(&self) -> f32 {
         self.ang_freq
-    }
-    pub fn channel(&self) -> u8 {
-        self.channel
     }
 }
