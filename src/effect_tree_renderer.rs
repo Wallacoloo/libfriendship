@@ -35,9 +35,13 @@ pub struct EffectTreeRenderer<'a> {
 }
 
 /// State info about each node in the effect tree
-pub struct EffectRenderState {
-    /// Intentionally not a reference - we keep this to know the effect's type
-    effect : Effect,
+enum EffectRenderState {
+    /// see effect::Effect::AmpScale
+    AmpScale,
+    /// see effect::Effect::StartTimeOffset
+    StartTimeOffset,
+    /// see effect::Effect::FreqScale
+    FreqScale,
 }
 
 /// Each partial sent to an effect creates an iterator that describes the
@@ -131,16 +135,20 @@ impl<'a> EffectTreeRenderer <'a> {
 
 impl EffectRenderState {
     pub fn new(effect : &Effect) -> EffectRenderState {
-        EffectRenderState{ effect: (*effect).clone() }
+        match effect {
+            &Effect::AmpScale => EffectRenderState::AmpScale,
+            &Effect::StartTimeOffset => EffectRenderState::StartTimeOffset,
+            &Effect::FreqScale => EffectRenderState::FreqScale,
+        }
     }
     /// Given @partial as an input to the effect through the slot at @slot_no,
     /// returns an iterator that will enerate every future output, where each
     /// generated output's start_usec value increases monotonically.
     pub fn process(&self, partial : &Partial, _slot_no : u32) -> EffectProcessIter {
-        match &self.effect {
-            &Effect::AmpScale => unimplemented!(),
-            &Effect::StartTimeOffset => EffectProcessIter{ p:Some(*partial) },
-            &Effect::FreqScale => unimplemented!(),
+        match self {
+            &EffectRenderState::AmpScale => unimplemented!(),
+            &EffectRenderState::StartTimeOffset => EffectProcessIter{ p:Some(*partial) },
+            &EffectRenderState::FreqScale => unimplemented!(),
         }
     }
 }

@@ -1,5 +1,3 @@
-use partial::Partial;
-
 /// An effect creates Partial outputs from a sequence of Partial inputs and
 /// some extra parameters.
 ///
