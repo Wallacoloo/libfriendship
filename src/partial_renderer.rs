@@ -41,7 +41,7 @@ impl PartialRenderer {
             inv_sample_rate: 1.0f64/(sample_rate as f64)
         }
     }
-    pub fn feed(&mut self, partial : &Partial) {
+    pub fn feed(&mut self, partial : Partial) {
         // If there's already an entry for a frequency very close to ours,
         // then add our coefficient into that entry. Otherwise, create a new
         // entry. In either case, delete the entry if the amplitude of the wave

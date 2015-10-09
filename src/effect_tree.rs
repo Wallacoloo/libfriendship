@@ -23,4 +23,7 @@ impl<'a> EffectTree<'a> {
     pub fn iter_roots(&'a self) -> slice::Iter<'a, Rc<EffectNode<'a>>> {
         self.roots.iter()
     }
+    pub fn num_roots(&self) -> u8 {
+        self.roots.len() as u8
+    }
 }
