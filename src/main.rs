@@ -28,12 +28,12 @@ fn main() {
     //print!("Size of Ptr<'a, Effect>: {}\n", mem::size_of::<ptr::Ptr<effect::Effect>>());
 
     // Test it out: try to render a 1000 rad/sec sine wave.
-    let tree = EffectTree::new();
+    let tree = EffectTree::new(1);
     let mut tree_rend = EffectTreeRenderer::new(&tree);
     let mut partial_rend = PartialRenderer::new(44100);
-    tree_rend.feed(EffectSend::new(tree.root().clone(), 0), &Partial::new(0, Complex32::new(0.0f32, -1.0f32), 1000.0f32));
+    tree_rend.feed(EffectSend::new(tree.root(0).clone(), 0), &Partial::new(0, Complex32::new(0.0f32, -1.0f32), 1000.0f32));
 
-    while let Some(partial) = tree_rend.step() {
+    while let Some((_channel, partial)) = tree_rend.step() {
         print!("New partial: {:?}\n", partial);
         partial_rend.feed(&partial);
     }
@@ -45,9 +45,9 @@ fn main() {
 
     // Remove the partial by feeding its opposite
 
-    tree_rend.feed(EffectSend::new(tree.root().clone(), 0), &Partial::new(0, Complex32::new(0.0f32, 1.0f32), 1000.000000001f32));
+    tree_rend.feed(EffectSend::new(tree.root(0).clone(), 0), &Partial::new(0, Complex32::new(0.0f32, 1.0f32), 1000.000000001f32));
 
-    while let Some(partial) = tree_rend.step() {
+    while let Some((_channel, partial)) = tree_rend.step() {
         partial_rend.feed(&partial);
     }
     //print!("partial_rend: {:?}\n", partial_rend);

@@ -6,10 +6,15 @@ use std::collections::hash_map;
 use std::rc::Rc;
 
 use super::effect::Effect;
-use super::effect_node::EffectNode;
+use super::effect_node::{EffectNode, EffectNodeType};
 use super::effect_send::EffectSend;
 use super::effect_tree::EffectTree;
 use super::partial::Partial;
+
+pub enum StreamDest<'a> {
+    EffectSends(Vec<EffectSend<'a>>),
+    ChannelSink(u8),
+}
 
 /// Packages information on how to get the next partial in an effect's output
 /// stream, where to send it, and the last retrieved partial.
@@ -17,7 +22,7 @@ use super::partial::Partial;
 /// partials can be handled based on how soon they must be rendered.
 pub struct PartialStream<'a> {
     stream : EffectProcessIter,
-    destinations : Vec<EffectSend<'a>>,
+    dest : StreamDest<'a>,
     pending : Partial,
 }
 
@@ -42,6 +47,9 @@ enum EffectRenderState {
     StartTimeOffset,
     /// see effect::Effect::FreqScale
     FreqScale,
+    /// All inputs sent to this effect should be sent to the tree's output at a
+    /// specific channel
+    ChannelSink(u8),
 }
 
 /// Each partial sent to an effect creates an iterator that describes the
@@ -74,9 +82,13 @@ impl<'a> PartialOrd for PartialStream<'a> {
 
 impl<'a> PartialStream<'a> {
     pub fn new(stream : EffectProcessIter,
-      destinations : Vec<EffectSend<'a>>, pending : Partial)
+      dest : StreamDest<'a>, pending : Partial)
       -> PartialStream<'a> {
-          PartialStream{ stream:stream, destinations:destinations, pending:pending }
+        PartialStream {
+            stream:stream,
+            dest:dest,
+            pending:pending
+        }
     }
 }
 
@@ -92,53 +104,74 @@ impl<'a> EffectTreeRenderer <'a> {
     /// send a partial to the given `dest`
     pub fn feed(&mut self, dest : EffectSend<'a>, partial : &Partial) {
         // send the partial to the effect, which creates an iterator for the effect's output
-        let new_iter = match self.effect_states.entry(dest.effect_node().clone()) {
-            hash_map::Entry::Vacant(entry) => {
-                entry.insert(EffectRenderState::new(dest.effect_node().effect()))
-            },
-            hash_map::Entry::Occupied(ref mut entry) => entry.get_mut()
-        }.process(partial, dest.send_slot());
+        let new_iter;
+        let new_dests;
+        {
+            let mut state_entry = self.effect_states.entry(dest.effect_node().clone());
+            let render_state = match state_entry {
+                hash_map::Entry::Vacant(entry) => {
+                    entry.insert(EffectRenderState::new(dest.effect_node().effect()))
+                },
+                hash_map::Entry::Occupied(ref mut entry) => entry.get_mut()
+            };
+            new_dests = match render_state {
+                &mut EffectRenderState::ChannelSink(ref channel) => {
+                    StreamDest::ChannelSink(*channel)
+                },
+                &mut _ => {
+                    StreamDest::EffectSends(dest.effect_node().sends().clone())
+                }
+            };
+            new_iter = render_state.process(partial, dest.send_slot());
+        }
         // add the new Partial Iterator into our heap
-        self.check_add_stream(new_iter, dest.effect_node().sends().clone());
+        self.check_add_stream(new_iter, new_dests);
     }
-    /// if `iter` has another item, push its next item, `destinations` & `iter`
+    /// if `iter` has another item, push its next item, `dest` & `iter`
     /// onto the heap of PartialStreams
     fn check_add_stream(&mut self, mut iter : EffectProcessIter,
-      destinations : Vec<EffectSend<'a>> ) {
+      dest : StreamDest<'a> ) {
         iter.next().map(|partial| {
-            let stream = PartialStream::new(iter, destinations, partial);
+            let stream = PartialStream::new(iter, dest, partial);
             self.partial_streams.push(stream);
         });
     }
     /// Takes the front-most Partial and processes it.
     /// Returns Some(Partial) if this results in a new Partial that has exited
     /// from the root of the tree (ready to be rendered to audio), else None.
-    pub fn step(&mut self) -> Option<Partial> {
+    pub fn step(&mut self) -> Option<(u8, Partial)> {
         self.partial_streams.pop().map_or(None, |stream| {
-            if stream.destinations.is_empty() {
-                // Partial has been fully processed
-                Some(stream.pending)
-            } else {
-                // send the partial to the destination effects/slots
-                for send in &stream.destinations {
-                    self.feed(send.clone(), &stream.pending);
+            match stream.dest {
+                StreamDest::EffectSends(sends) => {
+                    // send the partial to the destination effects/slots
+                    for send in &sends {
+                        self.feed(send.clone(), &stream.pending);
+                    }
+                    // since we popped the original stream, we have to re-add it as well:
+                    // NOTE: popping & re-pushing IS necessary, since by advancing the iterator,
+                    // we alter this stream's position in the queue.
+                    self.check_add_stream(stream.stream, StreamDest::EffectSends(sends));
+                    None
                 }
-                // since we popped the original stream, we have to re-add it as well:
-                // NOTE: popping & re-pushing IS necessary, since by advancing the iterator,
-                // we alter this stream's position in the queue.
-                self.check_add_stream(stream.stream, stream.destinations);
-                None
+                // destination is an audio sink; yield the partial
+                StreamDest::ChannelSink(channel) => Some((channel, stream.pending))
             }
         })
     }
 }
 
 impl EffectRenderState {
-    pub fn new(effect : &Effect) -> EffectRenderState {
+    pub fn new(effect : &EffectNodeType) -> EffectRenderState {
         match effect {
-            &Effect::AmpScale => EffectRenderState::AmpScale,
-            &Effect::StartTimeOffset => EffectRenderState::StartTimeOffset,
-            &Effect::FreqScale => EffectRenderState::FreqScale,
+            &EffectNodeType::EffectNode(Effect::AmpScale) =>
+                EffectRenderState::AmpScale,
+            &EffectNodeType::EffectNode(Effect::StartTimeOffset) =>
+                EffectRenderState::StartTimeOffset,
+            &EffectNodeType::EffectNode(Effect::FreqScale) =>
+                EffectRenderState::FreqScale,
+            // Don't allow arbitrary sinks; the EffectTree must explicitly specify them.
+            &EffectNodeType::Sink => EffectRenderState::ChannelSink(0), /*panic!(
+                "EffectNodeType::Sink objects must be explicitly declared by EffectTree ahead-of-time"),*/
         }
     }
     /// Given @partial as an input to the effect through the slot at @slot_no,
@@ -147,8 +180,9 @@ impl EffectRenderState {
     pub fn process(&self, partial : &Partial, _slot_no : u32) -> EffectProcessIter {
         match self {
             &EffectRenderState::AmpScale => unimplemented!(),
-            &EffectRenderState::StartTimeOffset => EffectProcessIter{ p:Some(*partial) },
+            &EffectRenderState::StartTimeOffset => unimplemented!(),
             &EffectRenderState::FreqScale => unimplemented!(),
+            &EffectRenderState::ChannelSink(ref _channel) => EffectProcessIter{ p:Some(*partial) },
         }
     }
 }

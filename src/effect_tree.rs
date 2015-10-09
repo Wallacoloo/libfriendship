@@ -1,20 +1,22 @@
 use std::rc::Rc;
 
 use super::effect_node::EffectNode;
-use super::effect::Effect;
 
 pub struct EffectTree<'a> {
-    root : Rc<EffectNode<'a>>,
+    roots : Vec<Rc<EffectNode<'a>>>,
 }
 
 impl<'a> EffectTree<'a> {
-    /// creates a new Tree, where the root is a Sum effect
-    pub fn new() -> EffectTree<'a> {
-        let root_effect = Effect::StartTimeOffset;
-        let root_node = Rc::new(EffectNode::new(root_effect, vec![]));
-        EffectTree{ root:root_node }
+    /// creates a new Tree with @num_channels roots
+    pub fn new(num_channels : u8) -> EffectTree<'a> {
+        let mut roots = vec![];
+        for _ in 0..num_channels {
+            roots.push(Rc::new(EffectNode::new_sink()));
+        }
+        EffectTree{ roots:roots }
     }
-    pub fn root(&'a self) -> &Rc<EffectNode> {
-        &self.root
+    /// access the @n'th root (channel) of the tree
+    pub fn root(&'a self, n : u8) -> &'a Rc<EffectNode> {
+        &self.roots[n as usize]
     }
 }

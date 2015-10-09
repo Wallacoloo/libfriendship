@@ -10,6 +10,13 @@ use super::effect_send::EffectSend;
 /// order to give it a unique tag.
 static mut effect_id_gen : AtomicUsize = ATOMIC_USIZE_INIT;
 
+pub enum EffectNodeType {
+    /// Node represents an ordinary effect
+    EffectNode(Effect),
+    /// Node represents some audio destination, e.g. a channel output
+    Sink,
+}
+
 /// Describes a node on the effect tree, where leaves point up towards the root
 /// Each leaf consists of an Effect and info on where to send that effect's
 /// output.
@@ -17,17 +24,31 @@ pub struct EffectNode<'a> {
     /// in order to store this structure as a key in an associative container,
     /// e.g. a HashMap, we need some way to uniquely tag effects, hence `id`
     id : u32,
-    effect : Effect,
+    effect : EffectNodeType,
     sends : Vec<EffectSend<'a>>,
 }
 
 impl<'a> EffectNode<'a> {
+    fn next_id() -> u32 {
+        let id = unsafe { effect_id_gen.fetch_add(1, atomic::Ordering::SeqCst) };
+        id as u32
+    }
     pub fn new(effect : Effect, sends : Vec<EffectSend<'a>>)
       -> EffectNode<'a> {
-        let id = unsafe { effect_id_gen.fetch_add(1, atomic::Ordering::SeqCst) };
-        EffectNode{ effect:effect, sends:sends, id:id as u32 }
+        EffectNode {
+            id:EffectNode::next_id(),
+            effect:EffectNodeType::EffectNode(effect),
+            sends:sends
+        }
     }
-    pub fn effect(&self) -> &Effect {
+    pub fn new_sink() -> EffectNode<'a> {
+        EffectNode {
+            id:EffectNode::next_id(),
+            effect:EffectNodeType::Sink,
+            sends:vec![]
+        }
+    }
+    pub fn effect(&self) -> &EffectNodeType {
         &self.effect
     }
     pub fn sends(&self) -> &Vec<EffectSend<'a>> {

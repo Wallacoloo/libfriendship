@@ -1,7 +1,6 @@
 use std::rc::Rc;
 
 use super::effect_node::EffectNode;
-use super::partial::Partial;
 
 /// Specifies an effect and a specific input slot to send Partials to.
 #[derive(Clone)]
