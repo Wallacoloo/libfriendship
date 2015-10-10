@@ -1,6 +1,7 @@
 extern crate num;
 use self::num::complex::Complex32;
 
+mod automation;
 mod effect;
 mod effect_node;
 mod effect_send;
