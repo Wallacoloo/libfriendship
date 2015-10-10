@@ -3,7 +3,7 @@ use std::hash::{self, Hash};
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
 use std::sync::atomic;
 
-use super::effect::Effect;
+use super::effect::{AutomationEffect, Effect};
 use super::effect_send::EffectSend;
 
 /// This variable is incremented every time a new EffectNode is created in
@@ -13,6 +13,7 @@ static mut effect_id_gen : AtomicUsize = ATOMIC_USIZE_INIT;
 pub enum EffectNodeType {
     /// Node represents an ordinary effect
     EffectNode(Effect),
+    AutomationNode(AutomationEffect),
     /// Node represents some audio destination, e.g. a channel output
     Sink,
 }

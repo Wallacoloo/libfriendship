@@ -171,6 +171,7 @@ impl EffectRenderState {
             // Don't allow arbitrary sinks; the EffectTree must explicitly specify them.
             &EffectNodeType::Sink => panic!("EffectNodeType::Sink objects \
                 must be explicitly declared by EffectTree ahead-of-time"),
+            &EffectNodeType::AutomationNode(_) => unimplemented!(),
         }
     }
     pub fn new_channel_sink(effect : &EffectNodeType, ch : u8) -> EffectRenderState {

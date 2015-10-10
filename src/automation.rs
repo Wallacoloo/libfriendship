@@ -6,6 +6,10 @@ use self::num::complex::Complex32;
 /// where u(t) is the unit step function,
 /// and coeff is a complex exponential, which is used to encode both the
 /// amplitude and phase shift of the sinusoid.
+///
+/// A good way to visualize an automation is with the x-axis corresponding to w,
+/// The z axis corresponding to t,
+/// And the y axis corresponds to f(w, t)
 #[derive(Clone, Copy, Debug)]
 pub struct Automation {
     /// time at which the automation should be gated on, in microseconds

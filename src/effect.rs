@@ -18,3 +18,15 @@ pub enum Effect {
     /// f(w, t) is the automation evaluated at (w (fixed), t (variable))
     FreqScale,
 }
+
+/// An AutomationEffect takes two inputs, *both* of which are automations,
+/// and outputs a new automation.
+pub enum AutomationEffect {
+	/// given f(w, t) and g(w, t), result = f(w, t)*g(w, t)
+	AmpScale,
+	/// result = f(w, g(w, t))
+	TimeMap,
+    /// result is f(g(w, t), t)
+    FreqMap,
+    // non-exhaustive list
+}
