@@ -4,6 +4,7 @@ use self::num::complex::Complex32;
 mod automation;
 mod partial;
 mod render;
+mod tree;
 
 use std::mem;
 use partial::Partial;
