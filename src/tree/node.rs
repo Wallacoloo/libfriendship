@@ -1,4 +1,5 @@
 use std::cmp::{Ord, Ordering};
+use std::hash::Hash;
 use std::sync::atomic;
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
 
@@ -13,6 +14,7 @@ type NodeId = u32;
 ///   A2 (a sum of automations)
 /// Provides one output: A1*A2, which is a sum of automations
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Hash)]
 pub struct ANode {
     id: NodeId,
 }
@@ -22,11 +24,13 @@ pub struct ANode {
 ///   A (a sum of automations)
 /// Provides one output: Y*A, which is a sum of partials
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Hash)]
 pub struct YNode {
     id: NodeId,
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Hash)]
 pub enum Node {
     ANode(ANode),
     YNode(YNode),
@@ -36,6 +40,7 @@ pub enum Node {
 /// of an ANode, or to the right input.
 #[derive(Clone, Copy, Debug)]
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Hash)]
 pub enum NodeInputSlot {
     Left,
     Right,
