@@ -32,14 +32,14 @@ pub struct YNode {
 /// Node that spontaneously generates Automations
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 #[derive(Hash)]
-pub struct ASource {
+pub struct ASrcNode {
     id: NodeId,
 }
 
 /// Node that spontaneously generates Partials
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 #[derive(Hash)]
-pub struct YSource {
+pub struct YSrcNode {
     id: NodeId,
 }
 
@@ -48,7 +48,7 @@ pub struct YSource {
     /// (e.g. two for a stereo system)#[derive(PartialEq, Eq, PartialOrd, Ord)]
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 #[derive(Hash)]
-pub struct YSink {
+pub struct YSinkNode {
     id: NodeId,
 }
 
@@ -57,9 +57,9 @@ pub struct YSink {
 pub enum Node {
     ANode(ANode),
     YNode(YNode),
-    ASource(ASource),
-    YSource(YSource),
-    YSink(YSink),
+    ASrcNode(ASrcNode),
+    YSrcNode(YSrcNode),
+    YSinkNode(YSinkNode),
 }
 
 /// Used primarily in Sends; Automations can either be sent to the *left* input
@@ -97,20 +97,20 @@ impl YNode {
     }
 }
 
-impl ASource {
-    pub fn new() -> ASource {
-        ASource{ id: Node::consume_next_id() }
+impl ASrcNode {
+    pub fn new() -> ASrcNode {
+        ASrcNode{ id: Node::consume_next_id() }
     }
 }
 
-impl YSource {
-    pub fn new() -> YSource {
-        YSource{ id: Node::consume_next_id() }
+impl YSrcNode {
+    pub fn new() -> YSrcNode {
+        YSrcNode{ id: Node::consume_next_id() }
     }
 }
 
-impl YSink {
-    pub fn new() -> YSink {
-        YSink{ id: Node::consume_next_id() }
+impl YSinkNode {
+    pub fn new() -> YSinkNode {
+        YSinkNode{ id: Node::consume_next_id() }
     }
 }
