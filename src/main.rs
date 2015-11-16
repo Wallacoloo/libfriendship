@@ -2,31 +2,20 @@ extern crate num;
 use self::num::complex::Complex32;
 
 mod automation;
-mod effect;
-mod effect_node;
-mod effect_send;
-mod effect_tree;
-mod effect_tree_renderer;
 mod multi_channel_partial_renderer;
 mod partial;
 mod partial_renderer;
 
 use std::mem;
-use effect_send::EffectSend;
-use effect_tree::EffectTree;
-use effect_tree_renderer::EffectTreeRenderer;
 use multi_channel_partial_renderer::MultiChannelPartialRenderer;
 use partial::Partial;
 use partial_renderer::PartialRenderer;
 
 fn main() {
-    print!("Size of EffectNode: {}\n", mem::size_of::<effect_node::EffectNode>());
-    print!("Size of EffectSend: {}\n", mem::size_of::<effect_send::EffectSend>());
-    print!("Size of PartialStream: {}\n", mem::size_of::<effect_tree_renderer::PartialStream>());
     print!("Size of PartialRenderer: {}\n", mem::size_of::<PartialRenderer>());
 
     // Test it out: try to render a 1000 rad/sec sine wave.
-    let tree = EffectTree::new(2);
+    /*let tree = EffectTree::new(2);
     let mut tree_rend = EffectTreeRenderer::new(&tree);
     let mut partial_rend = MultiChannelPartialRenderer::new(44100, tree.num_roots());
 
@@ -57,6 +46,6 @@ fn main() {
         let out_l = partial_rend.step(0);
         let out_r = partial_rend.step(1);
         print!("Output: {} {}\n", out_l, out_r);
-    }
+    }*/
     //print!("partial_rend: {:?}\n", partial_rend);
 }
