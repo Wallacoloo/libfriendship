@@ -2,17 +2,17 @@ extern crate num;
 use self::num::complex::Complex32;
 
 mod automation;
-mod multi_channel_partial_renderer;
 mod partial;
-mod partial_renderer;
+mod render;
 
 use std::mem;
-use multi_channel_partial_renderer::MultiChannelPartialRenderer;
 use partial::Partial;
-use partial_renderer::PartialRenderer;
+use render::reference::nchannel_partial_renderer::NChannelPartialRenderer;
+use render::reference::partial_renderer::PartialRenderer;
 
 fn main() {
-    print!("Size of PartialRenderer: {}\n", mem::size_of::<PartialRenderer>());
+    print!("init");
+    //print!("Size of PartialRenderer: {}\n", mem::size_of::<PartialRenderer>());
 
     // Test it out: try to render a 1000 rad/sec sine wave.
     /*let tree = EffectTree::new(2);

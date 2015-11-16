@@ -5,7 +5,7 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::collections::btree_map;
 
-use super::partial::Partial;
+use partial::Partial;
 
 /// Any angular frequencies within this distance from eachother will be
 /// considere equal, and the difference is attributed to float rounding.
