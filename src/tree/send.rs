@@ -1,9 +1,11 @@
+use std::cmp::{Ord, Ordering, PartialEq, PartialOrd};
 use std::rc::Rc;
 
-use super::node::{ANode, NodeInputSlot, YNode};
+use super::node::{ANode, Node, NodeInputSlot, YNode};
 
 /// Sends an automation stream from the output of an ANode to the input of
 /// another ANode (either the left or right slot, as specified)
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct AASend {
     src: Rc<ANode>,
     dest: Rc<ANode>,
@@ -12,6 +14,7 @@ pub struct AASend {
 
 /// Sends an automation stream from the output of a ANode to the (right) input
 /// of a YNode
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct AYSend {
     src: Rc<ANode>,
     dest: Rc<YNode>,
@@ -19,11 +22,13 @@ pub struct AYSend {
 
 /// Sends a partial stream from the output of a YNode to the (left) input of
 ///   another YNode.
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct YYSend {
     src: Rc<YNode>,
     dest: Rc<YNode>,
 }
 
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub enum Send {
     AASend(AASend),
     AYSend(AYSend),
@@ -69,4 +74,3 @@ impl YYSend {
         &self.dest
     }
 }
-
