@@ -29,11 +29,37 @@ pub struct YNode {
     id: NodeId,
 }
 
+/// Node that spontaneously generates Automations
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Hash)]
+pub struct ASource {
+    id: NodeId,
+}
+
+/// Node that spontaneously generates Partials
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Hash)]
+pub struct YSource {
+    id: NodeId,
+}
+
+/// Node whose output may be intercepted and routed out of the tree.
+    /// Typically, there is one of these for each audio channel.
+    /// (e.g. two for a stereo system)#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Hash)]
+pub struct YSink {
+    id: NodeId,
+}
+
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 #[derive(Hash)]
 pub enum Node {
     ANode(ANode),
     YNode(YNode),
+    ASource(ASource),
+    YSource(YSource),
+    YSink(YSink),
 }
 
 /// Used primarily in Sends; Automations can either be sent to the *left* input
@@ -68,5 +94,23 @@ impl ANode {
 impl YNode {
     pub fn new() -> YNode {
         YNode{ id: Node::consume_next_id() }
+    }
+}
+
+impl ASource {
+    pub fn new() -> ASource {
+        ASource{ id: Node::consume_next_id() }
+    }
+}
+
+impl YSource {
+    pub fn new() -> YSource {
+        YSource{ id: Node::consume_next_id() }
+    }
+}
+
+impl YSink {
+    pub fn new() -> YSink {
+        YSink{ id: Node::consume_next_id() }
     }
 }
