@@ -3,18 +3,19 @@ use std::rc::Rc;
 use automation::Automation;
 use partial::Partial;
 
-use super::node::{ANode, YNode, ASrcNode, YSrcNode, YSinkNode};
+use super::node::{ANode, YNode};
 use super::send::Send;
 
 trait Tree {
     /// Connect two nodes in the tree.
+    /// If the send is ASrcSend / YSrcSend, this is the same as feeding
+    /// external stimuli into the tree.
     fn add_send(&mut self, send: Send);
 
-    /// add Automation external stimuli to the tree.
-    fn feed_a(&mut self, a: Automation, src: Rc<ASrcNode>);
-    /// add Partial external stimuli to the tree.
-    fn feed_y(&mut self, y: Partial, src: Rc<YSrcNode>);
-    /// Poll the next Partial to arrive at any sink.
-    /// Will return None if there are no new partials to be output.
-    fn next(&mut self) -> Option<Rc<YSinkNode>, Partial>;
+    /// set the nodes for which we are interested in the output PCM signals.
+    /// Future calls to `step()` will return an array of samples corresponding
+    /// to these nodes.
+    fn watch_nodes(&mut self, outputs: &[Rc<YNode>]);
+    /// Return the next buffer of samples related to the watched nodes.
+    fn step(&mut self) -> &[f32];
 }

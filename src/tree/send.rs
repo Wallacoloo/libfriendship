@@ -2,8 +2,10 @@ use std::cmp::{Ord, Ordering, PartialEq, PartialOrd};
 use std::hash::Hash;
 use std::rc::Rc;
 
-use super::node::{ANode, ASrcNode, Node, NodeInputSlot, YNode, YSinkNode,
-    YSrcNode};
+use automation::Automation;
+use partial::Partial;
+
+use super::node::{ANode, Node, NodeInputSlot, YNode};
 
 /// Sends an Automation stream from the output of an ANode to the input of
 /// another ANode (either the left or right slot, as specified)
@@ -33,30 +35,25 @@ pub struct YYSend {
     dest: Rc<YNode>,
 }
 
-/// Sends an Automation stream from an external stimuli into the ANode
+/// Sends an Automation stream from an external stimuli into the output slot of
+/// the ANode
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 #[derive(Hash)]
 pub struct ASrcSend {
-    src: Rc<ASrcNode>,
+    src: Automation,
     dest: Rc<ANode>,
     dest_slot: NodeInputSlot,
 }
 
-/// Sends a Partial stream from an external stimuli into the YNode
+/// Sends a Partial stream from an external stimuli into the the output slot of
+/// a YNode
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 #[derive(Hash)]
 pub struct YSrcSend {
-    src: Rc<YSrcNode>,
+    src: Partial,
     dest: Rc<YNode>,
 }
 
-/// Sends a Partial stream to a node that may be connected to the outside world.
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
-#[derive(Hash)]
-pub struct YSinkSend {
-    src: Rc<YNode>,
-    dest: Rc<YSinkNode>,
-}
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 #[derive(Hash)]
@@ -66,7 +63,6 @@ pub enum Send {
     YYSend(YYSend),
     ASrcSend(ASrcSend),
     YSrcSend(YSrcSend),
-    YSinkSend(YSinkSend),
 }
 
 impl AASend {
@@ -111,11 +107,11 @@ impl YYSend {
 
 
 impl ASrcSend {
-    pub fn new(src: Rc<ASrcNode>, dest: Rc<ANode>, dest_slot: NodeInputSlot)
+    pub fn new(src: Automation, dest: Rc<ANode>, dest_slot: NodeInputSlot)
     -> ASrcSend {
         ASrcSend{ src: src, dest:dest, dest_slot: dest_slot }
     }
-    pub fn src(&self) -> &Rc<ASrcNode> {
+    pub fn src(&self) -> &Automation { 
         &self.src
     }
     pub fn dest(&self) -> &Rc<ANode> {
@@ -127,10 +123,10 @@ impl ASrcSend {
 }
 
 impl YSrcSend {
-    pub fn new(src: Rc<YSrcNode>, dest: Rc<YNode>) -> YSrcSend {
+    pub fn new(src: Partial, dest: Rc<YNode>) -> YSrcSend {
         YSrcSend{ src: src, dest:dest }
     }
-    pub fn src(&self) -> &Rc<YSrcNode> {
+    pub fn src(&self) -> &Partial {
         &self.src
     }
     pub fn dest(&self) -> &Rc<YNode> {
@@ -138,14 +134,3 @@ impl YSrcSend {
     }
 }
 
-impl YSinkSend {
-    pub fn new(src: Rc<YNode>, dest: Rc<YSinkNode>) -> YSinkSend {
-        YSinkSend{ src: src, dest:dest }
-    }
-    pub fn src(&self) -> &Rc<YNode> {
-        &self.src
-    }
-    pub fn dest(&self) -> &Rc<YSinkNode> {
-        &self.dest
-    }
-}

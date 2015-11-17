@@ -1,4 +1,8 @@
 extern crate num;
+
+use std::cmp::Ord;
+use std::hash::Hash;
+
 use self::num::complex::Complex32;
 
 /// describes an automation of the form:
@@ -9,6 +13,8 @@ use self::num::complex::Complex32;
 /// and ww (omega_w) is the modulation parameter.
 /// w is substituted with the partial's wt upon multiplication.
 #[derive(Clone, Copy, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Hash)]
 pub struct Automation {
     /// complex amplitude coefficient
     coeff : Complex32,
