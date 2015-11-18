@@ -26,9 +26,13 @@ impl Eq for Real32 {}
 
 impl Hash for Real32 {
     fn hash<H>(&self, state: &mut H) where H: Hasher {
+        // we need to satisfy hash(x) = hash(y) for any x=y.
+        // This includes +0.0 == -0.0,
+        // so before hashing the bits, force the number to be non-negative:
+        let v = self.value.abs();
         // reinterpret the bytes of our float as a u32 & hash that
         state.write_u32(unsafe {
-            mem::transmute(self.value.clone())
+            mem::transmute(v)
         });
     }
 }
