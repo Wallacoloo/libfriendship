@@ -1,4 +1,4 @@
-use std::cmp::{Ord, Ordering, PartialEq, PartialOrd};
+use std::cmp::{PartialEq, PartialOrd};
 use std::hash::Hash;
 use std::rc::Rc;
 
@@ -9,7 +9,7 @@ use super::node::{ANode, Node, NodeInputSlot, YNode};
 
 /// Sends an Automation stream from the output of an ANode to the input of
 /// another ANode (either the left or right slot, as specified)
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(PartialEq, Eq)]
 #[derive(Hash)]
 pub struct AASend {
     src: Rc<ANode>,
@@ -19,7 +19,7 @@ pub struct AASend {
 
 /// Sends an Automation stream from the output of a ANode to the (right) input
 /// of a YNode
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(PartialEq, Eq)]
 #[derive(Hash)]
 pub struct AYSend {
     src: Rc<ANode>,
@@ -28,7 +28,7 @@ pub struct AYSend {
 
 /// Sends a Partial stream from the output of a YNode to the (left) input of
 ///   another YNode.
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(PartialEq, Eq)]
 #[derive(Hash)]
 pub struct YYSend {
     src: Rc<YNode>,
@@ -37,7 +37,7 @@ pub struct YYSend {
 
 /// Sends an Automation stream from an external stimuli into the output slot of
 /// the ANode
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(PartialEq, Eq)]
 #[derive(Hash)]
 pub struct ASrcSend {
     src: Automation,
@@ -47,7 +47,7 @@ pub struct ASrcSend {
 
 /// Sends a Partial stream from an external stimuli into the the output slot of
 /// a YNode
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(PartialEq, Eq)]
 #[derive(Hash)]
 pub struct YSrcSend {
     src: Partial,
@@ -55,7 +55,7 @@ pub struct YSrcSend {
 }
 
 
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(PartialEq, Eq)]
 #[derive(Hash)]
 pub enum Send {
     AASend(AASend),

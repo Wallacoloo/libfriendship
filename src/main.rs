@@ -1,8 +1,7 @@
-extern crate num;
-use self::num::complex::Complex32;
-
 mod automation;
 mod partial;
+mod phaser;
+mod real;
 mod render;
 mod tree;
 

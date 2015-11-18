@@ -1,9 +1,10 @@
 extern crate num;
 
-use std::cmp::Ord;
+use std::cmp::{PartialEq, PartialOrd};
 use std::hash::Hash;
 
-use self::num::complex::Complex32;
+use phaser::PhaserCoeff;
+use real::Real32;
 
 /// describes an automation of the form:
 /// y = coeff * exp(i*wt*t) * exp(i*ww*w)
@@ -13,32 +14,33 @@ use self::num::complex::Complex32;
 /// and ww (omega_w) is the modulation parameter.
 /// w is substituted with the partial's wt upon multiplication.
 #[derive(Clone, Copy, Debug)]
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+#[derive(PartialEq, Eq)]
 #[derive(Hash)]
 pub struct Automation {
     /// complex amplitude coefficient
-    coeff : Complex32,
+    coeff : PhaserCoeff,
     /// frequency of the sinusoid, in radians/second
-    omega : f32,
+    omega : Real32,
     /// modulation frequency (used in binary operations)
-    omega_w : f32,
+    omega_w : Real32,
 }
 
 impl Automation {
-    pub fn new(coeff : Complex32, omega : f32, omega_w : f32) -> Automation {
+    pub fn new(coeff : PhaserCoeff, omega : Real32, omega_w : Real32) -> Automation {
         Automation{
             coeff: coeff,
             omega: omega,
             omega_w: omega_w
         }
     }
-    pub fn coeff(&self) -> Complex32 {
+    pub fn coeff(&self) -> PhaserCoeff {
         self.coeff
     }
-    pub fn omega(&self) -> f32 {
+    pub fn omega(&self) -> Real32 {
         self.omega
     }
-    pub fn omega_w(&self) -> f32 {
+    pub fn omega_w(&self) -> Real32 {
         self.omega_w
     }
 }
+
