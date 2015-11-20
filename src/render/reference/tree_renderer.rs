@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use automation::Automation;
 use partial::Partial;
-use tree::node::{ANode, YNode};
+use tree::node::{ANode, NodeInputSlot, YNode};
 use tree::send::{AASend, AYSend, Send, YYSend};
 use tree::tree::Tree;
 
@@ -13,6 +13,8 @@ use tree::tree::Tree;
 struct ANodeState {
     left: Vec<Automation>,
     right: Vec<Automation>,
+    aasends: Vec<AASend>,
+    aysends: Vec<AYSend>
 }
 
 /// Tracks all the partials/automations that have ever entered the node.
@@ -21,6 +23,7 @@ struct ANodeState {
 struct YNodeState {
     left: Vec<Partial>,
     right: Vec<Automation>,
+    yysends: Vec<YYSend>,
 }
 
 
@@ -40,10 +43,71 @@ impl TreeRenderer {
             output_buff: vec![]
         }
     }
+    /// Get the ANodeState associated with a node,
+    /// and create it if it doesn't already exist.
     fn get_anode_state(&mut self, node: &Rc<ANode>) -> &mut ANodeState {
         unimplemented!();
+        //&self.anode_states[node]
     }
+    /// Get the YNodeState associated with a node,
+    /// and create it if it doesn't already exist.
     fn get_ynode_state(&mut self, node: &Rc<YNode>) -> &mut YNodeState {
+        unimplemented!();
+        //&self.ynode_states[node]
+    }
+    /// Send a partial to the input of any nodes connected to the output of the
+    /// given node.
+    fn broadcast_partial(&mut self, from: &Rc<YNode>, partial: Partial) {
+        // need to clone the State's sends to avoid mutability problems
+        let sends = self.get_ynode_state(from).yysends.clone();
+        for ref send in sends.iter() {
+            self.ynode_input_left(send.dest(), partial);
+        }
+    }
+    /// Send an Automation to the input of any nodes connected to the output of
+    /// the given node.
+    fn broadcast_autom(&mut self, from: &Rc<ANode>, autom: Automation) {
+        // need to clone the State's sends to avoid mutability problems
+        let aasends = self.get_anode_state(from).aasends.clone();
+        let aysends = self.get_anode_state(from).aysends.clone();
+        // send automation input to the YNodes:
+        for ref send in aysends.iter() {
+            self.ynode_input_right(send.dest(), autom);
+        }
+        // send the automation to the other ANodes:
+        for ref send in aasends.iter() {
+            self.anode_input(send.dest(), send.dest_slot(), autom);
+        }
+    }
+    /// Add a partial to the YNode's left slot
+    fn ynode_input_left(&mut self, node: &Rc<YNode>, partial: Partial) {
+        let right;
+        {
+            let mut state = self.get_ynode_state(node);
+            state.left.push(partial);
+            // need to clone the State's right-hand-side to avoid mut issues
+            right = state.right.clone();
+        }
+        // compute any new outputs & broadcast them.
+        for autom in right.iter() {
+            self.broadcast_partial(node, autom.apply_to_partial(partial));
+        }
+    }
+    fn ynode_input_right(&mut self, node: &Rc<YNode>, autom: Automation) {
+        let left;
+        {
+            let mut state = self.get_ynode_state(node);
+            state.right.push(autom);
+            // need to clone the State's left-hand-side to avoid mut issues
+            left = state.left.clone();
+        }
+        // compute any new outputs & broadcast them.
+        for partial in left.iter() {
+            self.broadcast_partial(node, autom.apply_to_partial(*partial));
+        }
+    }
+    fn anode_input(&mut self, node: &Rc<ANode>, slot: NodeInputSlot,
+      autom: Automation) {
         unimplemented!();
     }
 }
@@ -64,10 +128,10 @@ impl Tree for TreeRenderer {
                 self.get_ynode_state(send.src()).add_yysend(send);
             },
             Send::ASrcSend(send) => {
-                self.get_anode_state(send.dest()).add_output(send.src());
+                self.broadcast_autom(send.dest(), *send.src());
             },
             Send::YSrcSend(send) => {
-                self.get_ynode_state(send.dest()).add_output(send.src());
+                self.broadcast_partial(send.dest(), *send.src());
             },
         }
     }
@@ -93,16 +157,10 @@ impl ANodeState {
     fn add_aysend(&mut self, send: AYSend) {
         unimplemented!();
     }
-    fn add_output(&mut self, out: &Automation) {
-        unimplemented!();
-    }
 }
 
 impl YNodeState {
     fn add_yysend(&mut self, send: YYSend) {
-        unimplemented!();
-    }
-    fn add_output(&mut self, out: &Partial) {
         unimplemented!();
     }
 }

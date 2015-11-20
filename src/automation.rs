@@ -1,5 +1,6 @@
 extern crate num;
 
+use partial::Partial;
 use phaser::PhaserCoeff;
 use real::Real32;
 
@@ -38,6 +39,14 @@ impl Automation {
     }
     pub fn omega_w(&self) -> Real32 {
         self.omega_w
+    }
+    /// "multiply" the partial with this automation.
+    pub fn apply_to_partial(&self, other: Partial) -> Partial {
+        unimplemented!();
+    }
+    /// "multiply" the two automations
+    pub fn apply_to_autom(&self, other: Automation) -> Automation {
+        unimplemented!();
     }
 }
 

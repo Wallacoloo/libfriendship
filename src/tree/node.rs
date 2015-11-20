@@ -12,6 +12,7 @@ type NodeId = u32;
 ///   A1 (a sum of automations)
 ///   A2 (a sum of automations)
 /// Provides one output: A1*A2, which is a sum of automations
+#[derive(Debug)]
 #[derive(PartialEq, Eq)]
 #[derive(Hash)]
 pub struct ANode {
@@ -22,6 +23,7 @@ pub struct ANode {
 ///   Y (a sum of partials)
 ///   A (a sum of automations)
 /// Provides one output: Y*A, which is a sum of partials
+#[derive(Debug)]
 #[derive(PartialEq, Eq)]
 #[derive(Hash)]
 pub struct YNode {
@@ -29,6 +31,7 @@ pub struct YNode {
 }
 
 
+#[derive(Debug)]
 #[derive(PartialEq, Eq)]
 #[derive(Hash)]
 pub enum Node {

@@ -7,6 +7,7 @@ use super::node::{ANode, NodeInputSlot, YNode};
 
 /// Sends an Automation stream from the output of an ANode to the input of
 /// another ANode (either the left or right slot, as specified)
+#[derive(Clone, Debug)]
 #[derive(PartialEq, Eq)]
 #[derive(Hash)]
 pub struct AASend {
@@ -17,6 +18,7 @@ pub struct AASend {
 
 /// Sends an Automation stream from the output of a ANode to the (right) input
 /// of a YNode
+#[derive(Clone, Debug)]
 #[derive(PartialEq, Eq)]
 #[derive(Hash)]
 pub struct AYSend {
@@ -26,6 +28,7 @@ pub struct AYSend {
 
 /// Sends a Partial stream from the output of a YNode to the (left) input of
 ///   another YNode.
+#[derive(Clone, Debug)]
 #[derive(PartialEq, Eq)]
 #[derive(Hash)]
 pub struct YYSend {
@@ -35,6 +38,7 @@ pub struct YYSend {
 
 /// Sends an Automation stream from an external stimuli into the output slot of
 /// the ANode
+#[derive(Clone, Debug)]
 #[derive(PartialEq, Eq)]
 #[derive(Hash)]
 pub struct ASrcSend {
@@ -44,6 +48,7 @@ pub struct ASrcSend {
 
 /// Sends a Partial stream from an external stimuli into the the output slot of
 /// a YNode
+#[derive(Clone, Debug)]
 #[derive(PartialEq, Eq)]
 #[derive(Hash)]
 pub struct YSrcSend {
@@ -52,6 +57,7 @@ pub struct YSrcSend {
 }
 
 
+#[derive(Clone, Debug)]
 #[derive(PartialEq, Eq)]
 #[derive(Hash)]
 pub enum Send {
