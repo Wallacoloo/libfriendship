@@ -1,9 +1,6 @@
 use std::rc::Rc;
 
-use automation::Automation;
-use partial::Partial;
-
-use super::node::{ANode, YNode};
+use super::node::YNode;
 use super::send::Send;
 
 pub trait Tree {

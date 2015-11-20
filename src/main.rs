@@ -5,11 +5,6 @@ mod real;
 mod render;
 mod tree;
 
-use std::mem;
-use partial::Partial;
-use render::reference::nchannel_partial_renderer::NChannelPartialRenderer;
-use render::reference::partial_renderer::PartialRenderer;
-
 fn main() {
     print!("init");
     //print!("Size of PartialRenderer: {}\n", mem::size_of::<PartialRenderer>());

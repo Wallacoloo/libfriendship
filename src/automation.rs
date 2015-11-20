@@ -1,8 +1,5 @@
 extern crate num;
 
-use std::cmp::{PartialEq, PartialOrd};
-use std::hash::Hash;
-
 use phaser::PhaserCoeff;
 use real::Real32;
 

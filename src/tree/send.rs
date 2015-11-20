@@ -1,11 +1,9 @@
-use std::cmp::{PartialEq, PartialOrd};
-use std::hash::Hash;
 use std::rc::Rc;
 
 use automation::Automation;
 use partial::Partial;
 
-use super::node::{ANode, Node, NodeInputSlot, YNode};
+use super::node::{ANode, NodeInputSlot, YNode};
 
 /// Sends an Automation stream from the output of an ANode to the input of
 /// another ANode (either the left or right slot, as specified)
