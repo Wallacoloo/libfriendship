@@ -42,7 +42,6 @@ pub struct YYSend {
 pub struct ASrcSend {
     src: Automation,
     dest: Rc<ANode>,
-    dest_slot: NodeInputSlot,
 }
 
 /// Sends a Partial stream from an external stimuli into the the output slot of
@@ -107,18 +106,15 @@ impl YYSend {
 
 
 impl ASrcSend {
-    pub fn new(src: Automation, dest: Rc<ANode>, dest_slot: NodeInputSlot)
+    pub fn new(src: Automation, dest: Rc<ANode>)
     -> ASrcSend {
-        ASrcSend{ src: src, dest:dest, dest_slot: dest_slot }
+        ASrcSend{ src: src, dest:dest }
     }
     pub fn src(&self) -> &Automation { 
         &self.src
     }
     pub fn dest(&self) -> &Rc<ANode> {
         &self.dest
-    }
-    pub fn dest_slot(&self) -> NodeInputSlot {
-        self.dest_slot
     }
 }
 

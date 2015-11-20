@@ -6,7 +6,7 @@ use partial::Partial;
 use super::node::{ANode, YNode};
 use super::send::Send;
 
-trait Tree {
+pub trait Tree {
     /// Connect two nodes in the tree.
     /// If the send is ASrcSend / YSrcSend, this is the same as feeding
     /// external stimuli into the tree.
