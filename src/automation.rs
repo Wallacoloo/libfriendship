@@ -41,12 +41,25 @@ impl Automation {
         self.omega_w
     }
     /// "multiply" the partial with this automation.
+    /// Given Y = c1 exp(i*wt1),
+    /// A = c2 exp(i*wt2) exp(i*ww2*wt1)
+    /// Then the result of A*Y is:
+    /// Yout = c1 c2 exp(i*wt1) exp(i*wt2) exp(i*ww2*wt1)
     pub fn apply_to_partial(&self, other: Partial) -> Partial {
-        unimplemented!();
+        let coeff = other.coeff()*self.coeff() * PhaserCoeff::expi(self.omega_w()*other.ang_freq());
+        let omega = self.omega() + other.ang_freq();
+        Partial::new(coeff, omega)
     }
     /// "multiply" the two automations
+    /// Given A1 = c1 exp(i*wt1) exp(i*ww1*wtp)
+    /// A2 = c2 exp(i*wt2) exp(i*ww2*ww1)
+    /// Then the result of A1*A2 (A2.apply_to_autom(A1)) is:
+    /// Aout = c1 c2 exp(i*wt1) exp(i*wt2) exp(i*ww2*ww1) exp(i*ww1*wtp)
     pub fn apply_to_autom(&self, other: Automation) -> Automation {
-        unimplemented!();
+        let coeff = other.coeff()*self.coeff() * PhaserCoeff::expi(self.omega_w()*other.omega_w());
+        let omega = self.omega() + other.omega();
+        let omega_w = other.omega_w();
+        Automation::new(coeff, omega, omega_w)
     }
 }
 

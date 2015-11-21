@@ -3,7 +3,8 @@ use std::mem;
 use std::ops::{Add, Mul, Neg, Sub};
 
 
-/// Like f32, but has the additional restriction that the value is *finite*.
+/// Like f32, but has the additional restriction that the value is *finite*
+/// and never NaN.
 /// This makes a Real satisfy Total Equality, whereas normal f32 is only
 /// PartialEq due to NaNs.
 #[derive(Clone, Copy, Debug)]
@@ -18,6 +19,12 @@ impl Real32 {
     }
     pub fn value(&self) -> f32 {
         self.value
+    }
+    
+    /// return (sin(self), cos(self))
+    pub fn sin_cos(&self) -> (Real32, Real32) {
+        let sc = self.value().sin_cos();
+        (Real32::new(sc.0), Real32::new(sc.1))
     }
 }
 

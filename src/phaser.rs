@@ -33,6 +33,13 @@ impl PhaserCoeff {
     pub fn norm_sqr(&self) -> Real32 {
         self.re()*self.re() + self.im()*self.im()
     }
+    
+    /// return exp(i*value), where i^2 = -1
+    pub fn expi(value: Real32) -> PhaserCoeff {
+        // expi(w) = cos(w) + i*sin(w)
+        let sc = value.sin_cos();
+        PhaserCoeff::new(sc.1, sc.0)
+    }
 }
 
 
