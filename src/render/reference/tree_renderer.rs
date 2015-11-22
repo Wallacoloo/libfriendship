@@ -46,14 +46,13 @@ impl TreeRenderer {
     /// Get the ANodeState associated with a node,
     /// and create it if it doesn't already exist.
     fn get_anode_state(&mut self, node: &Rc<ANode>) -> &mut ANodeState {
-        unimplemented!();
+        self.anode_states.entry(node.clone()).or_insert_with(|| ANodeState::new())
         //&self.anode_states[node]
     }
     /// Get the YNodeState associated with a node,
     /// and create it if it doesn't already exist.
     fn get_ynode_state(&mut self, node: &Rc<YNode>) -> &mut YNodeState {
-        unimplemented!();
-        //&self.ynode_states[node]
+        self.ynode_states.entry(node.clone()).or_insert_with(|| YNodeState::new())
     }
     /// Send a partial to the input of any nodes connected to the output of the
     /// given node.
@@ -151,6 +150,9 @@ impl Tree for TreeRenderer {
 
 
 impl ANodeState {
+    fn new() -> ANodeState {
+        ANodeState{ left:vec![], right: vec![], aasends: vec![], aysends:vec![] }
+    }
     fn add_aasend(&mut self, send: AASend) {
         unimplemented!();
     }
@@ -160,6 +162,9 @@ impl ANodeState {
 }
 
 impl YNodeState {
+    fn new() -> YNodeState {
+        YNodeState{ left:vec![], right: vec![], yysends: vec![] }
+    }
     fn add_yysend(&mut self, send: YYSend) {
         unimplemented!();
     }
