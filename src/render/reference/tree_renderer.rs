@@ -73,6 +73,13 @@ impl TreeRenderer {
         for ref send in sends.iter() {
             self.ynode_input_left(send.dest(), partial);
         }
+        // If we are operating on an output node, send this to the PartialRenderer
+        if let Some(output) =
+            self.outputs.iter_mut().find(|output_state|
+                output_state.node() == from
+            ) {
+            output.feed(partial);
+        }
     }
     /// Send an Automation to the input of any nodes connected to the output of
     /// the given node.
@@ -220,6 +227,9 @@ impl OutputState {
     }
     fn step(&mut self) -> f32 {
         self.renderer.step()
+    }
+    fn feed(&mut self, partial: Partial) {
+        self.renderer.feed(partial);
     }
 }
 
