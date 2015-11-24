@@ -175,14 +175,16 @@ impl Tree for TreeRenderer {
     /// Future calls to `step()` will return an array of samples corresponding
     /// to these nodes.
     fn watch_nodes(&mut self, outputs: &[Rc<YNode>]) {
-        //self.output_nodes = outputs.to_vec();
         self.outputs = outputs.iter().map(|node| 
             OutputState::new(self.render_spec.clone(), node.clone())
         ).collect();
     }
     /// Return the next buffer of samples related to the watched nodes.
     fn step(&mut self) -> &[f32] {
-        unimplemented!();
+        // Todo: Make use of `Vec::resize once stabilized (Projected for Rust 1.5)
+        self.output_buff = self.outputs.iter_mut().map(
+            |output| output.step()
+        ).collect();
         &self.output_buff
     }
 }
@@ -215,6 +217,9 @@ impl OutputState {
     }
     fn node(&self) -> &Rc<YNode> {
         &self.node
+    }
+    fn step(&mut self) -> f32 {
+        self.renderer.step()
     }
 }
 
