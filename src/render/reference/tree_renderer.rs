@@ -47,7 +47,6 @@ impl TreeRenderer {
     /// and create it if it doesn't already exist.
     fn get_anode_state(&mut self, node: &Rc<ANode>) -> &mut ANodeState {
         self.anode_states.entry(node.clone()).or_insert_with(|| ANodeState::new())
-        //&self.anode_states[node]
     }
     /// Get the YNodeState associated with a node,
     /// and create it if it doesn't already exist.
@@ -107,7 +106,32 @@ impl TreeRenderer {
     }
     fn anode_input(&mut self, node: &Rc<ANode>, slot: NodeInputSlot,
       autom: Automation) {
-        unimplemented!();
+        match slot {
+            NodeInputSlot::Left => {
+                let right;
+                {
+                    let mut state = self.get_anode_state(node);
+                    state.left.push(autom);
+                    right = state.right.clone();
+                }
+                // all the automations in the right bin affect the new autom
+                for autom_right in right.iter() {
+                    self.broadcast_autom(node, autom_right.apply_to_autom(autom));
+                }
+            },
+            NodeInputSlot::Right => {
+                let left;
+                {
+                    let mut state = self.get_anode_state(node);
+                    state.right.push(autom);
+                    left = state.left.clone();
+                }
+                // this new autom affects all automations in the left bin
+                for autom_left in left.iter() {
+                    self.broadcast_autom(node, autom.apply_to_autom(*autom_left));
+                }
+            },
+        };
     }
 }
 
@@ -154,10 +178,10 @@ impl ANodeState {
         ANodeState{ left:vec![], right: vec![], aasends: vec![], aysends:vec![] }
     }
     fn add_aasend(&mut self, send: AASend) {
-        unimplemented!();
+        self.aasends.push(send);
     }
     fn add_aysend(&mut self, send: AYSend) {
-        unimplemented!();
+        self.aysends.push(send);
     }
 }
 
@@ -166,6 +190,6 @@ impl YNodeState {
         YNodeState{ left:vec![], right: vec![], yysends: vec![] }
     }
     fn add_yysend(&mut self, send: YYSend) {
-        unimplemented!();
+        self.yysends.push(send);
     }
 }
