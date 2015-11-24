@@ -9,6 +9,8 @@ use partial::Partial;
 use phaser::PhaserCoeff;
 use real::Real32;
 
+use render::render_spec::RenderSpec;
+
 /// Any angular frequencies within this distance from eachother will be
 /// considered equal, and the difference is attributed to float rounding.
 const FREQ_DELTA : f32 = 0.00001f32;
@@ -34,13 +36,12 @@ pub struct PartialRenderer {
 }
 
 impl PartialRenderer {
-    /// Creates a new renderer, where every `sample_rate` calls to `step()`
-    /// results in 1 second of audio.
-    pub fn new(sample_rate : u32) -> PartialRenderer {
-        PartialRenderer{
+    /// Creates a new renderer according to the provided `spec`
+    pub fn new(spec: RenderSpec) -> PartialRenderer {
+        PartialRenderer {
             partials: BTreeMap::new(),
             frame_idx: 0,
-            inv_sample_rate: 1.0f64/(sample_rate as f64)
+            inv_sample_rate: 1.0f64/(spec.sample_rate() as f64)
         }
     }
     pub fn feed(&mut self, partial : Partial) {

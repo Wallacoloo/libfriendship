@@ -7,6 +7,10 @@ use tree::node::{ANode, NodeInputSlot, YNode};
 use tree::send::{AASend, AYSend, Send, YYSend};
 use tree::tree::Tree;
 
+use render::render_spec::RenderSpec;
+
+use super::partial_renderer::PartialRenderer;
+
 /// Tracks all the partials/automations that have ever entered the node.
 /// This information is needed in order to evaluate the output whenever
 /// a new input arrives.
@@ -14,7 +18,7 @@ struct ANodeState {
     left: Vec<Automation>,
     right: Vec<Automation>,
     aasends: Vec<AASend>,
-    aysends: Vec<AYSend>
+    aysends: Vec<AYSend>,
 }
 
 /// Tracks all the partials/automations that have ever entered the node.
@@ -26,21 +30,29 @@ struct YNodeState {
     yysends: Vec<YYSend>,
 }
 
+struct OutputState {
+    node: Rc<YNode>,
+    renderer: PartialRenderer,
+}
 
 struct TreeRenderer {
+    render_spec: RenderSpec,
     anode_states: HashMap<Rc<ANode>, ANodeState>,
     ynode_states: HashMap<Rc<YNode>, YNodeState>,
-    output_nodes: Vec<Rc<YNode>>,
+    outputs: Vec<OutputState>,
+    // In order to return a slice from the step() function, we need to allocate
+    // some buffer space
     output_buff: Vec<f32>,
 }
 
 impl TreeRenderer {
-    pub fn new() -> TreeRenderer {
+    pub fn new(render_spec: RenderSpec) -> TreeRenderer {
         TreeRenderer{
+            render_spec: render_spec,
             anode_states: HashMap::new(),
             ynode_states: HashMap::new(),
-            output_nodes: vec![],
-            output_buff: vec![]
+            outputs: vec![],
+            output_buff: vec![],
         }
     }
     /// Get the ANodeState associated with a node,
@@ -163,7 +175,10 @@ impl Tree for TreeRenderer {
     /// Future calls to `step()` will return an array of samples corresponding
     /// to these nodes.
     fn watch_nodes(&mut self, outputs: &[Rc<YNode>]) {
-        self.output_nodes = outputs.to_vec();
+        //self.output_nodes = outputs.to_vec();
+        self.outputs = outputs.iter().map(|node| 
+            OutputState::new(self.render_spec.clone(), node.clone())
+        ).collect();
     }
     /// Return the next buffer of samples related to the watched nodes.
     fn step(&mut self) -> &[f32] {
@@ -193,3 +208,13 @@ impl YNodeState {
         self.yysends.push(send);
     }
 }
+
+impl OutputState {
+    fn new(spec: RenderSpec, node: Rc<YNode>) -> OutputState {
+        OutputState{ node: node, renderer: PartialRenderer::new(spec) }
+    }
+    fn node(&self) -> &Rc<YNode> {
+        &self.node
+    }
+}
+
