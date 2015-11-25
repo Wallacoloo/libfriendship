@@ -14,7 +14,23 @@ pub struct Real32 {
 }
 
 impl Real32 {
+    /// It should be possible to create a Real from any finite float.
+    /// 
+    /// # Failure Examples:
+    ///
+    /// ```should_panic
+    /// use libfriendship::real::Real32;
+    /// println!("Real32({})", 0.0f32 / 0.0f32);
+    /// Real32::new(0.0f32 / 0.0f32);
+    /// ```
+    ///
+    /// ```should_panic
+    /// use libfriendship::real::Real32;
+    /// println!("Real32({})", 1.0f32 / 0.0f32);
+    /// Real32::new(1.0f32 / 0.0f32);
+    /// ```
     pub fn new(value: f32) -> Real32 {
+        assert!(value.is_finite());
         Real32{ value: value }
     }
     pub fn value(&self) -> f32 {
