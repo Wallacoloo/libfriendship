@@ -32,6 +32,20 @@ impl Real32 {
 impl Eq for Real32 {}
 
 impl Hash for Real32 {
+    /// Any values that are equal should have the same hash.
+    /// 
+    /// # Examples:
+    ///
+    /// ```
+    /// use libfriendship::real::Real32;
+    /// use std::hash::{Hash, Hasher, SipHasher};
+    ///
+    /// let mut hash_pos = SipHasher::new();
+    /// let mut hash_neg = SipHasher::new();
+    /// Real32::new(0.0f32).hash(&mut hash_pos);
+    /// Real32::new(-0.0f32).hash(&mut hash_neg);
+    /// assert_eq!(hash_pos.finish(), hash_neg.finish());
+    /// ```
     fn hash<H>(&self, state: &mut H) where H: Hasher {
         // we need to satisfy hash(x) = hash(y) for any x=y.
         // This includes +0.0 == -0.0,

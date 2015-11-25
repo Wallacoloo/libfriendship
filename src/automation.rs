@@ -1,5 +1,3 @@
-extern crate num;
-
 use partial::Partial;
 use phaser::PhaserCoeff;
 use real::Real32;

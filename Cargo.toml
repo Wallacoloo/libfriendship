@@ -6,4 +6,3 @@ authors = [ "Colin Wallace <wallacoloo@gmail.com>" ]
 
 [dependencies]
 
-num = "*"
