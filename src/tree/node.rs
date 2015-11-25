@@ -1,4 +1,4 @@
-use std::hash::Hash;
+use std::rc::Rc;
 use std::sync::atomic;
 use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
 
@@ -66,11 +66,17 @@ impl ANode {
     pub fn new() -> ANode {
         ANode{ id: Node::consume_next_id() }
     }
+    pub fn new_rc() -> Rc<ANode> {
+        Rc::new(ANode::new())
+    }
 }
 
 impl YNode {
     pub fn new() -> YNode {
         YNode{ id: Node::consume_next_id() }
+    }
+    pub fn new_rc() -> Rc<YNode> {
+        Rc::new(YNode::new())
     }
 }
 

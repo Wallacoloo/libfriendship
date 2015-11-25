@@ -68,6 +68,30 @@ pub enum Send {
     YSrcSend(YSrcSend),
 }
 
+impl Send {
+    /// Convenience function to create an AAsend in tagged enum form
+    pub fn new_aasend(src: Rc<ANode>, dest: Rc<ANode>, dest_slot: NodeInputSlot)
+    -> Send {
+        Send::AASend(AASend::new(src, dest, dest_slot))
+    }
+    /// Convenience function to create an AYSend in tagged enum form
+    pub fn new_aysend(src: Rc<ANode>, dest: Rc<YNode>) -> Send {
+        Send::AYSend(AYSend::new(src, dest))
+    }
+    /// Convenience function to create a YYSend in tagged enum form
+    pub fn new_yysend(src: Rc<YNode>, dest: Rc<YNode>) -> Send {
+        Send::YYSend(YYSend::new(src, dest))
+    }
+    /// Convenience function to create a ASrcSend in tagged enum form
+    pub fn new_asrcsend(src: Automation, dest: Rc<ANode>) -> Send {
+        Send::ASrcSend(ASrcSend::new(src, dest))
+    }
+    /// Convenience function to create a YSrcSend in tagged enum form
+    pub fn new_ysrcsend(src: Partial, dest: Rc<YNode>) -> Send {
+        Send::YSrcSend(YSrcSend::new(src, dest))
+    }
+}
+
 impl AASend {
     pub fn new(src: Rc<ANode>, dest: Rc<ANode>, dest_slot: NodeInputSlot)
     -> AASend {

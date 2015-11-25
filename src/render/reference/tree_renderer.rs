@@ -35,7 +35,7 @@ struct OutputState {
     renderer: PartialRenderer,
 }
 
-struct TreeRenderer {
+pub struct TreeRenderer {
     render_spec: RenderSpec,
     anode_states: HashMap<Rc<ANode>, ANodeState>,
     ynode_states: HashMap<Rc<YNode>, YNodeState>,
