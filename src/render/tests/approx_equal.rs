@@ -3,6 +3,7 @@
 /// i.e. all their components have similar frequency and magnitude.
 /// Note: for simplicity, this is currently a pretty strict comparison
 pub fn assert_similar_audio(audio1 : &[f32], audio2 : &[f32]) {
+    println!("Testing for similar audio data");
     assert_eq!(audio1.len(), audio2.len());
     // get the magnitude of the first source so that we can determine an
     // appropriate error threshold
@@ -15,4 +16,5 @@ pub fn assert_similar_audio(audio1 : &[f32], audio2 : &[f32]) {
         println!("Expected {}, got {} ({} square error)", a1, a2, sq_err);
         assert!(sq_err < error_thresh, "Expected {} (apx.), got {} (err_thresh {})", a1, a2, error_thresh);
     }
+    println!("Audio is similar");
 }

@@ -1,3 +1,8 @@
+// Note: many tests will display additional useful information that is normally
+// silenced by cargo. Verbose testing can be done by:
+// RUST_TEST_THREADS=1 cargo test -- --nocapture
+
 mod approx_equal;
-pub mod test_basic_sine;
+mod test_basic_sine;
+mod test_lpf;
 
