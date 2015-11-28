@@ -1,3 +1,4 @@
+use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::mem;
 use std::ops::{Add, Mul, Neg, Sub};
@@ -41,6 +42,16 @@ impl Real32 {
     pub fn sin_cos(&self) -> (Real32, Real32) {
         let sc = self.value().sin_cos();
         (Real32::new(sc.0), Real32::new(sc.1))
+    }
+
+    pub fn abs(&self) -> Real32 {
+        Real32::new(self.value().abs())
+    }
+}
+
+impl fmt::Display for Real32 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.value().fmt(f)
     }
 }
 

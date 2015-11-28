@@ -1,3 +1,5 @@
+use std::fmt;
+
 use partial::Partial;
 use phaser::PhaserCoeff;
 use real::Real32;
@@ -43,8 +45,32 @@ impl Automation {
     /// A = c2 exp(i*wt2) exp(i*ww2*wt1)
     /// Then the result of A*Y is:
     /// Yout = c1 c2 exp(i*wt1) exp(i*wt2) exp(i*ww2*wt1)
+    ///
+    /// # Example
+    /// ```
+    /// use std::f32;
+    /// use libfriendship::automation::Automation;
+    /// use libfriendship::partial::Partial;
+    /// use libfriendship::phaser::PhaserCoeff;
+    /// use libfriendship::real::Real32;
+    ///
+    /// // create a 500 rad/sec *sine* wave
+    /// let p = Partial::new(PhaserCoeff::new_f32(0f32, -1f32), Real32::new(500.25));
+    /// let a = Automation::new(PhaserCoeff::new_f32(0.5f32, 0f32), Real32::new(100.0),
+    /// Real32::new(2f32*f32::consts::PI));
+    /// let m = a.apply_to_partial(p);
+    /// // we expect -i*0.5*expi(500.25 t)*expi(100 t)*expi(500.25*2 pi)
+    /// // = -i*0.5*i*expi((500.25+100) t)
+    /// // = 0.5*expi(600.25 t)
+    /// let expected = Partial::new(PhaserCoeff::new_f32(0.5, 0f32), Real32::new(600.25));
+    /// println!("got: {}, expected {}", m, expected);
+    /// assert!((expected.coeff() - m.coeff()).norm_sqr().value() < 0.0000001f32);
+    /// assert!((expected.ang_freq() - m.ang_freq()).value().abs() < 0.00001f32);
+    ///
+    /// ```
     pub fn apply_to_partial(&self, other: Partial) -> Partial {
-        let coeff = other.coeff()*self.coeff() * PhaserCoeff::expi(self.omega_w()*other.ang_freq());
+        let phase_shift = PhaserCoeff::expi(self.omega_w()*other.ang_freq());
+        let coeff = other.coeff()*self.coeff() * phase_shift;
         let omega = self.omega() + other.ang_freq();
         Partial::new(coeff, omega)
     }
@@ -58,6 +84,12 @@ impl Automation {
         let omega = self.omega() + other.omega();
         let omega_w = other.omega_w();
         Automation::new(coeff, omega, omega_w)
+    }
+}
+
+impl fmt::Display for Automation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({} expi({} t) expi({} wt)", self.coeff(), self.omega(), self.omega_w())
     }
 }
 

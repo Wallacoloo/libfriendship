@@ -1,3 +1,5 @@
+use std::fmt;
+
 use phaser::PhaserCoeff;
 use real::Real32;
 
@@ -29,3 +31,10 @@ impl Partial {
         self.ang_freq
     }
 }
+
+impl fmt::Display for Partial {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({} expi({} t))", self.coeff, self.ang_freq)
+    }
+}
+
