@@ -4,5 +4,6 @@
 
 mod approx_equal;
 mod test_basic_sine;
+mod test_delay;
 mod test_lpf;
 
