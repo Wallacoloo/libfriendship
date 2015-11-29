@@ -12,8 +12,19 @@ use tree::tree::Tree;
 
 use super::approx_equal::assert_similar_audio;
 
-/// Gate a 440 Hz wave by u(t)
+
+/// sinc math function: sin(pi x)/(pi x)
+/// Often used in Sigma Approximation for Fourier series to make them converge
+/// more rapidly.
+fn sinc(x: f32) -> f32 {
+    let pix = x * f32::consts::PI;
+    pix.sin() / pix
+}
+
+/// Gate a 440 Hz wave by (u(t) - u(t-0.005))
 /// u(t) is approximated via the fourier series of a square wave.
+/// This version repeats every 0.010 sec. In actual usage, we would likely
+/// require a longer duration (e.g. up to 1000 sec).
 pub fn get_gate(render_spec: RenderSpec, n_samples : u32) -> Vec<f32> {
     let mut tree = TreeRenderer::new(render_spec);
     let exit_node = YNode::new_rc();
@@ -44,10 +55,10 @@ pub fn get_gate(render_spec: RenderSpec, n_samples : u32) -> Vec<f32> {
             enter_gate_anode.clone()
         )
     );
-    for i in (1..400) {
+    for i in (1..401) {
         let harmonic = (2*i - 1) as f32;
-        let amp = 0.25*4.0/f32::consts::PI/harmonic;
-        let freq = 100.0*2.0*f32::consts::PI * harmonic;
+        let amp = 0.25*sinc(harmonic/401.0)*4.0/f32::consts::PI/harmonic;
+        let freq = 220.0*2.0*f32::consts::PI * harmonic;
         tree.add_send(
             Send::new_asrcsend(
                 Automation::new(PhaserCoeff::new_f32(0.0, -amp), Real32::new(freq), Real32::new(0.0)),
@@ -80,7 +91,7 @@ pub fn get_gate(render_spec: RenderSpec, n_samples : u32) -> Vec<f32> {
 #[test]
 pub fn test_gate() {
     let render_spec = RenderSpecFactory::new().sample_rate(44100).finalize();
-    let n_samples = 100;
+    let n_samples = 200;
     let actual = get_gate(render_spec, n_samples);
     let mut reference = vec![];
 
@@ -88,7 +99,13 @@ pub fn test_gate() {
 
     for i in (0..n_samples) {
         let t = (i as f32) / 44100.0;
-        reference.push((w_440*t).sin());
+        reference.push(
+            if t <= 0.5/220.0 {
+                (w_440*t).sin()
+            } else {
+                0.0
+            }
+        );
     }
 
     assert_similar_audio(&reference, &actual);
