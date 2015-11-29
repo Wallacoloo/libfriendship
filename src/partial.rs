@@ -1,36 +1,40 @@
-extern crate num;
-use self::num::complex::Complex32;
+use std::fmt;
+
+use phaser::PhaserCoeff;
+use real::Real32;
 
 /// describes a sinusoidal of the form:
-/// y = coeff * exp(i*ang_freq*t) * u(t - start_usec)
-/// where u(t) is the unit step function,
-/// and coeff is a complex exponential, which is used to encode both the
+/// y = coeff * exp(i*ang_freq*t)
+/// where coeff is a complex exponential, which is used to encode both the
 /// amplitude and phase shift of the sinusoid.
 #[derive(Clone, Copy, Debug)]
+#[derive(PartialEq, Eq)]
+#[derive(Hash)]
 pub struct Partial {
-    /// time at which the partial should be gated on, in microseconds
-    start_usec : u64,
     /// complex amplitude coefficient
-    coeff : Complex32,
+    coeff : PhaserCoeff,
     /// frequency of the sinusoid, in radians/second
-    ang_freq : f32,
+    ang_freq : Real32,
 }
 
 impl Partial {
-    pub fn new(start_usec : u64, coeff : Complex32, ang_freq : f32) -> Partial {
+    pub fn new(coeff : PhaserCoeff, ang_freq : Real32) -> Partial {
         Partial{
-            start_usec: start_usec,
             coeff: coeff,
             ang_freq: ang_freq,
         }
     }
-    pub fn start_time(&self) -> u64 {
-        self.start_usec
-    }
-    pub fn coeff(&self) -> Complex32 {
+    pub fn coeff(&self) -> PhaserCoeff {
         self.coeff
     }
-    pub fn ang_freq(&self) -> f32 {
+    pub fn ang_freq(&self) -> Real32 {
         self.ang_freq
     }
 }
+
+impl fmt::Display for Partial {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({} expi({} t))", self.coeff, self.ang_freq)
+    }
+}
+
