@@ -7,9 +7,11 @@ use self::num_complex::Complex32;
 use tree::node::NodeOp;
 
 /// describes a signal of the form:
-/// y = [c cos(w*t-phase), a]
+/// y = [c cos(w*t-phase) u(t-start) u'(t-end), a]
 /// Where `a` is some "modulation parameter", which serves only to effect
 /// other signals when `y` is involved in a binary op.
+/// u(t) is the unit step: u(t) = 1 if t > 0, 0 if t < 0
+/// u'(t) = 1-u(t)
 #[derive(Clone, Copy, Debug)]
 pub struct Signal {
     /// Amplitude
@@ -60,42 +62,49 @@ impl Signal {
         // so the complex coefficient is 0.5*c*exp(-j*phase)
         Complex32::from_polar(&(0.5*self.c), &-self.phase)
     }
-    pub fn apply_to_left(&self, other: &Signal, op: &NodeOp) -> [Signal; 2] {
-        // TODO: implement
-        //Signal::new(self.c, self.w, self.a, self.start)
-        //
-        // Let a1 = exp(c1 + j w1 t + j a1 w) + exp(-c1 - j w1 t - j a1 w)
-        // Let a2 = exp(c2 + j w2 t + j a2 w) + exp(-c2 - j w2 t - j a2 w)
-        //let c1 = self.c;
-        //let w1 = self.w;
-        //let a1 = self.a;
-        //let c2 = other.c;
-        //let w2 = other.w;
-        //let a2 = other.a;
-        //let start = self.start.max(other.start);
-        //match op {
-        //    &NodeOp::OpMul => {
-        //        // a1 * a2:
-        //        // = exp(c1+c2 + j*t(w1+w2) + j*w(a1+a2)) + exp(c1-c2 + j*t(w1-w2) + j*w(a1-a2))
-        //        // + exp(c1*+c2* + j*t(-w1-w2) + j*w(-a1-a2)) + exp(c2-c1 + j*t(w2-w1) + j*w(a2-a1))
-        //        // The above are combined into two pairs of complex conjugates,
-        //        // meaning two signals.
-        //        let sig1 = Signal::new(c1+c2, w1+w2, a1+a2, start);
-        //        let sig2 = Signal::new((c1+c2).conj(), w1-w2, a1-a2, start);
-        //        sig2
-        //    },
-        //    &NodeOp::OpAt => {
-        //        // a1 @ a2:
-        //        // = exp[c1+c2+j*a2*w1 + j*t(w1+w2) + j*w(a1)] + exp[c1-c2-j*a1*w1 + j*t(w1-w2) +
-        //        // j*w(a1)]
-        //        // + exp[-c1-c2
-        //        Signal::new(self.c, self.w, self.a, self.start)
-        //    },
-        //    &NodeOp::OpBy => {
-        //        Signal::new(self.c, self.w, self.a, self.start)
-        //    },
-        //}
-        [Signal::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0), Signal::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)]
+    /// Perform arithmetic operation: self <op> other.
+    /// Note `self` is on the left.
+    pub fn apply_on_left(&self, other: &Signal, op: &NodeOp) -> [Signal; 2] {
+        let c1 = self.c;
+        let c2 = other.c;
+        let w1 = self.w;
+        let w2 = other.w;
+        let phase1 = self.phase;
+        let phase2 = other.phase;
+        let a1 = self.a;
+        let a2 = other.a;
+        let start1 = self.start;
+        let start2 = other.start;
+        let end1 = self.end;
+        let end2 = other.end;
+
+        let amp = 0.5*c1*c2; // amplitude of each of the two output cosines.
+
+        match op {
+            &NodeOp::OpAt => {
+                // This represents a sort of delay, or "applying" y2 to y1.
+                // Essentially, y1(t-a2)*y2(t)
+                // c1*cos(w1*(t-a2)-phase1) u(t-a2-start1)u'(t-a2-end1) * c2*cos(w2*t-phase2)
+                //   u(t-start2) u'(t-end2)
+                // = 0.5*c1*c2*cos[(w1+w2)*t - (phase1+phase2+a2*w1)]*gate(t)
+                // + 0.5*c1*c2*cos[(w1-w2)*t - (phase1-phase2+a2*w1)]*gate(t)
+                // The new waves are given a1's modulation parameter.
+                let start1 = start1 + a2;
+                let end1 = end1 + a2;
+                let start = start1.max(start2);
+                let end = end1.min(end2);
+                [Signal::new(amp, w1+w2, phase1+a2*w1+phase2, a1, start, end),
+                 Signal::new(amp, w1-w2, phase1+a2*w1-phase2, a1, start, end)]
+            },
+            &NodeOp::OpBy => {
+                // This represents "multiplication" of two waves, suitable
+                // specifically for automations. y(t) = y1(t)*y2(t), a=a1-a2
+                let start = start1.max(start2);
+                let end = end1.min(end2);
+                [Signal::new(amp, w1+w2, phase1+phase2, a1-a2, start, end),
+                 Signal::new(amp, w1-w2, phase1-phase2, a1-a2, start, end)]
+            },
+        }
     }
 }
 

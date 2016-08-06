@@ -12,11 +12,11 @@ type NodeId = u32;
 #[derive(PartialEq, Eq)]
 #[derive(Hash)]
 pub enum NodeOp {
-    // Performs arithmetic multiplication of the signals (parameters are summed)
-    OpMul,
-    // Evaluates Y1 at Y2. i.e. Y1.w is substituted into Y2.b and then multiplication occurs.
+    // Evaluates y1 AT y2. i.e. y1 is delayed by y2's modulation parameter and
+    // then multiplied by y2.
     OpAt,
-    // Like multiplication, but the new parameter is Y1.b * |Y2.b|
+    // Straight-up arithmetic multiplication, but the new modulation parameter
+    // is (a1-a2)
     OpBy,
 }
 
