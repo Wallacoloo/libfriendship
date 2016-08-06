@@ -1,7 +1,8 @@
+extern crate num_complex;
+
 use std::fmt;
 
-use phaser::PhaserCoeff;
-use real::Real32;
+use self::num_complex::Complex32;
 
 use tree::node::NodeOp;
 
@@ -10,25 +11,23 @@ use tree::node::NodeOp;
 /// Where `a` is some "modulation parameter", which serves only to effect
 /// other signals when `y` is involved in a binary op.
 #[derive(Clone, Copy, Debug)]
-#[derive(PartialEq, Eq)]
-#[derive(Hash)]
 pub struct Signal {
     /// Amplitude
-    c : Real32,
+    c : f32,
     /// frequency of the sinusoid, in radians/second
-    w : Real32,
+    w : f32,
     /// phase
-    phase : Real32,
+    phase : f32,
     /// modulation parameter (used in binary operations)
-    a : Real32,
+    a : f32,
     /// signal start time (seconds)
-    start: Real32,
+    start: f32,
     /// signal end time (seconds)
-    end: Real32,
+    end: f32,
 }
 
 impl Signal {
-    pub fn new(c : Real32, w : Real32, phase : Real32, a : Real32, start : Real32, end : Real32) -> Signal {
+    pub fn new(c : f32, w : f32, phase : f32, a : f32, start : f32, end : f32) -> Signal {
         Signal{
             c: c,
             w: w,
@@ -38,31 +37,28 @@ impl Signal {
             end: end,
         }
     }
-    pub fn new_f(c : f32, w : f32, phase : f32, a : f32, start : f32, end : f32) -> Signal {
-        Signal::new(Real32::new(c), Real32::new(w), Real32::new(phase), Real32::new(a), Real32::new(start), Real32::new(end))
-    }
-    pub fn amp(&self) -> Real32 {
+    pub fn amp(&self) -> f32 {
         self.c
     }
-    pub fn phase(&self) -> Real32 {
+    pub fn phase(&self) -> f32 {
         self.phase
     }
-    pub fn ang_freq(&self) -> Real32 {
+    pub fn ang_freq(&self) -> f32 {
         self.w
     }
-    pub fn parameter(&self) -> Real32 {
+    pub fn parameter(&self) -> f32 {
         self.a
     }
-    pub fn start(&self) -> Real32 {
+    pub fn start(&self) -> f32 {
         self.start
     }
-    pub fn end(&self) -> Real32 {
+    pub fn end(&self) -> f32 {
         self.end
     }
-    pub fn phaser_coeff(&self) -> PhaserCoeff {
+    pub fn phaser_coeff(&self) -> Complex32 {
         // y = 0.5*c[exp(j*w*t-j*phase) + exp(-j*w*t+j*phase)]
         // so the complex coefficient is 0.5*c*exp(-j*phase)
-        PhaserCoeff::new(Real32::new(0.5)*self.c, Real32::new(0.0))*self.phase.expj().conj()
+        Complex32::from_polar(&(0.5*self.c), &-self.phase)
     }
     pub fn apply_to_left(&self, other: &Signal, op: &NodeOp) -> Signal {
         // TODO: implement
@@ -99,7 +95,7 @@ impl Signal {
         //        Signal::new(self.c, self.w, self.a, self.start)
         //    },
         //}
-        Signal::new_f(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+        Signal::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
     }
 }
 

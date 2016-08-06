@@ -7,8 +7,6 @@ use super::node::{Node, NodeInputSlot};
 /// Sends a Signal stream from the output of one Node to the input of
 /// another Node (either the left or right slot, as specified)
 #[derive(Clone, Debug)]
-#[derive(PartialEq, Eq)]
-#[derive(Hash)]
 pub struct NodeSend {
     src: Rc<Node>,
     dest: Rc<Node>,
@@ -18,16 +16,12 @@ pub struct NodeSend {
 /// Sends a Signal stream from an external stimuli into the output slot of
 /// the Node
 #[derive(Clone, Debug)]
-#[derive(PartialEq, Eq)]
-#[derive(Hash)]
 pub struct SrcSend {
     src: Signal,
     dest: Rc<Node>,
 }
 
 #[derive(Clone, Debug)]
-#[derive(PartialEq, Eq)]
-#[derive(Hash)]
 pub enum Send {
     NodeSend(NodeSend),
     SrcSend(SrcSend),
