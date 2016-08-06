@@ -8,39 +8,32 @@ use std::sync::atomic::{AtomicUsize, ATOMIC_USIZE_INIT};
 /// stored in an optimized container.
 type NodeId = u32;
 
-/// Takes two inputs:
-///   A1 (a sum of automations)
-///   A2 (a sum of automations)
-/// Provides one output: A1*A2, which is a sum of automations
 #[derive(Debug)]
 #[derive(PartialEq, Eq)]
 #[derive(Hash)]
-pub struct ANode {
-    id: NodeId,
+pub enum NodeOp {
+    // Performs arithmetic multiplication of the signals (parameters are summed)
+    OpMul,
+    // Evaluates Y1 at Y2. i.e. Y1.w is substituted into Y2.b and then multiplication occurs.
+    OpAt,
+    // Like multiplication, but the new parameter is Y1.b * |Y2.b|
+    OpBy,
 }
 
 /// Takes two inputs:
-///   Y (a sum of partials)
-///   A (a sum of automations)
-/// Provides one output: Y*A, which is a sum of partials
+///   Y1 (a sum of signals)
+///   Y2 (a sum of signals)
+/// Provides one output: Y1 <op> Y2, which is a sum of signals
 #[derive(Debug)]
 #[derive(PartialEq, Eq)]
 #[derive(Hash)]
-pub struct YNode {
+pub struct Node {
     id: NodeId,
+    op: NodeOp,
 }
 
-
-#[derive(Debug)]
-#[derive(PartialEq, Eq)]
-#[derive(Hash)]
-pub enum Node {
-    ANode(ANode),
-    YNode(YNode),
-}
-
-/// Used primarily in Sends; Automations can either be sent to the *left* input
-/// of an ANode, or to the right input.
+/// Used primarily in Sends; Signals can either be sent to the *left* input
+/// of a Node, or to the right input.
 #[derive(Clone, Copy, Debug)]
 #[derive(PartialEq, Eq)]
 #[derive(Hash)]
@@ -60,23 +53,14 @@ impl Node {
         };
         id as u32
     }
-}
-
-impl ANode {
-    pub fn new() -> ANode {
-        ANode{ id: Node::consume_next_id() }
+    pub fn new(op : NodeOp) -> Node {
+        Node{ id: Node::consume_next_id(), op: op }
     }
-    pub fn new_rc() -> Rc<ANode> {
-        Rc::new(ANode::new())
+    pub fn new_rc(op : NodeOp) -> Rc<Node> {
+        Rc::new(Node::new(op))
     }
-}
-
-impl YNode {
-    pub fn new() -> YNode {
-        YNode{ id: Node::consume_next_id() }
-    }
-    pub fn new_rc() -> Rc<YNode> {
-        Rc::new(YNode::new())
+    pub fn op(&self) -> &NodeOp {
+        &self.op
     }
 }
 

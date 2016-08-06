@@ -1,5 +1,4 @@
-pub mod automation;
-pub mod partial;
+pub mod signal;
 pub mod phaser;
 pub mod real;
 pub mod render;

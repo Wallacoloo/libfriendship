@@ -3,6 +3,8 @@ use std::hash::{Hash, Hasher};
 use std::mem;
 use std::ops::{Add, Mul, Neg, Sub};
 
+use phaser::PhaserCoeff;
+
 
 /// Like f32, but has the additional restriction that the value is *finite*
 /// and never NaN.
@@ -46,6 +48,20 @@ impl Real32 {
 
     pub fn abs(&self) -> Real32 {
         Real32::new(self.value().abs())
+    }
+
+    pub fn exp(&self) -> Real32 {
+        Real32::new(self.value().exp())
+    }
+    /// return exp(j*self)
+    pub fn expj(&self) -> PhaserCoeff {
+        // exp(j*m) = cos(m) + j*sin(m)
+        let sc = self.sin_cos();
+        PhaserCoeff::new(sc.1, sc.0)
+    }
+
+    pub fn max(&self, other: Real32) -> Real32 {
+        Real32::new(self.value().max(other.value()))
     }
 }
 

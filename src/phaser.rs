@@ -50,9 +50,22 @@ impl PhaserCoeff {
     /// assert!((expected-got).norm_sqr().value() < 0.0000001f32);
     /// ```
     pub fn expi(value: Real32) -> PhaserCoeff {
-        // expi(w) = cos(w) + i*sin(w)
+        // expi(w) = cos(w) + j*sin(w)
         let sc = value.sin_cos();
         PhaserCoeff::new(sc.1, sc.0)
+    }
+    /// return e^(self)
+    pub fn exp(&self) -> PhaserCoeff {
+        // e^(j*im + re)
+        // = cos(im) + j*sin(im) + e^re
+        // let imag = self.im().sin();
+        // let real = self.re().exp() + self.im().cos();
+        PhaserCoeff::expi(self.im()) + PhaserCoeff::new(self.re().exp(),
+            Real32::new(0f32))
+    }
+    /// return the complex conjugate
+    pub fn conj(&self) -> PhaserCoeff {
+        PhaserCoeff::new(self.re(), -self.im())
     }
 }
 

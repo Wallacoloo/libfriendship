@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use std::collections::btree_map;
 
 
-use partial::Partial;
+use signal::Signal;
 use phaser::PhaserCoeff;
 use real::Real32;
 
@@ -42,7 +42,7 @@ impl PartialRenderer {
             inv_sample_rate: 1.0f64/(spec.sample_rate() as f64)
         }
     }
-    pub fn feed(&mut self, partial : Partial) {
+    pub fn feed(&mut self, signal : Signal) {
         // If there's already an entry for a frequency very close to ours,
         // then add our coefficient into that entry. Otherwise, create a new
         // entry. In either case, delete the entry if the amplitude of the wave
@@ -50,16 +50,16 @@ impl PartialRenderer {
         //
         // Deleting the entry means that calling feed(p) followed by feed(-p)
         // will always work to remove p from the table.
-        match self.partials.entry(ApproxFreq(partial.ang_freq())) {
+        match self.partials.entry(ApproxFreq(signal.ang_freq())) {
             btree_map::Entry::Vacant(entry) => {
-                let new_val = partial.coeff();
+                let new_val = signal.phaser_coeff();
                 if new_val.norm_sqr() >= Real32::new(AMP_DELTA*AMP_DELTA) {
                     entry.insert(new_val);
                 }
             },
             btree_map::Entry::Occupied(entry_) => {
                 let mut entry = entry_;
-                let new_val = entry.get() + partial.coeff();
+                let new_val = entry.get() + signal.phaser_coeff();
                 if new_val.norm_sqr() >= Real32::new(AMP_DELTA*AMP_DELTA) {
                     entry.insert(new_val);
                 } else {
