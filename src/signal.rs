@@ -60,7 +60,7 @@ impl Signal {
         // so the complex coefficient is 0.5*c*exp(-j*phase)
         Complex32::from_polar(&(0.5*self.c), &-self.phase)
     }
-    pub fn apply_to_left(&self, other: &Signal, op: &NodeOp) -> Signal {
+    pub fn apply_to_left(&self, other: &Signal, op: &NodeOp) -> [Signal; 2] {
         // TODO: implement
         //Signal::new(self.c, self.w, self.a, self.start)
         //
@@ -95,7 +95,7 @@ impl Signal {
         //        Signal::new(self.c, self.w, self.a, self.start)
         //    },
         //}
-        Signal::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+        [Signal::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0), Signal::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)]
     }
 }
 

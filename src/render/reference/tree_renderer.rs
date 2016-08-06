@@ -76,7 +76,9 @@ impl TreeRenderer {
                 }
                 // all the signals in the right bin affect the new signal
                 for sig_right in right.iter() {
-                    self.broadcast_signal(node, sig_right.apply_to_left(&signal, node.op()));
+                    for new_sig in sig_right.apply_to_left(&signal, node.op()).iter() {
+                        self.broadcast_signal(node, *new_sig);
+                    }
                 }
             },
             NodeInputSlot::Right => {
@@ -88,7 +90,9 @@ impl TreeRenderer {
                 }
                 // this new signal affects all signals in the left bin
                 for sig_left in left.iter() {
-                    self.broadcast_signal(node, signal.apply_to_left(sig_left, node.op()));
+                    for new_sig in signal.apply_to_left(sig_left, node.op()).iter() {
+                        self.broadcast_signal(node, *new_sig);
+                    }
                 }
             },
         };
