@@ -16,7 +16,7 @@ fn get_basic_sine(render_spec: RenderSpec, n_samples: u32) -> Vec<f32> {
     tree.watch_nodes(&vec![exit_node.clone()]);
     
     // inject the sine wave directly into the output
-    let wave = Signal::new(1.0, 440.0*2.0*f32::consts::PI, 0.0, 0.0, 0.0, 0.0);
+    let wave = Signal::new(1.0, 440.0*2.0*f32::consts::PI, 0.0, 0.0, 0.0);
     tree.add_send(
         Send::new_srcsend(
             wave,

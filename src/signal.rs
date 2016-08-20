@@ -24,19 +24,16 @@ pub struct Signal {
     a : f32,
     /// signal start time (seconds)
     start: f32,
-    /// signal end time (seconds)
-    end: f32,
 }
 
 impl Signal {
-    pub fn new(c : f32, w : f32, phase : f32, a : f32, start : f32, end : f32) -> Signal {
+    pub fn new(c : f32, w : f32, phase : f32, a : f32, start : f32) -> Signal {
         Signal{
             c: c,
             w: w,
             phase: phase,
             a: a,
             start: start,
-            end: end,
         }
     }
     pub fn amp(&self) -> f32 {
@@ -53,9 +50,6 @@ impl Signal {
     }
     pub fn start(&self) -> f32 {
         self.start
-    }
-    pub fn end(&self) -> f32 {
-        self.end
     }
 
     pub fn phaser_coeff(&self) -> Complex32 {
@@ -76,8 +70,6 @@ impl Signal {
         let a2 = other.a;
         let start1 = self.start;
         let start2 = other.start;
-        let end1 = self.end;
-        let end2 = other.end;
 
         let amp = 0.5*c1*c2; // amplitude of each of the two output cosines.
 
@@ -85,25 +77,22 @@ impl Signal {
             &NodeOp::OpAt => {
                 // This represents a sort of delay, or "applying" y2 to y1.
                 // Essentially, y1(t-a2)*y2(t)
-                // c1*cos(w1*(t-a2)-phase1) u(t-a2-start1)u'(t-a2-end1) * c2*cos(w2*t-phase2)
-                //   u(t-start2) u'(t-end2)
+                // c1*cos(w1*(t-a2)-phase1) u(t-a2-start1) * c2*cos(w2*t-phase2)
+                //   u(t-start2)
                 // = 0.5*c1*c2*cos[(w1+w2)*t - (phase1+phase2+a2*w1)]*gate(t)
                 // + 0.5*c1*c2*cos[(w1-w2)*t - (phase1-phase2+a2*w1)]*gate(t)
                 // The new waves are given a1's modulation parameter.
                 let start1 = start1 + a2;
-                let end1 = end1 + a2;
                 let start = start1.max(start2);
-                let end = end1.min(end2);
-                [Signal::new(amp, w1+w2, phase1+a2*w1+phase2, a1, start, end),
-                 Signal::new(amp, w1-w2, phase1+a2*w1-phase2, a1, start, end)]
+                [Signal::new(amp, w1+w2, phase1+a2*w1+phase2, a1, start),
+                 Signal::new(amp, w1-w2, phase1+a2*w1-phase2, a1, start)]
             },
             &NodeOp::OpBy => {
                 // This represents "multiplication" of two waves, suitable
                 // specifically for automations. y(t) = y1(t)*y2(t), a=a1-a2
                 let start = start1.max(start2);
-                let end = end1.min(end2);
-                [Signal::new(amp, w1+w2, phase1+phase2, a1-a2, start, end),
-                 Signal::new(amp, w1-w2, phase1-phase2, a1-a2, start, end)]
+                [Signal::new(amp, w1+w2, phase1+phase2, a1-a2, start),
+                 Signal::new(amp, w1-w2, phase1-phase2, a1-a2, start)]
             },
         }
     }
@@ -111,7 +100,7 @@ impl Signal {
 
 impl fmt::Display for Signal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[{} cos({}*t - {}) gate[{}, {}](t), a={}]", self.amp(), self.ang_freq(), self.phase(), self.start(), self.end(), self.parameter())
+        write!(f, "[{} cos({}*t - {}) u(t-{}), a={}]", self.amp(), self.ang_freq(), self.phase(), self.start(), self.parameter())
     }
 }
 
