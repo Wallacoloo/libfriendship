@@ -1,12 +1,9 @@
 use std::f32;
 
-use automation::Automation;
-use partial::Partial;
-use phaser::PhaserCoeff;
-use real::Real32;
+use signal::Signal;
 use render::render_spec::{RenderSpec, RenderSpecFactory};
 use render::reference::tree_renderer::TreeRenderer;
-use tree::node::{ANode, YNode};
+use tree::node::{Node, NodeInputSlot, NodeOp};
 use tree::send::Send;
 use tree::tree::Tree;
 
@@ -21,44 +18,47 @@ use super::approx_equal::assert_similar_audio;
 // Therefore, ww should be -t0
 pub fn get_delay(render_spec: RenderSpec, n_samples : u32) -> Vec<f32> {
     let mut tree = TreeRenderer::new(render_spec);
-    let exit_node = YNode::new_rc();
+    let exit_node = Node::new_rc(NodeOp::OpAt);
     tree.watch_nodes(&vec![exit_node.clone()]);
     
     // create nodes for broadcasting the partials & automations
-    let enter_ynode = YNode::new_rc();
+    let enter_ynode = Node::new_rc(NodeOp::OpAt);
     tree.add_send(
-        Send::new_yysend(enter_ynode.clone(), exit_node.clone())
+        Send::new_nodesend(enter_ynode.clone(), exit_node.clone(), NodeInputSlot::Right)
     );
-    let enter_anode = ANode::new_rc();
+    let enter_anode = Node::new_rc(NodeOp::OpAt);
     tree.add_send(
-        Send::new_aysend(enter_anode.clone(), exit_node.clone())
+        Send::new_nodesend(enter_anode.clone(), exit_node.clone(), NodeInputSlot::Left)
     );
 
     // inject the automations
+    let autom = Signal::new(1.0, 0.0, 0.0, 0.001, 0.0);
     tree.add_send(
-        Send::new_asrcsend(
-            Automation::new(PhaserCoeff::new_f32(1.0f32, 0f32), Real32::new(0f32), Real32::new(-0.001f32)),
+        Send::new_srcsend(
+            autom,
             enter_anode.clone()
         )
     );
 
     // inject a 440Hz and 880Hz sine wave
+    let y440 = Signal::new(1.0, 440.0*2.0*f32::consts::PI, 0.5*f32::consts::PI, 0.0, 0.0);
+    let y880 = Signal::new(1.0, 880.0*2.0*f32::consts::PI, 0.5*f32::consts::PI, 0.0, 0.0);
     tree.add_send(
-        Send::new_ysrcsend(
-            Partial::new(PhaserCoeff::new_f32(0f32, -1f32), Real32::new(440f32*2f32*f32::consts::PI)),
+        Send::new_srcsend(
+            y440,
             enter_ynode.clone()
         )
     );
     tree.add_send(
-        Send::new_ysrcsend(
-            Partial::new(PhaserCoeff::new_f32(0f32, -1f32), Real32::new(880f32*2f32*f32::consts::PI)),
+        Send::new_srcsend(
+            y880,
             enter_ynode.clone()
         )
     );
 
 
     let mut samples = vec![];
-    for _ in (0..n_samples) {
+    for _ in 0..n_samples {
         samples.push(tree.step()[0]);
     }
     samples
@@ -74,7 +74,7 @@ pub fn test_delay() {
     let w_440 = 440f32*2f32*f32::consts::PI;
     let w_880 = 880f32*2f32*f32::consts::PI;
 
-    for i in (0..n_samples) {
+    for i in 0..n_samples {
         let t = (i as f32) / 44100f32 - 0.001;
         reference.push((w_440*t).sin() + (w_880*t).sin());
     }
