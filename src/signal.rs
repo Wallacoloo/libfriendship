@@ -57,10 +57,11 @@ impl Signal {
     pub fn end(&self) -> f32 {
         self.end
     }
+
     pub fn phaser_coeff(&self) -> Complex32 {
-        // y = 0.5*c[exp(j*w*t-j*phase) + exp(-j*w*t+j*phase)]
-        // so the complex coefficient is 0.5*c*exp(-j*phase)
-        Complex32::from_polar(&(0.5*self.c), &-self.phase)
+        // y = Real{c*exp(j*w*t-j*phase)}
+        // so the complex coefficient is c*exp(-j*phase)
+        Complex32::from_polar(&self.c, &-self.phase)
     }
     /// Perform arithmetic operation: self <op> other.
     /// Note `self` is on the left.
