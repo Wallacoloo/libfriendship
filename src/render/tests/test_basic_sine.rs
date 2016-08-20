@@ -16,7 +16,7 @@ fn get_basic_sine(render_spec: RenderSpec, n_samples: u32) -> Vec<f32> {
     tree.watch_nodes(&vec![exit_node.clone()]);
     
     // inject the sine wave directly into the output
-    let wave = Signal::new(1.0, 440.0*2.0*f32::consts::PI, 0.0, 0.0, 0.0);
+    let wave = Signal::new(3.0, 440.0*2.0*f32::consts::PI, 0.5*f32::consts::PI, 0.0, 0.0);
     tree.add_send(
         Send::new_srcsend(
             wave,
@@ -40,7 +40,7 @@ pub fn test_basic_sine() {
     let mut reference = vec![];
     for i in 0..n_samples {
         let t = (i as f32) / 44100.0;
-        reference.push((440.0*2.0*f32::consts::PI * t).cos());
+        reference.push(3.0*(440.0*2.0*f32::consts::PI * t).sin());
     }
 
     assert_similar_audio(&reference, &actual);
