@@ -59,6 +59,14 @@ impl Node {
     pub fn new_rc(op : NodeOp) -> Rc<Node> {
         Rc::new(Node::new(op))
     }
+    /// Call when the actual operation performed by the Node is irrelevant
+    ///   (e.g. it's only being used as an exit node).
+    pub fn default() -> Node {
+        Node::new(NodeOp::OpAt)
+    }
+    pub fn default_rc() -> Rc<Node> {
+        Rc::new(Node::default())
+    }
     pub fn op(&self) -> &NodeOp {
         &self.op
     }

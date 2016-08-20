@@ -3,7 +3,7 @@ use std::f32;
 use signal::Signal;
 use render::render_spec::{RenderSpec, RenderSpecFactory};
 use render::reference::tree_renderer::TreeRenderer;
-use tree::node::{Node, NodeOp};
+use tree::node::Node;
 use tree::send::Send;
 use tree::tree::Tree;
 
@@ -12,7 +12,7 @@ use super::approx_equal::assert_similar_audio;
 /// Try to render a single 440 Hz sine wave through the reference tree_renderer
 fn get_basic_sine(render_spec: RenderSpec, n_samples: u32) -> Vec<f32> {
     let mut tree = TreeRenderer::new(render_spec);
-    let exit_node = Node::new_rc(NodeOp::OpAt);
+    let exit_node = Node::default_rc();
     tree.watch_nodes(&vec![exit_node.clone()]);
     
     // inject the sine wave directly into the output
