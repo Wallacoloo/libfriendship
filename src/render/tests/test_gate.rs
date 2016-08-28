@@ -41,7 +41,7 @@ pub fn get_gate(render_spec: RenderSpec, n_samples : u32) -> Vec<f32> {
     );
     tree.add_send(
         Send::new_srcsend(
-            Signal::new(1.0, 0.0, f32::consts::PI, 0.0, 0.005),
+            Signal::new(1.0, 0.0, f32::consts::PI, 0.0, 0.5/220.0),
             enter_gate_node.clone()
         )
     );

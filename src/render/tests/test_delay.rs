@@ -41,8 +41,10 @@ pub fn get_delay(render_spec: RenderSpec, n_samples : u32) -> Vec<f32> {
     );
 
     // inject a 440Hz and 880Hz sine wave
-    let y440 = Signal::new(1.0, 440.0*2.0*f32::consts::PI, 0.5*f32::consts::PI, 0.0, 0.0);
-    let y880 = Signal::new(1.0, 880.0*2.0*f32::consts::PI, 0.5*f32::consts::PI, 0.0, 0.0);
+    // These need to start at some negative time so that the delay will only correspond
+    // to a phase shift.
+    let y440 = Signal::new(1.0, 440.0*2.0*f32::consts::PI, 0.5*f32::consts::PI, 0.0, -1.0);
+    let y880 = Signal::new(1.0, 880.0*2.0*f32::consts::PI, 0.5*f32::consts::PI, 0.0, -1.0);
     tree.add_send(
         Send::new_srcsend(
             y440,
