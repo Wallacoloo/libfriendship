@@ -1,14 +1,11 @@
 extern crate num_complex;
 
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
-use std::collections::btree_map;
+use std::collections::{BTreeMap, btree_map, BinaryHeap};
 
 use self::num_complex::{Complex32, Complex64};
-
-use signal::Signal;
-
 use render::render_spec::RenderSpec;
+use signal::Signal;
 
 /// Any angular frequencies within this distance from eachother will be
 /// considered equal, and the difference is attributed to float rounding.
@@ -33,18 +30,26 @@ pub struct PartialRenderer {
     inv_sample_rate : f64,
     /// Maps the angular frequency of a wave to its amplitude coefficient.
     partials : BTreeMap<ApproxFreq, Complex32>,
+    /// For partials that are starting soon, but not yet:
+    queued: BinaryHeap<Signal>,
 }
 
 impl PartialRenderer {
     /// Creates a new renderer according to the provided `spec`
     pub fn new(spec: RenderSpec) -> PartialRenderer {
         PartialRenderer {
-            partials: BTreeMap::new(),
             frame_idx: 0,
-            inv_sample_rate: 1.0f64/(spec.sample_rate() as f64)
+            inv_sample_rate: 1.0f64/(spec.sample_rate() as f64),
+            partials: BTreeMap::new(),
+            queued: BinaryHeap::new(),
         }
     }
+    /// add the signal into the queue, and begin rendering it once the frame
+    /// reaches/exceeds the signal's start time.
     pub fn feed(&mut self, signal : Signal) {
+        self.queued.push(signal);
+    }
+    fn feed_now(&mut self, signal : Signal) {
         // If there's already an entry for a frequency very close to ours,
         // then add our coefficient into that entry. Otherwise, create a new
         // entry. In either case, delete the entry if the amplitude of the wave
@@ -74,6 +79,12 @@ impl PartialRenderer {
     pub fn step(&mut self) -> f32 {
         let seconds = self.frame_idx as f64 * self.inv_sample_rate;
         self.frame_idx += 1;
+
+        // Check for queued signals that should start this frame
+        while self.queued.peek().map_or(false, |s| s.start() as f64 <= seconds) {
+            let sig = self.queued.pop().unwrap();
+            self.feed_now(sig);
+        }
 
         // Signal is described by sum: coeff*exp(i*freq*seconds)
         // we only care about the real portion of the signal
@@ -120,3 +131,31 @@ impl Ord for ApproxFreq {
 }
 
 impl Eq for ApproxFreq {}
+
+
+// In order to have signals sorted in the BinaryHeap queue, we need
+// to implement an ordering that places the partial starting soonest as
+// having maximum priority
+impl PartialEq for Signal {
+    fn eq(&self, other: &Signal) -> bool {
+        return self.start() == other.start()
+    }
+}
+impl Eq for Signal {}
+impl PartialOrd for Signal {
+    fn partial_cmp(&self, other: &Signal) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for Signal {
+    fn cmp(&self, other: &Signal) -> Ordering {
+        if self.eq(other) {
+            Ordering::Equal
+        } else if self.start() < other.start() {
+            // HIGHER priority
+            Ordering::Greater
+        } else {
+            Ordering::Less
+        }
+    }
+}
