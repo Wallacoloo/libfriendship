@@ -74,9 +74,9 @@ impl TreeRenderer {
                     state.left.push(signal);
                     right = state.right.clone();
                 }
-                // all the signals in the right bin affect the new signal
+                // the new signal affects all the signals in the right bin.
                 for sig_right in right.iter() {
-                    for new_sig in sig_right.apply_on_left(&signal, node.op()).iter() {
+                    for new_sig in signal.apply_on_left(&sig_right, node.op()).iter() {
                         self.broadcast_signal(node, *new_sig);
                     }
                 }
@@ -88,9 +88,9 @@ impl TreeRenderer {
                     state.right.push(signal);
                     left = state.left.clone();
                 }
-                // this new signal affects all signals in the left bin
+                // all the signals in the left bin affect the new signal
                 for sig_left in left.iter() {
-                    for new_sig in signal.apply_on_left(sig_left, node.op()).iter() {
+                    for new_sig in sig_left.apply_on_left(&signal, node.op()).iter() {
                         self.broadcast_signal(node, *new_sig);
                     }
                 }

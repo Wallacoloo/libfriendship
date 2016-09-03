@@ -24,11 +24,11 @@ pub fn get_delay(render_spec: RenderSpec, n_samples : u32) -> Vec<f32> {
     // create nodes for broadcasting the partials & automations
     let enter_ynode = Node::default_rc();
     tree.add_send(
-        Send::new_nodesend(enter_ynode.clone(), exit_node.clone(), NodeInputSlot::Right)
+        Send::new_nodesend(enter_ynode.clone(), exit_node.clone(), NodeInputSlot::Left)
     );
     let enter_anode = Node::default_rc();
     tree.add_send(
-        Send::new_nodesend(enter_anode.clone(), exit_node.clone(), NodeInputSlot::Left)
+        Send::new_nodesend(enter_anode.clone(), exit_node.clone(), NodeInputSlot::Right)
     );
 
     // inject the automations
