@@ -1,0 +1,95 @@
+Continue off the 'tree' idea from previously.
+
+Instead of trying to handle things like pitch-shifting IN the tree,
+do that out-of-tree.
+Specifically, pitch shifts can be associated with individual notes,
+rather than audio streams. This lets the HOST handle pitch shifts
+via the algorithm documented in v1/pitch-shift.
+
+Retain the Automation (A), Signal (Y) convention.
+
+Then, try to describe the entire tree via TWO operations over A:
++ and * (addition, multiplication). We should be able to form a field
+from this (do we need a field?). Making this a field proves that we can
+obtain ANY sound in the field [from any other (non-zero) sound].
+Lastly, describe a map from A -> Y.
+
+Goals:
+  * Arbitrary EQ shape specified by A. Filters can thus be derived.
+  * Delay by a time specified in A.
+  * Panning (this is achieved via the channel routing semantics used in
+    v1 coupled with multiplying all frequencies by an amplitude derived
+    from A).
+  * Generation of harmonics.
+
+Impl details:
+  * Use normalized frequency internally. This provides an easy way to
+    construct anti-aliasing filters, delay-by-second, etc.
+
+Signal representation (same as v1):
+A: a = b_1 + b_2 + ...,
+  b_i = c_i expj(ww_i t) expj(wa_i wy)
+Y: y = z_1 + z_2 + ...,
+  z_i = c_i expj(wy_i t)
+
+Addition and subtraction follow distributive rules. Therefore, consider
+only the case of operations between b_i, z_i.
+
+b_1 + b_2 is straightforward [polynomial] addition.
+b_1 * z_2 is straightforward [polynomial] multiplication w/ substitution.
+  At eval time, b_1.wy is replaced with z_2.wy_2
+  Goals: It should serve to apply an EQ or delay to z_2:
+  Therefore,
+    b_1 * z_2 = c_1 c_2 expj(ww_1 t)expj(wy_2 t) expj(wa_1 wy_2)
+    b_1 * z_2 = C expj([ww_1 + wy_2] t + wa_1 wy_2)
+    b_1 * z_2 = C expj(ww_1 t + wy_2(t+wa_1))
+  Thus, a delay can be achieved by any b_1:
+    b_1 = expj(wa_1 wy)
+
+  A simple filter can be achieved via:
+    symbolically: z_2 * 2cos(wy_2)
+    Note: 2cos(wy_2) = expj(wy_2) + expj(-wy_2)
+    z_1 * (b_1 + b_2) where b_1 = expj(wy), b_2 = expj(-wy)
+  
+b_1 * b_2 is ?
+  Should ideally be compatible with b_1 * z_2, since Y is a subset of A.
+  Should allow things like *shifting* a filter or setting the delay time*.
+  In order for a filter to implement a real system, it must be symmetric
+  across wy = 0. i.e.
+    b_1 = 2cos(wa_1*wy) = expj(wa_1*wy) + expj(-wa_1*wy)
+  Shifting a filter:
+    want: b_y = 2cos(wa_1*(wy-k))
+    b_y = expj(wa_1*wy - wa_1*k) + expj(-wa_1*wy + wa_1*k)
+    b_y = expj(wa_1*wy)expj(wa_1*-k) + expj(-wa_1*wy)expj(-wa_1*-k)
+  So we need some way to multiply the wa coefficients (k has to be wa and
+  not ww so that it can change over time).
+    if b_1 = c_1 expj(ww_1 t) expj(wa_1 wy),
+       b_2 = c_2 expj(ww_2 t) expj(wa_2 wy),
+    Then
+      b_1*b_2 = c_1 c_2 expj(ww_1 + ww_2 t) expj(wa_1*wy) expj(wa_1*wa_2)
+    However, this is non-commutative
+
+  *Delaying: Want to change the amount that a signal is delayed by over time.
+  Thus, wa needs to change in b = expj(wa*wy).
+  Consider: b_1 = expj(wa_1 wy), b_2 = expj(wa_2 wy)
+  Then b_1 * b_2 should be expj((wa_1+wa_2) wy)
+  However, this is useless. We are essentially delaying a signal by wa_1
+    and then delaying it again by wa_2. Why not do it this way:
+        Y
+        v
+      [delay] <- b_1
+        v
+      [delay] <- b_2
+  In fact, the delay effect works as-is for varying wa.
+
+Let's consider the following use-case:
+  Want to delay frequencies < 0.2 by k and frequencies >= 0.2 by 1.5*k
+  The first part is easy; gate by frequency, then delay by k.
+  The second part requires delaying by 1.5k though. How?
+  This is similar to scaling frequency, which we decided would have to
+  be handled host-side. Maybe add special operations for this?
+
+Maybe implement a convolution operation:
+  a_1[w] conv a_2[w].
+    To shift a filter, a_2[w] = delta(w-w_0) -> a_y[w] = a_1[w-w_0]
+  

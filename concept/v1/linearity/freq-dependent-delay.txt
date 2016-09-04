@@ -1,0 +1,31 @@
+It would be beneficial if we could remove the "delay" and "freq shift" effects
+and emulate them via pure amplitude modulation.
+
+For amplitude modulation, we have an input stream + 2d automation.
+Each individual frequency component of the input stream is multiplied by f(w,
+t), where w is the input frequency and t is time.
+
+This easily allows for both amplitude modulation (f(w, t) is constant for a
+given w) AND frequency shifting (f(w, t) = e^(w_0 t)), at least discretely.
+
+Questions:
+  (1) Can it also allow for *non*-discrete pitch shifting (e.g. double
+each frequency, rather than add a constant w_0 to the frequency)?
+  (2) Can it emulate delays?
+    (2.a) Different delay for each frequency?
+    (2.b) Delay is a function of time?
+
+
+Based on the pitch-shift prototype, in which pitch shifting was achieved
+through linearly interpolating discrete pitches, (1) would appear to be
+possible.
+
+
+Although for (2), a signal can easily be gated off/on at a specific time (thus
+allowing one to delay a signal), the gate time needs to be relative to the
+start time of the signal.
+
+
+It *is* possible that we add a third parameter to the amplitude modulation:
+f(w, t0, t). In that case, the gate time could at least *theoretically* be
+made relative to the start time of the signal.
