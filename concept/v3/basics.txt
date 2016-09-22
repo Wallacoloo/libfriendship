@@ -1,0 +1,187 @@
+Retain a computation tree as in previous concepts.
+Audio streams are discrete-time PCM streams - not frequency info, etc.
+Each node in the stream either:
+  (a) point-wise multiplies the left and right inputs.
+  (b) convolves the left and right inputs.
+
+Control signals are also PCM streams.
+
+Limitations
+------
+Ideal and arbitrary filters are not inherently possible.
+FIR filters can be created though.
+Sounds cannot be easily reversed - system is 100% causal.
+
+Filtering
+------
+For filtering, one would construct e.g. a length-4 impulse response.
+This IR is then uniquely defined by its frequency response at 4 points.
+For example, define the gain at f=0, f=1/6 fs, f=2/6 fs f=3/6 fs.
+
+In particular, we can create static Lagrange interpolating polynomials for
+these x values, and then mix them linearly.
+
+For example, we have h_0[n] which has a frequency response of 1 at DC, and 0
+for f=1/6 fs, 2/6 fs and 3/6 fs.
+h_1[n] has freq response of 1 at f=1/6 fs, and 0 at f=0, f=2/6 fs and 3/6 fs.
+And so on.
+
+Then we have a 4-band EQ that we can mix. For example, we have G0, G1, G2, G3
+(gains for each band). Then the output y[n] is:
+y[n] = x[n] \conv (G0*h_0[n] + G1*h_1[n] + G2*h_2[n] + G3*h_3[n])
+
+Notably, G0, G1, G2, G3 can be PCM streams, and this becomes:
+y[n] = x[n] \conv (G0[n]*h_0[n] + G1[n]*h_1[n] + G2[n]*h_2[n] + G3[n]*h_3[n])
+
+To achieve such things as LPF, we define some input PCM stream, C[n] (cutoff,
+normalized). Then, G3[n] is defined as (e.g.) 1-C[n]^2.
+This can be evaluated by:
+G3[n] = 1 + -1*C[n]*C[n]
+i.e. stream multiplication, with some constant streams.
+G2, G1, G0 would be defined in a similar manner. The main difficulty would be
+in finding suitable transform polynomials.
+
+Primitive Signals
+------
+Everything can in theory be constructed from \delta[n-1] and \delta[n], as
+long as we supply a way of scaling those.
+
+More practically, allow the creation of arbitrary A*\delta[n-k] signals.
+We'll also need signals that extend infinitely in the x axis (e.g. for the
+filtering, G3[n] = 1+ -1*C[n]*C[n]). Additionally, the DAW will be creating
+periodics. Although it could compute them manually, that's some additional
+overhead and requires consistent intervention to create the next N samples.
+However, signals can't be infinite-length (they couldn't be convolved
+numerically!)
+
+Additionally, for effects such as delays, we might want *sparse* signals. i.e. the signal
+doesn't start until t=t0. This is especially true of input signals.
+
+Possible primitive signal format:
+a) x_in[n] = A u[n-t0] u[t1-n] cos(w*t - phi)
+Or b) x_in[n] = Re{C u[n-t0] u[t1-n] exp(j*w*t)}
+Either format requires 5 floats. However, these are likely to not be carried
+around long, so mostly inconsequential.
+(b) is preferred as it does allow each addition of like-signals in symbolic
+representation (useful for potential optimizations).
+
+c) x_in[n] = Re{C u[t1-n] exp(j*w*t)}
+Emulating a start time is done by multiplying by (u[t1-n] - u[t0-n]).
+Very few signals (aside from, potentially, filter coeffs) start at 0 though,
+so this step would almost always then happen explicitly and just be wasteful.
+
+d) x_in[n] = \delta[n-t0] \conv (u[L-n] Re{C exp(j*w*n)} )
++ Easier to enforce t1 >= t0 requirement. i.e. t0 >= 0, L >= 0.
++ Signals are more typically provided in start-time, length format anyway
+(e.g. 8th note at beat N).
+- For signals that are created incrementally (e.g. in 512-sample blocks),
+the phase needs to be updated manually by the DAW.
+- signals with sample freq but different start time require phase editing
+  before being merged symbolically.
+
+USE FORMAT (b) or some factory that supports multiple formats.
+
+Obtaining filter coefficients
+------
+H(e^jw) = h[0] + h[1]*e^{-jw} + h[2]e^{-2jw} + ...
+Therefore, let H = {H[e^j0], H[e^j2pi/L], ..., H[e^j2pi(L-1)/L]}.
+Then h[n] = IDFT{H}.
+The downside is that we have to specify from 0 -> 2pi for frequency,
+and so we get half as many EQ bands as we would expect.
+
+Consider the N=2 case:
+H{e^j2} = h[0] + h[1]e^{-jw}
+H = {H[e^j0], H[e^jpi]}
+Then
+H_0 = H[e^j0] =  h[0] + h[1]
+H_1 = H[e^jpi] = h[0] - h[1]
+Solve for h[0], h[1]:
+2h[0] = H_0 + H_1
+2h[1] = H_0 - H_1
+
+Consider the Lagrange case:
+1 = h_0[0] + h_0[1]
+0 = h_0[0] - h_0[1]
+thus, h_0[n] = [0.5, 0.5]
+0 = h_1[0] + h_1[1]
+1 = h_1[0] - h_1[1]
+thus, h_1[n] = [0.5, -0.5]
+
+Lagrange case for N=3:
+1 = h_0[0] +   h_0[1] +   h_0[2]
+0 = h_0[0] + -jh_0[1] +  -h_0[2]
+0 = h_0[0] +  -h_0[1] +   h_0[2]
+No solution.
+Lagrange case for N=2, freqs of 0, pi/2:
+1 = h_0[0] +   h_0[1]
+0 = h_0[0] + -jh_0[1]
+No solution.
+
+Lagrange case for N=4 (0, pi/2, pi 3pi/2):
+1 = h_0[0] +   h_0[1] +   h_0[2] +   h_0[3]
+0 = h_0[0] + -jh_0[1] +  -h_0[2] +  jh_0[3]
+0 = h_0[0] +  -h_0[1] +   h_0[2] +  -h_0[3]
+0 = h_0[0] +  jh_0[1] +  -h_0[2] + -jh_0[3]
+Thus, h_0[n] = {0.25, 0.25, 0.25, 0.25}
+Furthermore, for all basis, h[1] = h[3].
+0 = h_1[0] +   h_1[1] +   h_1[2] +   h_1[3]
+1 = h_1[0] + -jh_1[1] +  -h_1[2] +  jh_1[3]
+0 = h_1[0] +  -h_1[1] +   h_1[2] +  -h_1[3]
+1 = h_1[0] +  jh_1[1] +  -h_1[2] + -jh_1[3]
+h_1[n] = {0.5, 0, -0.5, 0}
+0 = h_2[0] +   h_2[1] +   h_2[2] +   h_2[3]
+0 = h_2[0] + -jh_2[1] +  -h_2[2] +  jh_2[3]
+1 = h_2[0] +  -h_2[1] +   h_2[2] +  -h_2[3]
+0 = h_2[0] +  jh_2[1] +  -h_2[2] + -jh_2[3]
+h_2[n] = {0.25, -0.25, 0.25, -0.25}
+
+Lagrange-based filters:
+------
+- Have very large stopband ripple.
+		The N=4 case (using freqs 0, pi/2, pi, 3pi/2) has ripple of
+		30% when trying to LPF from 0 to pi/2.
+		N=8 case has about 25% SBR.
++ Induce NO effect (delay or phase shift) when cutoff freq = inf. (i.e. h = h0+h1+h2+... =
+{1,0,0,0,...}).
+
+
+Interpolation of Fixed LPFs:
+------
+Instead of defining filters based on the Lagrange definition,
+if we have a length-4 filter, we create
+h_0 = {0,0,0,0},
+h_1 = LPF w/ transition at pi/3
+h_2 = LPF w/ transition at 2pi/3
+h_3 = 1/4*{1,0,0,0}
+Then, create some interpolation function between them.
+
+Note: stopband ripple of least-squares fit is 15% for N=4.
+Interpolation method:
+Let A0(c), A1(c), A2(c), A3(c) be coefficients for the corresponding h_i,
+where c is cutoff frequency.
+Notably, A0 doesn't matter.
+A1(0) = 0
+A1(pi/3) = 1
+A1(2pi/3) = 0
+A1(pi) = 0
+
+A2(0) = 0
+A2(pi/3) = 0
+A2(2pi/3) = 1
+A2(pi) = 0
+...
+Then solve the polynomials.
+
+Minimization LPF:
+------
+define h[0] = a0 + a1*c,
+h[1] = a2 + a3*c,
+h[2] = a4 + a5*c,
+h[3] = a6 + a7*c.
+Then, solve for  a_i based on minimizing the error from a large sample of
+cutoff curves.
+This maps most closely to the actual operations that will be performed to
+obtain coefficients from the cutoff freq.
+Initial testing with degree-1 polynomials, 5-term and 3-term h[n] look
+promising.
+
