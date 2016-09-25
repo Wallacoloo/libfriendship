@@ -185,3 +185,152 @@ obtain coefficients from the cutoff freq.
 Initial testing with degree-1 polynomials, 5-term and 3-term h[n] look
 promising.
 
+
+Enveloping
+------
+How do we create things like ADSR envelopes?
+
+Boils down to: given a parameter P, how do we create a sloped line from (0, 0)
+to (P, 1)?
+
+Option 1: Create a fixed, infinite-length slope-1 line: (0, 0), (1, 1), ...
+Then multiply it by (1/P).
+Gate it by G[n] = u[P-n]..
+
+Problems:
+* cannot easily compute 1/P. Potential solution: do this in the GUI,
+or via taylor approximation.
+* Cannot *dynamically* create u[P-n].
+
+Solution: have DAW be responsible for creating the envelopes.
+  Drawback: New interface needed for plugins to describe envelope shape
+(especially when parameterized), doesn't easily allow for e.g. routing a LFO
+to an envelope length. Although this may work well for individual note
+envelopes, more complicated logic may be needed for other forms of enveloping
+(like what)?
+
+Solution:
+DAW sends a u[n-R] gating signal as input to plugin, specifying when a note is
+released.
+Plugin implements a ADR envelope as two parts: parabolic AD gated by u[n-R},
+and then R portion gated by 1-u[n-R] (but then the release eventually goes
+negative).
+
+Solution:
+If we had resampling, this would be a non-issue.
+Resampling can [sometimes] be viewed as a series of many signal delays.
+Therefore, figure out delaying & enveloping can be abstracted above that.
+
+
+Delay
+------
+Given some parameter P, how do we delay an input signal by P samples?
+Fundamentally, delays in which P changes with time disobey Time-Invariance.
+Therefore there is no convolution capable of implementing this.
+
+However, our convolutions are ALREADY non-const. e.g. we can convolve two
+input signals, where these input signals are produced at whim by the DAW.
+
+We also support parameter changes, where a convolution is an interpolation of
+two different convolutions. e.g. h[k] = t*h1[k] + (1-t)*h2[k].
+There can be implemented as
+x[n] \conv h[n] = t*(x[n] \conv h1[n]) + (1-t)*(x[n] \conv h2[n])
+Thus, the convolutions actually *are* constant.
+
+For delays, it may be possible to *approximate*:
+h[0] = (P==0)
+h[1] = (P==1)
+and so forth.
+In particular, we could create effectively do this in the frequency domain:
+h[k] = \delta[k-P] = w_L^0*exp(j*P)^0 + w_L^1*exp(j*P)^1 + w_L^2*exp(j*P)^2 + ...
+One difficulty is creating `exp` function (though Taylor approximation may
+actually suffice). Other difficulty lies in having to emulate complex math.
+Lastly, we're limited to working precision.
+In general, this is a very ugly solution.
+Alternatively, we could create N polynomials with N-1 roots, sum them, and
+then evaluate at P.
+i.e. Q0(x) = 1/D0 * (x-1)(x-2)(...)(x-{n-1})
+     Q1(x) = 1/D1 * (x-0)(x-2)(...)(x-{n-1})
+and so forth. Then, Q0(0) = 1, Q1(1) = 1, and so forth.
+Finally, h[0] = Q0(P), h[1] = Q1(P), ...
+This is only feasible for very small n, and still quite ugly.
+
+Alternatively, we could attempt a solution that:
+1. m1[n] = delay x[n] by 1 if P%2 >= 1
+2. m2[n] = delay x[n] by 2 if (P/2)%2 >= 1
+3. m3[n] = delay x[n] by 4 if (P/4)%2 >= 1
+...
+This would likely be destroyed by error accumulation.
+
+We could force delays to be implemented by the DAW via explicit creation of
+duplicate notes. This doesn't work for delaying *portions* of a note, though.
+
+Most DAWs use lower-sample rate channels for automation. Therefore, it's not
+infeasible to create fixed delays, and have the DAW interpolate between them.
+
+
+Perhaps more effective than implementing convolution as a first-class
+operation, is implementing delay as a first-class operation and building
+convolution from that.
+
+In such a scenario, we would implement an operation, Y[n] = delay(x1[n], by
+x2[n]). Its result would be:
+  Y[n] = \sum_{k=0}^L x1[k] \conv \delta[n-x2[k]]
+We're still able to group the convolutions if we can prove there are constant
+regions of x2[k], however, we lose a good deal of the "linearity" advantage of
+our system*.
+* Not entirely: delay(x, P1+P2) = delay(delay(x, P1), P2). So we can still
+  break the computation into pieces... but it's not that useful (computing
+staggered delays is unlikely to be less expensive than massive delays, plus we
+now have the added case of *negative* delays).
+This leads to non-integral AND NEGATIVE delays though -- how do we manage?
+
+Non-integral delays
+------
+1. Use an interpolation scheme. Downside: we get an implicit LPF
+*2 Truncate or round. No LPF. Downside: values oscillating near k+0.5 may
+create some jitter. With suitable sample rate (esp. if we oversample), jitter
+is inaudible.
+3. Perform all computations in integer-math. Downside: inability to ever scale
+a number down.
+4. Perform all computations in fraction-math, with implicit scaling by the
+denominator when computing delays. Downside: added complexity, truncation
+still occurs, is just masked elsewhere.
+5. Perform analytically. Note that this inevitably requires evaluating
+cos(cos(x)).
+6. Allow each delay operation to set interpolation parameters. Downside: much
+greater complexity in the engine. However, can still ultimately reduce it to a
+fixed convolution. Upside: a LPF could be *twivially* implemented in this manner.
+#2 seems acceptable (or, allow different host configurations).
+
+Negative delays
+------
+1. Treat as no-op.
+2. Introduce latency of N to allow up to N negative delay.
+3. Implement #2, with N configurable. Allows for #1 or #2, and one could
+distinguish between real-time and export settings.
+
+
+Back to ADSR enveloping
+------
+Draw a line from (0,0) to (A,1) for the Attack portion.
+Do this by starting with N points distributed from (0,0) to (0,1/N).
+For each point i, delay by A/N*i.
+Normalize the signal power by multiplying by A.
+Low-pass filter the signal.
+
+For the delay portion, draw a line from (A,1) to (A+D,S)
+i.e. draw a line from (0,1) to (D,S) and delay by A.
+i.e. draw a line from (0,0) to (D,S-1), delay by A & add 1.
+i.e. draw a line from (0,0) to (D,1), delay by A, add 1, * by S-1.
+^ The above is identical to forming the Attack line, plus arithmetic ops.
+
+For the sustain portion, we multiply the signal by (u[n], delayed by A+D, then
+multiplied by u[Rtime-n]. Note: Rtime remains +\infty until we know the release time.)
+For the release portion, we apply the same process as we did at the Delay
+portion.
+
+Problem: How to handle releases *before* the AD portion of the envelope is
+complete? We would extract the current envelope value at the time of release
+(via multiplication by a delayed impulse) and use this as the starting value
+for the release (instead of S)
