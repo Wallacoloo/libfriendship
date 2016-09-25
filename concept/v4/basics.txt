@@ -1,0 +1,48 @@
+Same as early conceptions of v3:
+Retain a computation tree as in previous concepts.
+Audio streams are discrete-time PCM streams/
+Each node in the stream either:
+  (a) point-wise multiplies the left and right inputs.
+  (b) convolves the left and right inputs.
+
+Audio streams also serve as control signals.
+
+Most effects are derived experimentally, based only loosely on intuition.
+
+Filtering
+------
+
+Little has changed since v3.
+Filters are implemented via (effectively):
+
+h[n] = (P_0(L[n]) \conv \delta[n]) + (P_1(L[n]) \conv \delta[n-1]) + ...
+where P_i(x) are polynomial functions derived mathematically to minimize the
+error in the ideal frequency response.
+
+Physically, this computation is carried out:
+
+x[n] \conv h[n] becomes:
+(x[n] \conv \delta[n]) .* P_0(L[n]) + (x[n] \conv delta[n-1]) .* P_1(L[n]) + ...
+
+So the convolutions end up being constant, and their weights are being
+manipulated.
+
+Delays
+------
+h[n] = (P_0(D[n]) \conv \delta[n]) + (P_1(D[n]) \conv \delta[n-1]) + ...
+
+P_i(x) is implemented s.t. P_i(i) = 1 and P_i(j), j != i, is close to 0.
+This is implemented by:
+ 1. Take a simple function: R_i(x) which is 1 for x=i and
+    between (-1, 1) for all other x in the domain of valid delay amounts.
+ 2. P_i(x) = R_i(x)^P, where P is some large integer (probably a power-of-two
+    to allow computation by repeated squaring)
+
+ADSR Enveloping
+------
+We don't really need triangular ADS portions - it's ok & often even desirable
+for them to be rounded.
+These can be implemented by polynomials, solve by minimization as in the delay
+& filtering examples.
+They are then gated by the release signal.
+
