@@ -8,3 +8,6 @@ license = "MIT"
 
 [dependencies]
 num-complex = "0.1.33"
+
+[dependencies.online_dag]
+git = "https://github.com/wallacoloo/online_dag.git"
