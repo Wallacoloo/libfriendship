@@ -2,5 +2,5 @@
 use routing::RouteTree;
 
 pub trait Renderer {
-    fn step(&self, tree: &RouteTree) -> &[f32];
+    fn step(&mut self, tree: &RouteTree, output: &mut [f32]);
 }

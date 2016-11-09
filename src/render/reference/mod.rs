@@ -2,5 +2,4 @@
 /// i.e. it aims to be simple and easy to understand, with little care
 /// towards resource usage.
 
-mod partial_renderer;
-pub mod tree_renderer;
+pub mod renderer;

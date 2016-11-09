@@ -23,7 +23,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "online_dag"
 version = "0.1.0"
-source = "git+https://github.com/wallacoloo/online_dag.git#ca12d42d0c48eeba669f605f2b6cfde96ea58d06"
+source = "git+https://github.com/wallacoloo/online_dag.git#9b7f7c8d86b2cdfc7e07f12686533505cdecbd20"
 
 [[package]]
 name = "rustc-serialize"

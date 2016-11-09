@@ -1,6 +1,9 @@
 extern crate online_dag;
+use self::online_dag::rcdag;
 use self::online_dag::rcdag::RcDag;
+use self::online_dag::ondag::OnDag;
 
+#[derive(PartialEq, Eq, Clone)]
 pub struct RouteEdge {
     /// 0 corresponds to the source,
     /// 1 corresponds to the delay-by-zero weight,
@@ -40,4 +43,14 @@ impl LeafNode {
     }
 }
 
-pub type RouteTree=RcDag<RouteNode, RouteEdge>;
+pub type RouteNodeHandle=<RcDag<RouteNode, RouteEdge> as OnDag<RouteNode, RouteEdge>>::NodeHandle;
+pub struct RouteTree {
+    dag: RcDag<RouteNode, RouteEdge>,
+    root: RouteNodeHandle,
+}
+
+impl RouteTree {
+    pub fn iter_topo_rev(&self) -> impl Iterator<Item=rcdag::NodeHandle<RouteNode, RouteEdge>> {
+        self.dag.iter_topo_rev(&self.root)
+    }
+}
