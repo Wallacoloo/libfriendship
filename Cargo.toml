@@ -7,7 +7,9 @@ authors = [ "Colin Wallace <wallacoloo@gmail.com>" ]
 license = "MIT"
 
 [dependencies]
-num-complex = "0.1.33"
 
 [dependencies.online_dag]
 git = "https://github.com/wallacoloo/online_dag.git"
+
+[dependencies.pwline]
+git = "https://github.com/wallacoloo/rust-pwline.git"

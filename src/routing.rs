@@ -1,7 +1,9 @@
 extern crate online_dag;
+extern crate pwline;
 use self::online_dag::rcdag;
 use self::online_dag::rcdag::RcDag;
 use self::online_dag::ondag::OnDag;
+use self::pwline::PwLine;
 
 #[derive(PartialEq, Eq, Clone)]
 pub struct RouteEdge {
@@ -11,9 +13,10 @@ pub struct RouteEdge {
     slot_idx: u32,
 }
 
-pub struct LeafNode {
+pub enum LeafNode {
+    PwLine(PwLine<u32, f32>),
     /// retrieve a buffer of samples offset by the sample count of the first argument.
-    get_samples: Box<fn(u32, &mut [f32])>,
+    FnPtr(Box<fn(u32, &mut [f32])>),
 }
 
 pub enum RouteNode {
@@ -32,14 +35,16 @@ pub fn get_zeros(start: u32, into: &mut [f32]) {
 }
 
 impl LeafNode {
-    pub fn new(get_samples: Box<fn(u32, &mut [f32])>) -> Self {
-        LeafNode{
-            get_samples: get_samples,
-        }
-    }
     /// fill the entire `into` buffer of samples based on external input at time t=offset.
     pub fn fill(&self, offset: u32, into: &mut [f32]) {
-        (self.get_samples)(offset, into);
+        match self {
+            &LeafNode::PwLine(ref pwline) => {
+                pwline.get_consecutive(offset, into);
+            }
+            &LeafNode::FnPtr(ref func) => {
+                (func)(offset, into);
+            }
+        }
     }
 }
 
