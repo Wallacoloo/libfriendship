@@ -48,14 +48,31 @@ impl LeafNode {
     }
 }
 
-pub type RouteNodeHandle=<RcDag<RouteNode, RouteEdge> as OnDag<RouteNode, RouteEdge>>::NodeHandle;
+//pub type RouteNodeHandle=<RcDag<RouteNode, RouteEdge> as OnDag<RouteNode, RouteEdge>>::NodeHandle;
+// Prefer this syntax so we can have access to RouteNodeHandle::null(), etc.
+pub type RouteNodeHandle=rcdag::NodeHandle<RouteNode, RouteEdge>;
 pub struct RouteTree {
     dag: RcDag<RouteNode, RouteEdge>,
     root: RouteNodeHandle,
 }
 
 impl RouteTree {
+    pub fn new() -> Self {
+        let mut s = RouteTree {
+            dag: RcDag::new(),
+            root: RouteNodeHandle::null(),
+        };
+        s.root = s.dag.add_node(RouteNode::Intermediary);
+        s
+    }
     pub fn iter_topo_rev(&self) -> impl Iterator<Item=rcdag::NodeHandle<RouteNode, RouteEdge>> {
         self.dag.iter_topo_rev(&self.root)
+    }
+}
+
+// default is needed for RouteNodeHandle::null
+impl Default for RouteNode {
+    fn default() -> Self {
+        RouteNode::Intermediary
     }
 }
