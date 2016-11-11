@@ -80,7 +80,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "online_dag"
 version = "0.1.0"
-source = "git+https://github.com/wallacoloo/online_dag.git#f8474884c77c118026593f37641b00f767bb5963"
+source = "git+https://github.com/wallacoloo/online_dag.git#407796b6573a4205740cac1a282ae1f715ddd614"
 
 [[package]]
 name = "pwline"

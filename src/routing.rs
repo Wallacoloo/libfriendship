@@ -51,6 +51,7 @@ impl LeafNode {
 //pub type RouteNodeHandle=<RcDag<RouteNode, RouteEdge> as OnDag<RouteNode, RouteEdge>>::NodeHandle;
 // Prefer this syntax so we can have access to RouteNodeHandle::null(), etc.
 pub type RouteNodeHandle=rcdag::NodeHandle<RouteNode, RouteEdge>;
+pub type WeakNodeHandle=rcdag::WeakNodeHandle<RouteNode, RouteEdge>;
 pub struct RouteTree {
     dag: RcDag<RouteNode, RouteEdge>,
     root: RouteNodeHandle,
