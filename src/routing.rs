@@ -69,6 +69,15 @@ impl RouteTree {
     pub fn iter_topo_rev(&self) -> impl Iterator<Item=rcdag::NodeHandle<RouteNode, RouteEdge>> {
         self.dag.iter_topo_rev(&self.root)
     }
+    pub fn children_of(&self, of: &RouteNodeHandle) -> impl Iterator<Item=rcdag::DagEdge<RouteNode, RouteEdge>> {
+        self.dag.children(of)
+    }
+}
+
+impl RouteEdge {
+    pub fn slot_idx(&self) -> usize {
+        self.slot_idx as usize
+    }
 }
 
 // default is needed for RouteNodeHandle::null
