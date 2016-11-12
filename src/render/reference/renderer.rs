@@ -48,6 +48,11 @@ impl Renderer for RefRenderer {
                 state.sum_into(buff, i-1);
             }
         }
+        // Copy the output of the root node into our output buffer
+        {
+            let root_state = self.states.get(&tree.root().weak()).unwrap();
+            into[..].clone_from_slice(root_state.get(N));
+        }
         // Go back and reset each node's buffer
         for node_handle in tree.iter_topo_rev() {
             let mut state = self.states.get_mut(&node_handle.weak()).unwrap();

@@ -66,6 +66,9 @@ impl RouteTree {
         s.root = s.dag.add_node(RouteNode::Intermediary);
         s
     }
+    pub fn root(&self) -> &RouteNodeHandle {
+        &self.root
+    }
     pub fn iter_topo_rev(&self) -> impl Iterator<Item=rcdag::NodeHandle<RouteNode, RouteEdge>> {
         self.dag.iter_topo_rev(&self.root)
     }
