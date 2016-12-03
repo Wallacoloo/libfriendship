@@ -1,7 +1,7 @@
 extern crate online_dag;
 extern crate pwline;
-use self::online_dag::rcdag;
-use self::online_dag::rcdag::RcDag;
+use self::online_dag::poscostdag;
+use self::online_dag::poscostdag::{CostQueriable, PosCostDag};
 use self::online_dag::ondag::OnDag;
 use self::pwline::PwLine;
 
@@ -48,19 +48,21 @@ impl LeafNode {
     }
 }
 
-//pub type RouteNodeHandle=<RcDag<RouteNode, RouteEdge> as OnDag<RouteNode, RouteEdge>>::NodeHandle;
+//pub type RouteNodeHandle=<PosCostDag<RouteNode, RouteEdge> as OnDag<RouteNode, RouteEdge>>::NodeHandle;
 // Prefer this syntax so we can have access to RouteNodeHandle::null(), etc.
-pub type RouteNodeHandle=rcdag::NodeHandle<RouteNode, RouteEdge>;
-pub type WeakNodeHandle=rcdag::WeakNodeHandle<RouteNode, RouteEdge>;
+pub type RouteNodeHandle=poscostdag::NodeHandle<RouteNode, RouteEdge>;
+pub type WeakNodeHandle=poscostdag::WeakNodeHandle<RouteNode, RouteEdge>;
+pub type FullEdge=poscostdag::FullEdge<RouteNode, RouteEdge>;
+type DagImpl=PosCostDag<RouteNode, RouteEdge>;
 pub struct RouteTree {
-    dag: RcDag<RouteNode, RouteEdge>,
+    dag: DagImpl,
     root: RouteNodeHandle,
 }
 
 impl RouteTree {
     pub fn new() -> Self {
         let mut s = RouteTree {
-            dag: RcDag::new(),
+            dag: DagImpl::new(),
             root: RouteNodeHandle::null(),
         };
         s.root = s.dag.add_node(RouteNode::Intermediary);
@@ -69,17 +71,41 @@ impl RouteTree {
     pub fn root(&self) -> &RouteNodeHandle {
         &self.root
     }
-    pub fn iter_topo_rev(&self) -> impl Iterator<Item=rcdag::NodeHandle<RouteNode, RouteEdge>> {
+    pub fn iter_topo_rev(&self) -> impl Iterator<Item=poscostdag::NodeHandle<RouteNode, RouteEdge>> {
         self.dag.iter_topo_rev(&self.root)
     }
-    pub fn children_of(&self, of: &RouteNodeHandle) -> impl Iterator<Item=rcdag::DagEdge<RouteNode, RouteEdge>> {
+    pub fn children_of(&self, of: &RouteNodeHandle) -> impl Iterator<Item=poscostdag::HalfEdge<RouteNode, RouteEdge>> {
         self.dag.children(of)
     }
+    /*
+    /// Return only the inputs into the left (i.e. non-delayed) channel of `of`
+    pub fn left_children_of(&self, of: &RouteNodeHandle) -> impl Iterator<Item=poscostdag::HalfEdge<RouteNode, RouteEdge>> {
+        self.dag.children(of).filter(|edge| edge.weight().is_left())
+    }
+    /// Return only the inputs into the right (i.e. non-delayed) channel of `of`
+    pub fn right_children_of(&self, of: &RouteNodeHandle) -> impl Iterator<Item=poscostdag::HalfEdge<RouteNode, RouteEdge>> {
+        self.dag.children(of).filter(|edge| edge.weight().is_right())
+    }*/
 }
 
 impl RouteEdge {
     pub fn slot_idx(&self) -> usize {
         self.slot_idx as usize
+    }
+    pub fn is_left(&self) -> bool {
+        self.slot_idx == 0
+    }
+    pub fn is_right(&self) -> bool {
+        !self.is_left()
+    }
+    /// Returns the amount a right input is delayed,
+    /// or 0 if the input is to the left slot
+    pub fn delay(&self) -> u32 {
+        if self.is_left() {
+            0
+        } else {
+            self.slot_idx - 1
+        }
     }
 }
 
@@ -87,5 +113,24 @@ impl RouteEdge {
 impl Default for RouteNode {
     fn default() -> Self {
         RouteNode::Intermediary
+    }
+}
+
+impl CostQueriable<RouteNode, RouteEdge> for RouteEdge {
+    fn is_zero_cost(my_edge: &FullEdge, dag : &DagImpl) -> bool {
+        // Cost represents the delay of this data going into the next node.
+        // If this is a right edge, delay is encoded in the edge (assuming there is SOME left
+        // input)
+        // If this is a left edge, delay is the minimum delay of all right nodes entering the
+        // same node.
+        if my_edge.weight().is_right() {
+            dag.children(my_edge.to()).any(|in_edge| {
+                in_edge.weight().is_left()
+            })
+        } else {
+            dag.children(my_edge.to()).any(|in_edge| {
+                in_edge.weight().is_right() && in_edge.weight().delay() == 0
+            })
+        }
     }
 }
