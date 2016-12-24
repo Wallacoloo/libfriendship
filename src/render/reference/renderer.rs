@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 
 use render::renderer::Renderer;
-use routing::{RouteTree, WeakNodeHandle};
+use routing::{RouteNode, RouteTree, WeakNodeHandle};
 
 pub struct RefRenderer {
     // associate some rendering state with each node.
     states: HashMap<WeakNodeHandle, NodeState>,
+    // index of the current sample being processed.
+    sample_idx: u32,
 }
 
 struct NodeState {
@@ -25,38 +27,51 @@ impl Renderer for RefRenderer {
     fn step(&mut self, tree: &RouteTree, into: &mut [f32]) {
         for out_samp in into.iter_mut() {
             *out_samp = self.step_once(tree);
+            self.sample_idx += 1;
         }
     }
 }
 
 impl RefRenderer {
     pub fn new() -> Self {
-        RefRenderer{ states: HashMap::new() }
+        RefRenderer{
+            states: HashMap::new(),
+            sample_idx: 0,
+        }
     }
     fn step_once(&mut self, tree: &RouteTree) -> f32 {
         // iterate from leaves up to the root.
         for node_handle in tree.iter_topo_rev() {
-            // Create temporary state for each of our inputs (note: multiple sources could sum into
-            // the same slot)
-            let mut in_buffs = Vec::new();
-            // Now we gather 1 sample from each child & bring it in.
-            for edge in tree.children_of(&node_handle) {
-                let slot = edge.weight().slot_idx();
-                let child_state = self.states.get(&edge.to().weak()).unwrap();
-                // Create a buffer for this slot if not yet created.
-                if slot >= in_buffs.len() {
-                    in_buffs.resize(slot, 0f32);
-                }
-                // sum the child's output into the correct buffer.
-                in_buffs[slot] += child_state.head();
-            }
-            // get/create the state entry for the node
-            let mut state = self.states.entry(node_handle.weak()).or_insert_with(NodeState::new);
-            // Do the convolution, summing it into our state/output.
-            if in_buffs.len() > 0 {
-                let left_val = in_buffs[0];
-                for (right_idx, right_val) in in_buffs.into_iter().skip(1).enumerate() {
-                    state.sum_into(left_val*right_val, right_idx);
+            match node_handle.node_data() {
+                RouteNode::Intermediary => {
+                    // Create temporary state for each of our inputs (note: multiple sources could sum into
+                    // the same slot)
+                    let mut in_buffs = Vec::new();
+                    // Now we gather 1 sample from each child & bring it in.
+                    for edge in tree.children_of(&node_handle) {
+                        let slot = edge.weight().slot_idx();
+                        let child_state = self.states.get(&edge.to().weak()).unwrap();
+                        // Create a buffer for this slot if not yet created.
+                        if slot >= in_buffs.len() {
+                            in_buffs.resize(slot, 0f32);
+                        }
+                        // sum the child's output into the correct buffer.
+                        in_buffs[slot] += child_state.head();
+                    }
+                    // get/create the state entry for the node
+                    let mut state = self.states.entry(node_handle.weak()).or_insert_with(NodeState::new);
+                    // Do the convolution, summing it into our state/output.
+                    if in_buffs.len() > 0 {
+                        let left_val = in_buffs[0];
+                        for (right_idx, right_val) in in_buffs.into_iter().skip(1).enumerate() {
+                            state.sum_into(left_val*right_val, right_idx);
+                        }
+                    }
+                },
+                RouteNode::Leaf(leaf_node) => {
+                    // get/create the state entry for the node
+                    let mut state = self.states.entry(node_handle.weak()).or_insert_with(NodeState::new);
+                    state.sum_into(leaf_node.get_one(self.sample_idx), 0)
                 }
             }
         }

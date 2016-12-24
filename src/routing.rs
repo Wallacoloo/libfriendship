@@ -13,13 +13,16 @@ pub struct RouteEdge {
     slot_idx: u32,
 }
 
+#[derive(Clone)]
 pub enum LeafNode {
     /// Pointwise Lines usually used for automations, maybe impulses, etc.
     PwLine(PwLine<u32, f32>),
-    /// retrieve a buffer of samples offset by the sample count of the first argument.
-    FnPtr(Box<fn(u32, &mut [f32])>),
+    // retrieve a buffer of samples offset by the sample count of the first argument.
+    // NOTE: FnPtr removed because we need purity.
+    //FnPtr(Box<fn(u32, &mut [f32])>),
 }
 
+#[derive(Clone)]
 pub enum RouteNode {
     /// An intermediary node, which combines audio from upstream sources
     Intermediary,
@@ -42,10 +45,15 @@ impl LeafNode {
             &LeafNode::PwLine(ref pwline) => {
                 pwline.get_consecutive(offset, into);
             }
-            &LeafNode::FnPtr(ref func) => {
+            /*&LeafNode::FnPtr(ref func) => {
                 (func)(offset, into);
-            }
+            }*/
         }
+    }
+    pub fn get_one(&self, offset: u32) -> f32 {
+        let mut x = [0.0f32];
+        self.fill(offset, &mut x);
+        x[0]
     }
 }
 
