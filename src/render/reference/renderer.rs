@@ -9,55 +9,68 @@ pub struct RefRenderer {
 }
 
 struct NodeState {
-    // We track N+k output samples for each node, where N is the latency / block size
+    // We track 1+k output samples for each node, where 1 is the latency / block size
     // and k is the maximum that any input signal could be delayed by.
-    // Externally, only the first N samples are visible.
+    // Externally, only the first sample is visible.
+    //
+    // Then, when a new set of inputs arrive (i.e. the left and right components at t=t0),
+    // we can compute their full effect into the buffer.
+    //
+    // We could have a latency of N>1, but this complicates dependency tracking,
+    // as cycles with delay N>1 ARE allowed.
     output: Vec<f32>,
 }
 
 impl Renderer for RefRenderer {
-    #[allow(non_snake_case)]
     fn step(&mut self, tree: &RouteTree, into: &mut [f32]) {
-        // save the buffer size, for use throughout.
-        let N = into.len();
+        for out_samp in into.iter_mut() {
+            *out_samp = self.step_once(tree);
+        }
+    }
+}
+
+impl RefRenderer {
+    pub fn new() -> Self {
+        RefRenderer{ states: HashMap::new() }
+    }
+    fn step_once(&mut self, tree: &RouteTree) -> f32 {
         // iterate from leaves up to the root.
         for node_handle in tree.iter_topo_rev() {
             // Create temporary state for each of our inputs (note: multiple sources could sum into
             // the same slot)
             let mut in_buffs = Vec::new();
-            // Now we gather N samples from each child & bring them in.
+            // Now we gather 1 sample from each child & bring it in.
             for edge in tree.children_of(&node_handle) {
                 let slot = edge.weight().slot_idx();
                 let child_state = self.states.get(&edge.to().weak()).unwrap();
                 // Create a buffer for this slot if not yet created.
                 if slot >= in_buffs.len() {
-                    in_buffs.resize(slot, vec![0f32; N].into_boxed_slice());
+                    in_buffs.resize(slot, 0f32);
                 }
                 // sum the child's output into the correct buffer.
-                for (into, from_child) in in_buffs[slot].iter_mut().zip(child_state.get(N)) {
-                    *into = *from_child;
-                }
+                in_buffs[slot] += child_state.head();
             }
-            // Create a state entry for the node
+            // get/create the state entry for the node
             let mut state = self.states.entry(node_handle.weak()).or_insert_with(NodeState::new);
-            // we need enough room to house a length-N sequence that's delayed by in_buffs.len()-2
-            state.ensure_len(N + in_buffs.len()-2);
-            // Sum the convolutions of in_buffs into the state's output:
-            // i.e. output = \sum{i=1}^m in_buffs[0][t] \conv in_buffs[i][t - (i+1)]
-            for (i, buff) in in_buffs.iter().enumerate().skip(1) {
-                state.sum_into(buff, i-1);
+            // Do the convolution, summing it into our state/output.
+            if in_buffs.len() > 0 {
+                let left_val = in_buffs[0];
+                for (right_idx, right_val) in in_buffs.into_iter().skip(1).enumerate() {
+                    state.sum_into(left_val*right_val, right_idx);
+                }
             }
         }
         // Copy the output of the root node into our output buffer
-        {
+        let ret_val = {
             let root_state = self.states.get(&tree.root().weak()).unwrap();
-            into[..].clone_from_slice(root_state.get(N));
-        }
+            root_state.head()
+        };
         // Go back and reset each node's buffer
         for node_handle in tree.iter_topo_rev() {
             let mut state = self.states.get_mut(&node_handle.weak()).unwrap();
-            state.advance_buff(N);
+            state.pop_head();
         }
+        ret_val
     }
 }
 
@@ -68,23 +81,21 @@ impl NodeState {
             output: Vec::new()
         }
     }
-    /// get the head of the buffer
-    fn get(&self, size: usize) -> &[f32] {
-        &self.output[..size]
+    /// get the head of the buffer, defaulting to 0.0
+    fn head(&self) -> f32 {
+        *self.output.iter().next().unwrap_or(&0.0f32)
     }
     /// After processing the output, we can remove the head of the buffer
-    fn advance_buff(&mut self, size: usize) {
-        self.output.drain(..size);
-    }
-    fn ensure_len(&mut self, size: usize) {
-        if self.output.len() < size {
-            self.output.resize(size, 0f32);
+    fn pop_head(&mut self) {
+        if self.output.len() > 0 {
+            self.output.remove(0);
         }
     }
-    /// Add `data` into self.output[offset..]
-    fn sum_into(&mut self, data: &[f32], offset: usize) {
-        for (mine, other) in self.output.iter_mut().skip(offset).zip(data.iter()) {
-            *mine += *other;
+    /// Add `data` into self.output[offset]
+    fn sum_into(&mut self, data: f32, offset: usize) {
+        if self.output.len() < offset+1 {
+            self.output.resize(offset+1, 0f32);
         }
+        self.output[offset] += data;
     }
 }

@@ -3,7 +3,7 @@ extern crate pwline;
 use self::online_dag::poscostdag;
 use self::online_dag::poscostdag::{CostQueriable, PosCostDag};
 use self::online_dag::ondag::OnDag;
-use self::pwline::PwLine;
+pub use self::pwline::PwLine;
 
 #[derive(PartialEq, Eq, Clone)]
 pub struct RouteEdge {
@@ -14,6 +14,7 @@ pub struct RouteEdge {
 }
 
 pub enum LeafNode {
+    /// Pointwise Lines usually used for automations, maybe impulses, etc.
     PwLine(PwLine<u32, f32>),
     /// retrieve a buffer of samples offset by the sample count of the first argument.
     FnPtr(Box<fn(u32, &mut [f32])>),
@@ -22,13 +23,13 @@ pub enum LeafNode {
 pub enum RouteNode {
     /// An intermediary node, which combines audio from upstream sources
     Intermediary,
-    /// A leaf node, which generates audio on its own.
+    /// A leaf node, which generates audio on its own (i.e. spuriously).
     Leaf(LeafNode),
 }
 
 /// LeafNode get_samples function that fills a buffer with zeros.
 /// Default implementation.
-pub fn get_zeros(start: u32, into: &mut [f32]) {
+pub fn get_zeros(_start: u32, into: &mut [f32]) {
     for f in into.iter_mut() {
         *f = 0f32;
     }
@@ -77,6 +78,15 @@ impl RouteTree {
     pub fn children_of(&self, of: &RouteNodeHandle) -> impl Iterator<Item=poscostdag::HalfEdge<RouteNode, RouteEdge>> {
         self.dag.children(of)
     }
+    pub fn add_node(&mut self, data: RouteNode) -> RouteNodeHandle {
+        self.dag.add_node(data)
+    }
+    pub fn add_edge(&mut self, from: &RouteNodeHandle, to: &RouteNodeHandle, data: RouteEdge) -> Result<(), ()> {
+        self.dag.add_edge(from, to, data)
+    }
+    pub fn rm_edge(&mut self, from: &RouteNodeHandle, to: &RouteNodeHandle, data: RouteEdge) {
+        self.dag.rm_edge(from, to, data);
+    }
     /*
     /// Return only the inputs into the left (i.e. non-delayed) channel of `of`
     pub fn left_children_of(&self, of: &RouteNodeHandle) -> impl Iterator<Item=poscostdag::HalfEdge<RouteNode, RouteEdge>> {
@@ -89,6 +99,12 @@ impl RouteTree {
 }
 
 impl RouteEdge {
+    pub fn new_left() -> Self {
+        RouteEdge{ slot_idx: 0 }
+    }
+    pub fn new_right(slot_idx: u32) -> Self {
+        RouteEdge{ slot_idx: 1+slot_idx }
+    }
     pub fn slot_idx(&self) -> usize {
         self.slot_idx as usize
     }
@@ -116,6 +132,7 @@ impl Default for RouteNode {
     }
 }
 
+// CostQueriable is needed for cycle prevention
 impl CostQueriable<RouteNode, RouteEdge> for RouteEdge {
     fn is_zero_cost(my_edge: &FullEdge, dag : &DagImpl) -> bool {
         // Cost represents the delay of this data going into the next node.
