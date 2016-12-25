@@ -3,6 +3,7 @@ extern crate pwline;
 use self::online_dag::poscostdag;
 use self::online_dag::poscostdag::{CostQueriable, PosCostDag};
 use self::online_dag::ondag::OnDag;
+use self::pwline::PwLineIter;
 pub use self::pwline::PwLine;
 
 #[derive(PartialEq, Eq, Clone)]
@@ -22,6 +23,10 @@ pub enum LeafNode {
     //FnPtr(Box<fn(u32, &mut [f32])>),
 }
 
+pub enum LeafNodeIter<'a> {
+    PwLine(PwLineIter<'a, u32, f32>),
+}
+
 #[derive(Clone)]
 pub enum RouteNode {
     /// An intermediary node, which combines audio from upstream sources
@@ -30,30 +35,17 @@ pub enum RouteNode {
     Leaf(LeafNode),
 }
 
-/// LeafNode get_samples function that fills a buffer with zeros.
-/// Default implementation.
-pub fn get_zeros(_start: u32, into: &mut [f32]) {
-    for f in into.iter_mut() {
-        *f = 0f32;
-    }
-}
 
-impl LeafNode {
-    /// fill the entire `into` buffer of samples based on external input at time t=offset.
-    pub fn fill(&self, offset: u32, into: &mut [f32]) {
+impl<'a> LeafNode {
+    pub fn get_consec(&'a self, offset: u32) -> LeafNodeIter<'a> {
         match self {
             &LeafNode::PwLine(ref pwline) => {
-                pwline.get_consecutive(offset, into);
+                LeafNodeIter::PwLine(pwline.get_consec(offset))
             }
-            /*&LeafNode::FnPtr(ref func) => {
-                (func)(offset, into);
-            }*/
         }
     }
     pub fn get_one(&self, offset: u32) -> f32 {
-        let mut x = [0.0f32];
-        self.fill(offset, &mut x);
-        x[0]
+        self.get_consec(offset).next().unwrap()
     }
 }
 
@@ -156,6 +148,16 @@ impl CostQueriable<RouteNode, RouteEdge> for RouteEdge {
             dag.children(my_edge.to()).any(|in_edge| {
                 in_edge.weight().is_right() && in_edge.weight().delay() == 0
             })
+        }
+    }
+}
+
+
+impl<'a> Iterator for LeafNodeIter<'a> {
+    type Item=f32;
+    fn next(&mut self) -> Option<f32> {
+        match self {
+            &mut LeafNodeIter::PwLine(ref mut me) => me.next()
         }
     }
 }

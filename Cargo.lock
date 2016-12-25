@@ -85,7 +85,7 @@ source = "git+https://github.com/wallacoloo/online_dag.git#7d69da6408d52c688338a
 [[package]]
 name = "pwline"
 version = "0.1.0"
-source = "git+https://github.com/wallacoloo/rust-pwline.git#b26791c21c09622f329bc3bb7c644fc9b833cf80"
+source = "git+https://github.com/wallacoloo/rust-pwline.git#2befb45aaeb1301a13abddc225d25c7248558396"
 dependencies = [
  "num 0.1.36 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

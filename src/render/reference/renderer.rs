@@ -53,7 +53,7 @@ impl RefRenderer {
                         let child_state = self.states.get(&edge.to().weak()).unwrap();
                         // Create a buffer for this slot if not yet created.
                         if slot >= in_buffs.len() {
-                            in_buffs.resize(slot, 0f32);
+                            in_buffs.resize(slot+1, 0f32);
                         }
                         // sum the child's output into the correct buffer.
                         in_buffs[slot] += child_state.head();

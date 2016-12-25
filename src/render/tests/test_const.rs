@@ -21,8 +21,8 @@ pub fn test_const() {
     let leaf_b = LeafNode::PwLine(pw_const);
     let hdl_a = tree.add_node(RouteNode::Leaf(leaf_a));
     let hdl_b = tree.add_node(RouteNode::Leaf(leaf_b));
-    tree.add_edge(&hdl_a, &root, RouteEdge::new_left());
-    tree.add_edge(&hdl_a, &root, RouteEdge::new_right(0));
+    tree.add_edge(&root, &hdl_a, RouteEdge::new_left());
+    tree.add_edge(&root, &hdl_a, RouteEdge::new_right(0));
 
     // Compute expected outputs
     let mut expecting = vec![];
