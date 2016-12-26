@@ -1,3 +1,6 @@
+mod sinusoid;
+
+
 extern crate online_dag;
 extern crate pwline;
 use self::online_dag::poscostdag;
@@ -5,6 +8,7 @@ use self::online_dag::poscostdag::{CostQueriable, PosCostDag};
 use self::online_dag::ondag::OnDag;
 use self::pwline::PwLineIter;
 pub use self::pwline::PwLine;
+use self::sinusoid::{Sinusoid, SinusoidIter};
 
 #[derive(PartialEq, Eq, Clone)]
 pub struct RouteEdge {
@@ -18,6 +22,10 @@ pub struct RouteEdge {
 pub enum LeafNode {
     /// Pointwise Lines usually used for automations, maybe impulses, etc.
     PwLine(PwLine<u32, f32>),
+    /// Sinusoids are used to convey frequency information of the note over time.
+    /// Note: we don't need to concern ourselves with other periodics here; they can be produced as
+    /// products/sums of sinusoids and optimized *by the renderer*.
+    Sinusoid(Sinusoid),
     // retrieve a buffer of samples offset by the sample count of the first argument.
     // NOTE: FnPtr removed because we need purity.
     //FnPtr(Box<fn(u32, &mut [f32])>),
@@ -25,6 +33,7 @@ pub enum LeafNode {
 
 pub enum LeafNodeIter<'a> {
     PwLine(PwLineIter<'a, u32, f32>),
+    Sinusoid(SinusoidIter<'a>),
 }
 
 #[derive(Clone)]
@@ -39,9 +48,12 @@ pub enum RouteNode {
 impl<'a> LeafNode {
     pub fn get_consec(&'a self, offset: u32) -> LeafNodeIter<'a> {
         match self {
-            &LeafNode::PwLine(ref pwline) => {
-                LeafNodeIter::PwLine(pwline.get_consec(offset))
-            }
+            &LeafNode::PwLine(ref me) => {
+                LeafNodeIter::PwLine(me.get_consec(offset))
+            },
+            &LeafNode::Sinusoid(ref me) => {
+                LeafNodeIter::Sinusoid(me.get_consec(offset))
+            },
         }
     }
     pub fn get_one(&self, offset: u32) -> f32 {
@@ -87,15 +99,6 @@ impl RouteTree {
     pub fn rm_edge(&mut self, from: &RouteNodeHandle, to: &RouteNodeHandle, data: RouteEdge) {
         self.dag.rm_edge(from, to, data);
     }
-    /*
-    /// Return only the inputs into the left (i.e. non-delayed) channel of `of`
-    pub fn left_children_of(&self, of: &RouteNodeHandle) -> impl Iterator<Item=poscostdag::HalfEdge<RouteNode, RouteEdge>> {
-        self.dag.children(of).filter(|edge| edge.weight().is_left())
-    }
-    /// Return only the inputs into the right (i.e. non-delayed) channel of `of`
-    pub fn right_children_of(&self, of: &RouteNodeHandle) -> impl Iterator<Item=poscostdag::HalfEdge<RouteNode, RouteEdge>> {
-        self.dag.children(of).filter(|edge| edge.weight().is_right())
-    }*/
 }
 
 impl RouteEdge {
@@ -157,7 +160,8 @@ impl<'a> Iterator for LeafNodeIter<'a> {
     type Item=f32;
     fn next(&mut self) -> Option<f32> {
         match self {
-            &mut LeafNodeIter::PwLine(ref mut me) => me.next()
+            &mut LeafNodeIter::PwLine(ref mut me) => me.next(),
+            &mut LeafNodeIter::Sinusoid(ref mut me) => me.next(),
         }
     }
 }
