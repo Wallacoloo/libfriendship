@@ -97,6 +97,28 @@ impl RouteTree {
     pub fn rm_edge(&mut self, from: &RouteNodeHandle, to: &RouteNodeHandle, data: RouteEdge) {
         self.dag.rm_edge(from, to, data);
     }
+    /// Return only the inputs into the left (i.e. non-delayed) channel of `of`
+    pub fn left_children_of(&self, of: &RouteNodeHandle) -> impl
+      Iterator<Item=poscostdag::HalfEdge<RouteNode, RouteEdge>> {
+        self.dag.children(of).filter(|edge| edge.weight().is_left())
+    }
+    /// Return only the inputs into the right (i.e. non-delayed) channel of `of`
+    pub fn right_children_of(&self, of: &RouteNodeHandle) -> impl
+      Iterator<Item=poscostdag::HalfEdge<RouteNode, RouteEdge>> {
+        self.dag.children(of).filter(|edge| edge.weight().is_right())
+    }
+    /// Returns 1 + the index of the highest channel number.
+    /// e.g. if we have ch0 and ch2 (no ch1), this returns 3.
+    pub fn n_channels(&self) -> u32 {
+        self.right_children_of(&self.root())
+            .map(|edge| edge.weight().slot_idx())
+            .max()
+            .unwrap_or(0u32) // default no channels
+    }
+    pub fn make_channel_output(&mut self, node: &RouteNodeHandle, ch: u32) {
+        let root = &self.root.clone();
+        self.add_edge(&root, &node, RouteEdge::new_right(ch));
+    }
 }
 
 impl RouteEdge {
@@ -106,8 +128,8 @@ impl RouteEdge {
     pub fn new_right(slot_idx: u32) -> Self {
         RouteEdge{ slot_idx: 1+slot_idx }
     }
-    pub fn slot_idx(&self) -> usize {
-        self.slot_idx as usize
+    pub fn slot_idx(&self) -> u32 {
+        self.slot_idx
     }
     pub fn is_left(&self) -> bool {
         self.slot_idx == 0

@@ -24,9 +24,14 @@ struct NodeState {
 }
 
 impl Renderer for RefRenderer {
+    /// Repeatedly step the tree to fill the buffer.
+    /// If the buffer size is not a multiple of the channel count, the last incomplete frame will
+    /// be left untouched.
     fn step(&mut self, tree: &RouteTree, into: &mut [f32]) {
-        for out_samp in into.iter_mut() {
-            *out_samp = self.step_once(tree);
+        let n_ch = tree.n_channels() as usize;
+        for frame_no in 0..into.len()/n_ch {
+            let buff_idx = frame_no*n_ch;
+            self.step_once(tree, &mut into[buff_idx..buff_idx+n_ch]);
             self.sample_idx += 1;
         }
     }
@@ -39,7 +44,7 @@ impl RefRenderer {
             sample_idx: 0,
         }
     }
-    fn step_once(&mut self, tree: &RouteTree) -> f32 {
+    fn step_once(&mut self, tree: &RouteTree, into: &mut [f32]) {
         // iterate from leaves up to the root.
         for node_handle in tree.iter_topo_rev() {
             match node_handle.node_data() {
@@ -49,7 +54,7 @@ impl RefRenderer {
                     let mut in_buffs = Vec::new();
                     // Now we gather 1 sample from each child & bring it in.
                     for edge in tree.children_of(&node_handle) {
-                        let slot = edge.weight().slot_idx();
+                        let slot = edge.weight().slot_idx() as usize;
                         let child_state = self.states.get(&edge.to().weak()).unwrap();
                         // Create a buffer for this slot if not yet created.
                         if slot >= in_buffs.len() {
@@ -75,17 +80,20 @@ impl RefRenderer {
                 }
             }
         }
-        // Copy the output of the root node into our output buffer
-        let ret_val = {
-            let root_state = self.states.get(&tree.root().weak()).unwrap();
-            root_state.head()
-        };
+        // Copy the right INPUTS into the root node into our output buffer
+        //  (yes, we did compute the "output" of the root node above, but doing so was pointless).
+        for edge in tree.right_children_of(&tree.root()) {
+            let ch_no = edge.weight().delay();
+            let child_state = self.states.get(&edge.to().weak()).unwrap();
+            let sample = child_state.head();
+            // write the sample to the output
+            into[ch_no as usize] = sample;
+        }
         // Go back and reset each node's buffer
         for node_handle in tree.iter_topo_rev() {
             let mut state = self.states.get_mut(&node_handle.weak()).unwrap();
             state.pop_head();
         }
-        ret_val
     }
 }
 

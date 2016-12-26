@@ -11,18 +11,21 @@ pub fn test_const() {
     let cval_prod = 1.44f32;
     let mut tree = RouteTree::new();
     let mut pw_const = PwLine::new();
-    let root = tree.root().clone();
+
+    // Configure ch0 = output of channel 0;
+    let ch0 = tree.add_node(RouteNode::Intermediary);
+    tree.make_channel_output(&ch0, 0);
 
     // create a line that is really just a constant.
     pw_const.add_pt(0u32, cval);
     pw_const.add_pt(44100u32, cval);
-    // Route it to both sides of the root:
+    // Route it to both sides of ch0
     let leaf_a = LeafNode::PwLine(pw_const.clone());
     let leaf_b = LeafNode::PwLine(pw_const);
     let hdl_a = tree.add_node(RouteNode::Leaf(leaf_a));
     let hdl_b = tree.add_node(RouteNode::Leaf(leaf_b));
-    tree.add_edge(&root, &hdl_a, RouteEdge::new_left());
-    tree.add_edge(&root, &hdl_a, RouteEdge::new_right(0));
+    tree.add_edge(&ch0, &hdl_a, RouteEdge::new_left());
+    tree.add_edge(&ch0, &hdl_a, RouteEdge::new_right(0));
 
     // Compute expected outputs
     let mut expecting = vec![];
