@@ -44,6 +44,12 @@ pub enum RouteNode {
 
 
 impl<'a> LeafNode {
+    pub fn new_pwline(pwline: PwLine<u32, f32>) -> Self {
+        LeafNode::PwLine(pwline)
+    }
+    pub fn new_sinusoid(sin: Sinusoid) -> Self {
+        LeafNode::Sinusoid(sin)
+    }
     pub fn get_consec(&'a self, offset: u32) -> LeafNodeIter<'a> {
         match self {
             &LeafNode::PwLine(ref me) => {
@@ -118,6 +124,15 @@ impl RouteTree {
     pub fn make_channel_output(&mut self, node: &RouteNodeHandle, ch: u32) {
         let root = &self.root.clone();
         self.add_edge(&root, &node, RouteEdge::new_right(ch));
+    }
+}
+
+impl RouteNode {
+    pub fn new_intermediary() -> Self {
+        RouteNode::Intermediary
+    }
+    pub fn new_leaf(leafnode: LeafNode) -> Self {
+        RouteNode::Leaf(leafnode)
     }
 }
 
