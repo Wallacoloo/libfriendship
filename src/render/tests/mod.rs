@@ -8,6 +8,7 @@ mod approx_equal;
 //mod test_gate;
 //mod test_lpf;
 //mod test_square;
+mod test_channels;
 mod test_const;
 mod test_sine;
 mod test_tri;
