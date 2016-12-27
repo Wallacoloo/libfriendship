@@ -80,6 +80,10 @@ impl RefRenderer {
                 }
             }
         }
+        // Zero the output buffer so we can sum into it.
+        for f in into.iter_mut() {
+            *f = 0f32;
+        }
         // Copy the right INPUTS into the root node into our output buffer
         //  (yes, we did compute the "output" of the root node above, but doing so was pointless).
         for edge in tree.right_children_of(&tree.root()) {
@@ -87,7 +91,7 @@ impl RefRenderer {
             let child_state = self.states.get(&edge.to().weak()).unwrap();
             let sample = child_state.head();
             // write the sample to the output
-            into[ch_no as usize] = sample;
+            into[ch_no as usize] += sample;
         }
         // Go back and reset each node's buffer
         for node_handle in tree.iter_topo_rev() {

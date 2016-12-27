@@ -9,6 +9,7 @@ pub fn assert_similar_audio(audio1 : &[f32], audio2 : &[f32]) {
     // appropriate error threshold
     let mean_square1 = audio1.iter().fold(0f32, |acc, v| acc + v*v) / (audio1.len() as f32);
     // we care only for the maximum *square* error:
+    // 0.00001 = 1 part^2 per 100,000
     let error_thresh = mean_square1 * 0.00001f32;
 
     let mut all_pass = true;
