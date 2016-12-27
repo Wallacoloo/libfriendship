@@ -10,3 +10,4 @@ mod approx_equal;
 //mod test_lpf;
 //mod test_square;
 mod test_const;
+mod test_sine;

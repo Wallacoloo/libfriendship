@@ -33,11 +33,17 @@ pub struct SinusoidIter<'a> {
 
 
 impl<'a> Sinusoid {
+    pub fn from_phase_info(phase_0: f32, phase_delta: f32) -> Self {
+        Sinusoid {
+            phase_0: phase_0,
+            phase_delta: phase_delta,
+        }
+    }
     pub fn get_consec(&'a self, offset: u32) -> SinusoidIter<'a> {
         SinusoidIter {
             sin: &self,
             value_0: C32::new(0f32, self.phase_0).exp(),
-            idx: 0,
+            idx: offset,
         }
     }
 }
