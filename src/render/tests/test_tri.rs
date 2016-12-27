@@ -25,9 +25,7 @@ pub fn test_tri() {
         let phase_0 = 0f32;
 
         let sin = Sinusoid::from_phase_info(phase_0, my_phase_delta);
-        let mut pwline = PwLine::new();
-        pwline.add_pt(0u32, amp);
-        pwline.add_pt(44100u32, amp);
+        let pwline = PwLine::from_const(amp);
         let leaf_sin    = tree.add_node(RouteNode::new_leaf(LeafNode::new_sinusoid(sin)));
         let leaf_pwline = tree.add_node(RouteNode::new_leaf(LeafNode::new_pwline(pwline)));
         let output_sine = tree.add_node(RouteNode::new_intermediary());
