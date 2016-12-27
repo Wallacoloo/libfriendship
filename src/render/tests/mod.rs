@@ -10,5 +10,6 @@ mod approx_equal;
 //mod test_square;
 mod test_channels;
 mod test_const;
+mod test_hpf;
 mod test_sine;
 mod test_tri;
