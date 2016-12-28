@@ -71,14 +71,14 @@ pub type RouteNodeHandle=poscostdag::NodeHandle<RouteNode, RouteEdge>;
 pub type WeakNodeHandle=poscostdag::WeakNodeHandle<RouteNode, RouteEdge>;
 pub type FullEdge=poscostdag::FullEdge<RouteNode, RouteEdge>;
 type DagImpl=PosCostDag<RouteNode, RouteEdge>;
-pub struct RouteTree {
+pub struct RouteGraph {
     dag: DagImpl,
     root: RouteNodeHandle,
 }
 
-impl RouteTree {
+impl RouteGraph {
     pub fn new() -> Self {
-        let mut s = RouteTree {
+        let mut s = RouteGraph {
             dag: DagImpl::new(),
             root: RouteNodeHandle::null(),
         };

@@ -1,5 +1,5 @@
 mod sinusoid;
-mod routetree;
+mod routegraph;
 
 // re-export the things we want public
-pub use self::routetree::{LeafNode, PwLine, RouteEdge, RouteNode, RouteTree, Sinusoid, WeakNodeHandle};
+pub use self::routegraph::{LeafNode, PwLine, RouteEdge, RouteNode, RouteGraph, Sinusoid, WeakNodeHandle};

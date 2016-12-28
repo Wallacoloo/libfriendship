@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use render::renderer::Renderer;
-use routing::{RouteNode, RouteTree, WeakNodeHandle};
+use routing::{RouteNode, RouteGraph, WeakNodeHandle};
 
 pub struct RefRenderer {
     // associate some rendering state with each node.
@@ -27,7 +27,7 @@ impl Renderer for RefRenderer {
     /// Repeatedly step the tree to fill the buffer.
     /// If the buffer size is not a multiple of the channel count, the last incomplete frame will
     /// be left untouched.
-    fn step(&mut self, tree: &RouteTree, into: &mut [f32]) {
+    fn step(&mut self, tree: &RouteGraph, into: &mut [f32]) {
         let n_ch = tree.n_channels() as usize;
         for frame_no in 0..into.len()/n_ch {
             let buff_idx = frame_no*n_ch;
@@ -44,7 +44,7 @@ impl RefRenderer {
             sample_idx: 0,
         }
     }
-    fn step_once(&mut self, tree: &RouteTree, into: &mut [f32]) {
+    fn step_once(&mut self, tree: &RouteGraph, into: &mut [f32]) {
         // iterate from leaves up to the root.
         for node_handle in tree.iter_topo_rev() {
             match node_handle.node_data() {
