@@ -8,6 +8,8 @@ license = "MIT"
 
 [dependencies]
 num = "*"
+#hlua = "*"
+ndarray = "0.7.2"
 
 [dependencies.online_dag]
 git = "https://github.com/wallacoloo/online_dag.git"

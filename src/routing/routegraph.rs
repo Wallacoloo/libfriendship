@@ -69,7 +69,8 @@ impl<'a> LeafNode {
 // Prefer this syntax so we can have access to RouteNodeHandle::null(), etc.
 pub type RouteNodeHandle=poscostdag::NodeHandle<RouteNode, RouteEdge>;
 pub type WeakNodeHandle=poscostdag::WeakNodeHandle<RouteNode, RouteEdge>;
-pub type FullEdge=poscostdag::FullEdge<RouteNode, RouteEdge>;
+//pub type FullEdge=poscostdag::FullEdge<RouteNode, RouteEdge>;
+pub type RouteHalfEdge=poscostdag::HalfEdge<RouteNode, RouteEdge>;
 type DagImpl=PosCostDag<RouteNode, RouteEdge>;
 pub struct RouteGraph {
     dag: DagImpl,
@@ -91,7 +92,7 @@ impl RouteGraph {
     pub fn iter_topo_rev(&self) -> impl Iterator<Item=poscostdag::NodeHandle<RouteNode, RouteEdge>> {
         self.dag.iter_topo_rev(&self.root)
     }
-    pub fn children_of(&self, of: &RouteNodeHandle) -> impl Iterator<Item=poscostdag::HalfEdge<RouteNode, RouteEdge>> {
+    pub fn children_of(&self, of: &RouteNodeHandle) -> impl Iterator<Item=RouteHalfEdge> {
         self.dag.children(of)
     }
     pub fn add_node(&mut self, data: RouteNode) -> RouteNodeHandle {
@@ -105,12 +106,12 @@ impl RouteGraph {
     }
     /// Return only the inputs into the left (i.e. non-delayed) channel of `of`
     pub fn left_children_of(&self, of: &RouteNodeHandle) -> impl
-      Iterator<Item=poscostdag::HalfEdge<RouteNode, RouteEdge>> {
+      Iterator<Item=RouteHalfEdge> {
         self.dag.children(of).filter(|edge| edge.weight().is_left())
     }
     /// Return only the inputs into the right (i.e. non-delayed) channel of `of`
     pub fn right_children_of(&self, of: &RouteNodeHandle) -> impl
-      Iterator<Item=poscostdag::HalfEdge<RouteNode, RouteEdge>> {
+      Iterator<Item=RouteHalfEdge> {
         self.dag.children(of).filter(|edge| edge.weight().is_right())
     }
     /// Returns 1 + the index of the highest channel number.
@@ -172,7 +173,7 @@ impl Default for RouteNode {
 
 // CostQueriable is needed for cycle prevention
 impl CostQueriable<RouteNode, RouteEdge> for RouteEdge {
-    fn is_zero_cost(my_edge: &FullEdge, dag : &DagImpl) -> bool {
+    fn is_zero_cost(my_edge: &RouteHalfEdge, _next_edge: &RouteHalfEdge, dag : &DagImpl) -> bool {
         // Cost represents the delay of this data going into the next node.
         // If this is a right edge, delay is encoded in the edge (assuming there is SOME left
         // input)

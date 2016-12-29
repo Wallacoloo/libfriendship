@@ -1,13 +1,13 @@
-use routing::{LeafNode, PwLine, RouteEdge, RouteNode, RouteTree};
+use routing::{LeafNode, PwLine, RouteEdge, RouteNode, RouteGraph};
 use render::renderer::Renderer;
 use render::reference::renderer::RefRenderer;
 use super::approx_equal::assert_similar_audio;
 
 #[test]
-/// Create a RouteTree that takes a square wave and passes it through a high-pass filter.
+/// Create a RouteGraph that takes a square wave and passes it through a high-pass filter.
 pub fn test_hpf() {
     // We multiply cval*cval
-    let mut tree = RouteTree::new();
+    let mut tree = RouteGraph::new();
     let mut pw_square = PwLine::new();
     // 4 iterations of a two-frame period square wave.
     for i in 0u32..4u32 {

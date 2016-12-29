@@ -1,14 +1,14 @@
-use routing::{LeafNode, PwLine, RouteEdge, RouteNode, RouteTree, Sinusoid};
+use routing::{LeafNode, PwLine, RouteEdge, RouteNode, RouteGraph, Sinusoid};
 use render::renderer::Renderer;
 use render::reference::renderer::RefRenderer;
 use super::approx_equal::assert_similar_audio;
 
 #[test]
-/// Create a RouteTree that outputs a sinusoid w/ const. amplitude to ch0
+/// Create a RouteGraph that outputs a sinusoid w/ const. amplitude to ch0
 /// and a sinusoid of opposite amplitude to ch1
 pub fn test_channels() {
     let phase_delta = 0.1f32;
-    let mut tree = RouteTree::new();
+    let mut tree = RouteGraph::new();
 
     let sin = Sinusoid::from_phase_info(0.0f32, phase_delta);
     let leaf_sin = LeafNode::new_sinusoid(sin);

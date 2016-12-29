@@ -1,19 +1,19 @@
 use std::f32;
 
-use routing::{LeafNode, PwLine, RouteEdge, RouteNode, RouteTree, Sinusoid};
+use routing::{LeafNode, PwLine, RouteEdge, RouteNode, RouteGraph, Sinusoid};
 use render::renderer::Renderer;
 use render::reference::renderer::RefRenderer;
 use super::approx_equal::assert_similar_audio;
 
 #[test]
-/// Create a RouteTree that outputs a triangle wave w/ const. amplitude
+/// Create a RouteGraph that outputs a triangle wave w/ const. amplitude
 pub fn test_tri() {
     // fundamental freq of tri wave
     let phase_delta = 0.1f32;
     // number of harmonics (f0 is part of this count)
     let n_harm = 64;
     let pi = f32::consts::PI;
-    let mut tree = RouteTree::new();
+    let mut tree = RouteGraph::new();
 
     for k in 0..n_harm {
         let h_no = (2*k+1) as f32;
