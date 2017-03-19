@@ -27,13 +27,19 @@ impl Renderer for RefRenderer {
     /// Repeatedly step the tree to fill the buffer.
     /// If the buffer size is not a multiple of the channel count, the last incomplete frame will
     /// be left untouched.
-    fn step(&mut self, tree: &RouteGraph, into: &mut [f32]) {
+    fn step(&mut self, tree: &EffectGraph, into: &mut [f32]) {
         let n_ch = tree.n_channels() as usize;
         for frame_no in 0..into.len()/n_ch {
             let buff_idx = frame_no*n_ch;
             self.step_once(tree, &mut into[buff_idx..buff_idx+n_ch]);
             self.sample_idx += 1;
         }
+    }
+    /// Called whenever a new edge is added to the EffectGraph of interest
+    fn edge_added(&mut self, edge: EffectEdge) {
+    }
+    /// Called whenever an edge is removed from the EffectGraph of interest
+    fn edge_removed(&mut self, edge: EffectEdge) {
     }
 }
 
@@ -42,6 +48,17 @@ impl RefRenderer {
         RefRenderer{
             states: HashMap::new(),
             sample_idx: 0,
+        }
+    }
+    /// Repeatedly step the graph to fill the buffer.
+    /// If the buffer size is not a multiple of the channel count, the last incomplete frame will
+    /// be left untouched.
+    fn step_routegraph(&mut self, tree: &RouteGraph, into: &mut [f32]) {
+        let n_ch = tree.n_channels() as usize;
+        for frame_no in 0..into.len()/n_ch {
+            let buff_idx = frame_no*n_ch;
+            self.step_once(tree, &mut into[buff_idx..buff_idx+n_ch]);
+            self.sample_idx += 1;
         }
     }
     fn step_once(&mut self, tree: &RouteGraph, into: &mut [f32]) {
