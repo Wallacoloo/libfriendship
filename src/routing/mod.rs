@@ -4,6 +4,7 @@
 /// mathematical relationships.
 
 mod effect;
+mod graphwatcher;
 mod routegraph;
 mod sinusoid;
 
