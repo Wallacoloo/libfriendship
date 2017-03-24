@@ -8,8 +8,10 @@ license = "MIT"
 
 [dependencies]
 num = "*"
-#hlua = "*"
-ndarray = "0.7.2"
+# Serialization
+serde = "*"
+serde_derive = "*"
+serde_json = "*"
 
 [dependencies.online_dag]
 git = "https://github.com/wallacoloo/online_dag.git"
