@@ -8,4 +8,4 @@ mod routegraph;
 mod sinusoid;
 
 // re-export the things we want public
-pub use self::routegraph::{LeafNode, PwLine, RouteEdge, RouteNode, RouteGraph, Sinusoid, WeakNodeHandle};
+pub use self::routegraph::{Edge, NodeHandle};

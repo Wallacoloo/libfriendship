@@ -6,7 +6,7 @@ use self::serde_json::map::Map;
 use self::serde_json::value::Value;
 
 #[derive(Serialize, Deserialize)]
-struct Effect {
+pub struct Effect {
     /// Canonical name of the effect
     name: String,
     /// Hash of the effect's definition file, or None if the effect is primitive
@@ -17,40 +17,3 @@ struct Effect {
     effect_args: Map<String, Value>,
 }
 
-
-///// Data structure needed for deserializing Effects
-//struct EffectVisitor {
-//}
-//impl EffectVisitor {
-//    fn new() -> Self {
-//        EffectVisitor {}
-//    }
-//}
-//impl de::Visitor for EffectVisitor {
-//    // This Visitor deserializes to an Effect.
-//    type Value = Effect;
-//    // Diagnostic info
-//    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-//        formatter.write_str("Effect")
-//    }
-//    fn visit_map<M>(self, mut visitor: M) -> Result<Self::Value, M::Error>
-//        where M: de::MapVisitor
-//    {
-//        // First, deserialize into a generic Map<String, Value>
-//        let mut collected = Map::new();
-//
-//        // While there are entries remaining in the input, add them
-//        // into our map.
-//        while let Some((key, value)) = visitor.visit()? {
-//            collected.insert(key, value);
-//        }
-//
-//        // typecheck all keys that we understand.
-//        let name = match collected.entry("name") {
-//            Vacant(_) => M::Error::missing_field("name"),
-//            Occupied(entry) => 
-//        }
-//
-//        Ok(values)
-//    }
-//}
