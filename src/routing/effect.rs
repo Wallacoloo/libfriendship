@@ -17,3 +17,8 @@ pub struct Effect {
     effect_args: Map<String, Value>,
 }
 
+impl Effect {
+    pub fn are_slots_connected(&self, from_slot: u32, from_ch: u8, to_slot: u32, to_ch: u8) -> bool {
+        unimplemented!();
+    }
+}

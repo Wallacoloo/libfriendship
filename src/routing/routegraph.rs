@@ -25,8 +25,9 @@ struct EdgeWeight {
     to_ch: u8,
 }
 
-struct NodeData {
-    effect: Effect,
+enum NodeData {
+    Effect(Effect),
+    Graph(DagHandle),
 }
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
@@ -89,15 +90,34 @@ impl RouteGraph {
         handle
     }
     pub fn add_edge(&mut self, edge: Edge) -> Result<(), ()> {
-        // TODO: substitute with real predicate function!
-        let result = self.dags.get_mut(edge.dag_handle()).unwrap().add_edge(edge.edge().clone(), &|e1, e2| true);
-        // only notify watchers on a successful operation.
-        if let Ok(_) = result {
+        let ok_to_add = {
+            let ref dag = self.dags[edge.dag_handle()];
+            dag.can_add_edge(edge.edge(),
+                &|e1, e2| self.are_slots_connected(
+                    dag.node_data(e1.to().unwrap()),
+                    e1.weight().to_slot, e1.weight().to_ch,
+                    e2.weight().from_slot, e2.weight().from_ch
+                )
+            )
+        };
+        if let Ok(_) = ok_to_add {
+            // only notify watchers on a successful operation.
             for w in &mut self.watchers {
                 w.on_add_edge(&edge);
             }
+            let mut mdag = self.dags.get_mut(edge.dag_handle()).unwrap();
+            mdag.add_edge_unchecked(edge.edge);
         }
-        result
+        ok_to_add
+    }
+    fn are_slots_connected(&self, data: &NodeData, in_slot: u32, in_ch: u8, out_slot: u32, out_ch: u8) -> bool {
+        match *data {
+            // TODO: for now, consider all inputs tied to all outputs for each graph.
+            // In future, may enforce constraints or actually calculate the connections,
+            // but this requires careful planning due to aliasing.
+            NodeData::Graph(ref dag_handle) => true,
+            NodeData::Effect(ref effect) => effect.are_slots_connected(in_slot, in_ch, out_slot, out_ch)
+        }
     }
     pub fn del_node(&mut self, node: NodeHandle) -> Result<(), ()> {
         let result = self.dags.get_mut(node.dag_handle()).unwrap().del_node(*node.node_handle());
@@ -146,3 +166,4 @@ impl Edge {
         &self.edge
     }
 }
+
