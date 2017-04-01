@@ -94,7 +94,7 @@ impl RouteGraph {
         let ok_to_add = {
             let ref dag = self.dags[edge.dag_handle()];
             dag.can_add_edge(edge.edge(),
-                &|e1, e2| self.are_slots_connected(
+                &|e1, e2| self.are_node_slots_connected(
                     dag.node_data(e1.to().unwrap()),
                     e1.weight().to_slot, e1.weight().to_ch,
                     e2.weight().from_slot, e2.weight().from_ch
@@ -111,7 +111,10 @@ impl RouteGraph {
         }
         ok_to_add
     }
-    fn are_slots_connected(&self, data: &NodeData, in_slot: u32, in_ch: u8, out_slot: u32, out_ch: u8) -> bool {
+    fn toplevel_dag(&self) -> &DagImpl {
+        &self.dags[&DagHandle{ id: 0 }]
+    }
+    fn are_node_slots_connected(&self, data: &NodeData, in_slot: u32, in_ch: u8, out_slot: u32, out_ch: u8) -> bool {
         match *data {
             // TODO: for now, consider all inputs tied to all outputs for each graph.
             // In future, may enforce constraints or actually calculate the connections,
@@ -119,6 +122,21 @@ impl RouteGraph {
             NodeData::Graph(ref dag_handle) => true,
             NodeData::Effect(ref effect) => effect.are_slots_connected(in_slot, in_ch, out_slot, out_ch)
         }
+    }
+    /// Returns true if there's a path from `in` to `out`.
+    pub fn are_slots_connected(&self, in_slot: u32, in_ch: u8, out_slot: u32, out_ch: u8) -> bool {
+        let mut are_connected = false;
+        assert!(self.dags.len() == 1); // no nested DAGs
+        self.toplevel_dag().traverse(&mut |edge| {
+            // ensure we have no nested DAGs.
+            assert!(edge.to().map(|to| self.toplevel_dag().node_data(to).is_effect()).unwrap_or(true));
+            let do_follow = edge.from() != &None || edge.weight().from_slot == in_slot && edge.weight().from_ch == in_ch;
+            if do_follow && edge.weight().to_slot == out_slot && edge.weight().to_ch == out_ch {
+                are_connected = true;
+            }
+            do_follow
+        });
+        are_connected
     }
     pub fn del_node(&mut self, node: NodeHandle) -> Result<(), ()> {
         let result = self.dags.get_mut(node.dag_handle()).unwrap().del_node(*node.node_handle());
@@ -168,3 +186,11 @@ impl Edge {
     }
 }
 
+impl NodeData {
+    fn is_effect(&self) -> bool {
+        match *self {
+            NodeData::Effect(_) => true,
+            _ => false,
+        }
+    }
+}
