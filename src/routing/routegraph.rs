@@ -12,6 +12,7 @@ use super::graphwatcher::GraphWatcher;
 
 use std::collections::hash_set::HashSet;
 use std::collections::hash_map::HashMap;
+use std::rc::Rc;
 
 type DagImpl=IODag<NodeData, EdgeWeight>;
 type PrimNodeHandle=iodag::NodeHandle;
@@ -26,7 +27,7 @@ struct EdgeWeight {
 }
 
 enum NodeData {
-    Effect(Effect),
+    Effect(Rc<Effect>),
     Graph(DagHandle),
 }
 
