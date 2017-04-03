@@ -6,4 +6,5 @@ extern crate serde_derive;
 
 //pub mod render;
 pub mod routing;
+pub mod resman;
 

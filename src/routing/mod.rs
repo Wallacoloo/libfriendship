@@ -6,7 +6,8 @@
 mod effect;
 mod graphwatcher;
 mod routegraph;
-mod sinusoid;
+//mod sinusoid;
 
 // re-export the things we want public
+pub use self::effect::EffectDesc;
 pub use self::routegraph::{Edge, NodeHandle};
