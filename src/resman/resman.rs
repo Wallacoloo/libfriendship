@@ -27,7 +27,14 @@ impl ResMan {
     pub fn add_dir(&mut self, dir: PathBuf) {
         self.dirs.push(dir);
     }
-    pub fn find_effect<'a>(&'a self, desc: &'a EffectDesc) -> impl Iterator<Item=PathBuf> + 'a{
+    /// Returns all definitions of the given effect in the form of an iterator
+    ///   over boxed objects implementing io::Read.
+    pub fn find_effect<'a>(&'a self, desc: &'a EffectDesc) -> impl Iterator<Item=Box<Read>> + 'a {
+        self.iter_effect_files(desc).map(|path| {
+            Box::new(File::open(path).unwrap()) as Box<Read>
+        })
+    }
+    fn iter_effect_files<'a>(&'a self, desc: &'a EffectDesc) -> impl Iterator<Item=PathBuf> + 'a{
         self.iter_all_files().filter(move |f| {
             match desc.sha256() {
                 &None => true,
