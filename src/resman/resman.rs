@@ -73,7 +73,7 @@ impl ResMan {
     fn file_sha256_hash(&self, path: &PathBuf) -> [u8; 32] {
         // TODO: Rewrite surroundings to avoid the possibility that the file doesn't exist / has
         // been deleted since the time the directory was enumerated.
-        let mut hasher = Sha256::new();
+        let mut hasher = Sha256::default();
         let mut file_contents = Vec::new();
         hasher.input({
             File::open(path).unwrap().read_to_end(&mut file_contents);
