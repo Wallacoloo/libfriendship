@@ -20,6 +20,7 @@ struct EdgeWeight {
     to_ch: u8,
 }
 
+#[derive(Eq, PartialEq)]
 enum NodeData {
     Effect(Rc<Effect>),
     Graph(DagHandle),
@@ -114,6 +115,20 @@ impl RouteGraph {
         handle
     }
     pub fn add_edge(&mut self, edge: Edge) -> Result<(), ()> {
+        // Algorithm:
+        //   Try to reach `edge` from `edge`.
+        //   If we reach the boundary of the DAG while doing so, consider all reachable outbound
+        //     edges of the DAG
+        //     For each such edge, try to reach this DAG (recursively), and then resume the search for `edge`.
+        let is_reachable = self.is_edge_reachable(&edge, &edge);
+        // Locate all nodes that alias to this DAG:
+        /*let aliased_nodes = self.edges.iter().filter(|&(k, v)| {
+            k.dag_handle == edge.dag_handle
+        });
+        let edges_to_check = aliased_nodes.flat_map(|(k, v)| {
+            v.outbound.iter()
+        });*/
+        // If a cycle was introduced (
         unimplemented!();
         /*let ok_to_add = {
             let ref dag = self.dags[edge.dag_handle()];
@@ -134,6 +149,64 @@ impl RouteGraph {
             mdag.add_edge_unchecked(edge.edge);
         }
         ok_to_add*/
+    }
+    fn is_edge_reachable(&self, from: &Edge, to: &Edge) -> bool {
+        let dag_handle = from.dag_handle.clone();
+        let dagnode_handle = NodeHandle::new(dag_handle, None);
+        for candidate in self.edges[&from.to_full()].outbound.iter() {
+            if self.are_edges_internally_connected(&self.node_data[&candidate.from_full()], &from, &candidate) {
+                // See if we can reach `to` from the candidate
+                match candidate.to {
+                    // The edge we traversed keeps us inside the current DAG
+                    Some(_) => if self.is_edge_reachable(candidate, to) {
+                        return true
+                    },
+                    // The edge we traversed takes us out of the DAG.
+                    // Consider all nodes aliased to this DAG;
+                    //   for each one, consider all paths that lead back to it & continue the
+                    //   search.
+                    None => {
+                        let search = NodeData::Graph(candidate.dag_handle);
+                        for node in self.node_data_to_handles(&search) {
+                            for edge_out in self.edges[&node].outbound.iter() {
+                                // Consider all edges leaving this node that are reachable
+                                if edge_out.weight.from_slot == to.weight.to_slot &&
+                                    edge_out.weight.from_ch == to.weight.to_ch {
+                                    for edge_in in self.paths_from_edge_to_node(edge_out, &node) {
+                                        for edge in self.edges[&dagnode_handle].inbound.iter() {
+                                            // Follow the edge back into this DAG.
+                                            if edge_in.weight.to_slot == edge.weight.from_slot &&
+                                                edge_in.weight.to_ch == edge.weight.from_ch {
+                                                // Now we're back in the DAG; continue the search
+                                                if self.is_edge_reachable(&edge, to) {
+                                                    return true
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
+    fn paths_from_edge_to_node<'a>(&'a self, from: &Edge, to: &NodeHandle) -> impl Iterator<Item=Edge> + 'a {
+        None.into_iter() // TODO: unimplemented!()
+    }
+    /// Assuming from.to() == to.from(), will return true if & only if
+    /// from and to are internally connected within the node.
+    fn are_edges_internally_connected(&self, node_data: &NodeData, from: &Edge, to: &Edge) -> bool {
+        unimplemented!()
+    }
+    fn node_data_to_handles<'a>(&'a self, data: &'a NodeData) -> impl Iterator<Item=NodeHandle> + 'a {
+        self.node_data.iter().filter(move |&(handle, node)| {
+            node == data
+        }).map(|(handle, node)| {
+            handle.clone()
+        })
     }
     /*fn toplevel_dag(&self) -> &DagImpl {
         &self.dags[&DagHandle{ id: 0 }]

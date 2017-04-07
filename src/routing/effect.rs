@@ -40,3 +40,21 @@ impl EffectDesc {
         &self.sha256
     }
 }
+
+impl PartialEq for EffectDesc {
+    // Equality implemented in a way where we can easily check things like
+    //   "Is this the same primitive Delay effect this renderer knows how to implement?"
+    fn eq(&self, other: &EffectDesc) -> bool {
+        self.name == other.name &&
+            self.sha256 == other.sha256 &&
+            self.effect_args == other.effect_args
+    }
+}
+impl Eq for EffectDesc {}
+
+impl PartialEq for Effect {
+    fn eq(&self, other: &Effect) -> bool {
+        self.desc == other.desc
+    }
+}
+impl Eq for Effect {}
