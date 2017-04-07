@@ -193,13 +193,36 @@ impl RouteGraph {
         }
         false
     }
-    fn paths_from_edge_to_node<'a>(&'a self, from: &Edge, to: &NodeHandle) -> impl Iterator<Item=Edge> + 'a {
-        None.into_iter() // TODO: unimplemented!()
+    /// Return all edges into `to` that are reachable from `from`.
+    fn paths_from_edge_to_node<'a>(&'a self, from: &'a Edge, to: &'a NodeHandle) -> impl Iterator<Item=&'a Edge> + 'a {
+        self.edges[to].inbound.iter().filter(move |e| {
+            self.is_edge_reachable(&from, e)
+        })
     }
     /// Assuming from.to() == to.from(), will return true if & only if
     /// from and to are internally connected within the node.
     fn are_edges_internally_connected(&self, node_data: &NodeData, from: &Edge, to: &Edge) -> bool {
-        unimplemented!()
+        match *node_data {
+            NodeData::Effect(ref effect) => effect.are_slots_connected(
+                from.weight.to_slot, from.weight.to_ch,
+                to.weight.from_slot, to.weight.from_ch),
+            // See if there's a path from (None->from.to) to (to.from->None) within the dag
+            NodeData::Graph(ref dag_handle) => {
+                let dagnode_handle = NodeHandle::new(dag_handle.clone(), None);
+                // Consider all edges from (None->from.to)
+                self.edges[&dagnode_handle].outbound.iter().filter(|new_from| {
+                    new_from.weight.from_slot == from.weight.to_slot &&
+                        new_from.weight.from_ch == from.weight.to_ch
+                })
+                // Check if there's a path to (None) and that the edge to (None) is (to.from->None)
+                .any(|new_from| {
+                    self.paths_from_edge_to_node(new_from, &dagnode_handle).any(|new_to| {
+                        new_to.weight.to_slot == to.weight.from_slot &&
+                            new_to.weight.to_ch == to.weight.from_ch
+                    })
+                })
+            }
+        }
     }
     fn node_data_to_handles<'a>(&'a self, data: &'a NodeData) -> impl Iterator<Item=NodeHandle> + 'a {
         self.node_data.iter().filter(move |&(handle, node)| {
