@@ -1,11 +1,10 @@
-extern crate serde;
-extern crate serde_json;
-use self::serde_json::map::Map;
-use self::serde_json::value::Value;
+use serde_json::map::Map;
+use serde_json::value::Value;
 
 use super::routegraph::RouteGraph;
 
 /// Serializable info needed to look up an effect.
+#[derive(Clone)]
 #[derive(Serialize, Deserialize)]
 pub struct EffectDesc {
     /// Canonical name of the effect
@@ -18,14 +17,10 @@ pub struct EffectDesc {
     effect_args: Map<String, Value>,
 }
 
-// TODO: Effect should be flattened during {de,}serialization
 /// All information needed to synthesize the effect.
-#[derive(Serialize, Deserialize)]
 pub struct Effect {
     desc: EffectDesc,
     // option, because effect MAY be primitive.
-    #[serde(skip_serializing)]
-    #[serde(skip_deserializing)]
     graph: Option<RouteGraph>,
 }
 
@@ -36,6 +31,9 @@ impl Effect {
             // For primitive effects, we assume ALL slots are connected.
             None => true,
         }
+    }
+    pub fn desc(&self) -> EffectDesc {
+        self.desc.clone()
     }
 }
 

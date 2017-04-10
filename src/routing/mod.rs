@@ -3,6 +3,7 @@
 /// It's the Renderer's job to determine the most optimial order to computations to satisfy these
 /// mathematical relationships.
 
+mod adjlist;
 mod effect;
 mod graphwatcher;
 mod routegraph;

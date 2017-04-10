@@ -1,14 +1,12 @@
-extern crate sha2;
-
 use std::path::PathBuf;
 use std::io::Read;
 use std::fs;
 use std::fs::File;
 
-use self::sha2::Sha256;
-use self::sha2::Digest;
+use sha2::Sha256;
+use sha2::Digest;
 
-use super::super::routing::EffectDesc;
+use routing::EffectDesc;
 
 
 /// Resource manager. Where to search for various file types (e.g. Effects).

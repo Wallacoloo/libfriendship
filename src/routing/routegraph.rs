@@ -3,19 +3,19 @@
 /// Edges are also allowed to go to null, in which case they only have a destination slot and
 /// channel. These are outputs.
 /// Edges can also COME from null, in which case the source has the format (slot, channel)
-extern crate serde;
-use self::serde::ser::{Serialize, Serializer, SerializeStruct};
 
+use std::collections::hash_map::HashMap;
+use std::collections::hash_map;
+use std::collections::hash_set::HashSet;
+use std::rc::Rc;
+
+use super::adjlist::AdjList;
+use super::adjlist;
 use super::effect::Effect;
 use super::graphwatcher::GraphWatcher;
 
-use std::collections::hash_set::HashSet;
-use std::collections::hash_map::HashMap;
-use std::collections::hash_map;
-use std::rc::Rc;
-
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 struct EdgeWeight {
     from_slot: u32,
     from_ch: u8,
@@ -24,34 +24,33 @@ struct EdgeWeight {
 }
 
 #[derive(Eq, PartialEq)]
-#[derive(Serialize)]
 enum NodeData {
     Effect(Rc<Effect>),
     Graph(DagHandle),
 }
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct DagHandle {
     // None represents the Top-level DAG
     id: Option<u32>,
 }
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct PrimNodeHandle {
     id: u64,
 }
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct NodeHandle {
     dag_handle: DagHandle,
     node_handle: Option<PrimNodeHandle>,
 }
 
 #[derive(Clone, Hash, Eq, PartialEq)]
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Edge {
     dag_handle: DagHandle,
     from: Option<PrimNodeHandle>,
@@ -73,6 +72,7 @@ struct EdgeSet {
     outbound: HashSet<Edge>,
     inbound: HashSet<Edge>,
 }
+
 
 impl RouteGraph {
     pub fn new() -> Self {
@@ -284,6 +284,23 @@ impl RouteGraph {
             w.on_del_edge(&edge);
         }
     }
+
+    pub fn to_adjlist(&self) -> AdjList {
+        let nodes = self.node_data.iter().map(|(handle, data)| {
+            match *data {
+                NodeData::Effect(ref effect) => (handle.clone(), adjlist::NodeData::Effect(effect.desc())),
+                NodeData::Graph(ref dag) => (handle.clone(), adjlist::NodeData::Graph(dag.clone())),
+            }
+        }).collect();
+        let edges = self.edges.iter().flat_map(|(_key, edgeset)| {
+            edgeset.outbound.clone().into_iter()
+        }).collect();
+
+        AdjList {
+            nodes: nodes,
+            edges: edges,
+        }
+    }
 }
 
 impl NodeHandle {
@@ -337,23 +354,6 @@ impl EdgeSet {
     }
     fn is_empty(&self) -> bool {
         self.outbound.is_empty() && self.inbound.is_empty()
-    }
-}
-
-
-
-impl Serialize for RouteGraph {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer
-    {
-        let mut struc = serializer.serialize_struct("RouteGraph", 2)?;
-        // We want to serialize the graph as an adjacency list.
-        let edge_set: HashSet<&Edge> = self.edges.iter().flat_map(|(_key, edge_set)| {
-            edge_set.outbound.iter()
-        }).collect();
-        struc.serialize_field("edges", &edge_set)?;
-        struc.serialize_field("node_data", &self.node_data)?;
-        struc.end()
     }
 }
 
