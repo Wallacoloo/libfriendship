@@ -52,6 +52,15 @@ impl Effect {
     /// Given the effect's information, and an interface by which to load
     /// resources, return an actual Effect.
     pub fn from_meta(meta: EffectMeta, resman: &ResMan) -> Result<Rc<Self>, ()> {
+        // For primitive effects, don't attempt to locate their descriptions (they don't exist)
+        if meta.is_primitive() {
+            let me = Self {
+                meta: meta,
+                graph: None,
+            };
+            return Ok(Rc::new(me));
+        }
+        // Locate descriptions for non-primitive effects
         for reader in resman.find_effect(&meta) {
             // Try to deserialize to an effect description
             let desc: Result<EffectDesc, serde_json::Error> = serde_json::from_reader(reader);
@@ -62,6 +71,7 @@ impl Effect {
                         meta: desc.meta,
                         graph: Some(graph),
                     };
+                    // TODO: implement some form of caching
                     return Ok(Rc::new(me));
                 }
             }
@@ -74,6 +84,13 @@ impl Effect {
 impl EffectMeta {
     pub fn sha256(&self) -> &Option<[u8; 32]> {
         &self.sha256
+    }
+    /// Returns true if the effect cannot be decomposed.
+    /// This is determined by the fact that its url(s) will all begin with primitive://
+    pub fn is_primitive(&self) -> bool {
+        return !self.urls.is_empty() && self.urls.iter().all(|url| {
+            url.starts_with("primitive://")
+        });
     }
 }
 
