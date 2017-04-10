@@ -7,7 +7,6 @@ authors = [ "Colin Wallace <wallacoloo@gmail.com>" ]
 license = "MIT"
 
 [dependencies]
-num = "*"
 sha2 = "*"
 # Serialization
 serde = "*"
