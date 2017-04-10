@@ -1,6 +1,9 @@
+use std::rc::Rc;
+
 use serde_json::map::Map;
 use serde_json::value::Value;
 
+use resman::ResMan;
 use super::routegraph::RouteGraph;
 
 /// Serializable info needed to look up an effect.
@@ -34,6 +37,11 @@ impl Effect {
     }
     pub fn desc(&self) -> EffectDesc {
         self.desc.clone()
+    }
+    /// Given the effect's description, and an interface by which to load
+    /// resources, return an actual Effect.
+    pub fn from_desc(desc: EffectDesc, res: &ResMan) -> Result<Rc<Self>, ()> {
+        unimplemented!()
     }
 }
 

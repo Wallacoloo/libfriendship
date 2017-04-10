@@ -4,11 +4,13 @@
 /// channel. These are outputs.
 /// Edges can also COME from null, in which case the source has the format (slot, channel)
 
+use std::cmp;
 use std::collections::hash_map::HashMap;
 use std::collections::hash_map;
 use std::collections::hash_set::HashSet;
 use std::rc::Rc;
 
+use resman::ResMan;
 use super::adjlist::AdjList;
 use super::adjlist;
 use super::effect::Effect;
@@ -286,12 +288,14 @@ impl RouteGraph {
     }
 
     pub fn to_adjlist(&self) -> AdjList {
+        // Map Effect -> EffectDesc
         let nodes = self.node_data.iter().map(|(handle, data)| {
             match *data {
                 NodeData::Effect(ref effect) => (handle.clone(), adjlist::NodeData::Effect(effect.desc())),
                 NodeData::Graph(ref dag) => (handle.clone(), adjlist::NodeData::Graph(dag.clone())),
             }
         }).collect();
+        // Doubly-linked edges -> singly-linked
         let edges = self.edges.iter().flat_map(|(_key, edgeset)| {
             edgeset.outbound.clone().into_iter()
         }).collect();
@@ -300,6 +304,43 @@ impl RouteGraph {
             nodes: nodes,
             edges: edges,
         }
+    }
+    pub fn from_adjlist(adj: AdjList, res: &ResMan) -> Result<Self, ()> {
+        // Unwrap struct fields to local variables
+        let (nodes, edges) = (adj.nodes, adj.edges);
+
+        // Map EffectDesc -> Effect and also determine the highest ids in use
+        let mut dag_counter = 0;
+        let mut node_counter = 0;
+        let nodes = nodes.into_iter().map(|(handle, data)| {
+            if let Some(dag_hnd) = handle.dag_handle.id {
+                dag_counter = cmp::max(dag_counter, dag_hnd);
+            }
+            if let Some(node_hnd) = handle.node_handle {
+                node_counter = cmp::max(node_counter, node_hnd.id);
+            }
+            match data {
+                adjlist::NodeData::Effect(desc) =>
+                    (handle.clone(), NodeData::Effect(Effect::from_desc(desc, res).unwrap())),
+                adjlist::NodeData::Graph(dag_handle) =>
+                    (handle.clone(), NodeData::Graph(dag_handle)),
+            }
+        }).collect();
+
+        // Build self with only nodes and no edges
+        let mut me = Self {
+            dag_counter: dag_counter,
+            node_counter: node_counter,
+            watchers: Vec::new(),
+            edges: HashMap::new(),
+            node_data: nodes,
+        };
+
+        // Add the edges one at a time, enforcing zero cycles
+        for edge in edges.into_iter() {
+            me.add_edge(edge)?
+        }
+        Ok(me)
     }
 }
 
