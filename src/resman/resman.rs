@@ -6,7 +6,7 @@ use std::fs::File;
 use sha2::Sha256;
 use sha2::Digest;
 
-use routing::EffectDesc;
+use routing::EffectMeta;
 
 
 /// Resource manager. Where to search for various file types (e.g. Effects).
@@ -27,14 +27,14 @@ impl ResMan {
     }
     /// Returns all definitions of the given effect in the form of an iterator
     ///   over boxed objects implementing io::Read.
-    pub fn find_effect<'a>(&'a self, desc: &'a EffectDesc) -> impl Iterator<Item=Box<Read>> + 'a {
-        self.iter_effect_files(desc).map(|path| {
+    pub fn find_effect<'a>(&'a self, meta: &'a EffectMeta) -> impl Iterator<Item=Box<Read>> + 'a {
+        self.iter_effect_files(meta).map(|path| {
             Box::new(File::open(path).unwrap()) as Box<Read>
         })
     }
-    fn iter_effect_files<'a>(&'a self, desc: &'a EffectDesc) -> impl Iterator<Item=PathBuf> + 'a{
+    fn iter_effect_files<'a>(&'a self, meta: &'a EffectMeta) -> impl Iterator<Item=PathBuf> + 'a{
         self.iter_all_files().filter(move |f| {
-            match desc.sha256() {
+            match meta.sha256() {
                 &None => true,
                 &Some(hash) => hash == self.file_sha256_hash(f),
             }

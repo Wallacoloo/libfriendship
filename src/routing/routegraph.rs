@@ -288,10 +288,10 @@ impl RouteGraph {
     }
 
     pub fn to_adjlist(&self) -> AdjList {
-        // Map Effect -> EffectDesc
+        // Map Effect -> EffectMeta
         let nodes = self.node_data.iter().map(|(handle, data)| {
             match *data {
-                NodeData::Effect(ref effect) => (handle.clone(), adjlist::NodeData::Effect(effect.desc())),
+                NodeData::Effect(ref effect) => (handle.clone(), adjlist::NodeData::Effect(effect.meta())),
                 NodeData::Graph(ref dag) => (handle.clone(), adjlist::NodeData::Graph(dag.clone())),
             }
         }).collect();
@@ -309,7 +309,7 @@ impl RouteGraph {
         // Unwrap struct fields to local variables
         let (nodes, edges) = (adj.nodes, adj.edges);
 
-        // Map EffectDesc -> Effect and also determine the highest ids in use
+        // Map EffectMeta -> Effect and also determine the highest ids in use
         let mut dag_counter = 0;
         let mut node_counter = 0;
         let nodes = nodes.into_iter().map(|(handle, data)| {
@@ -320,8 +320,8 @@ impl RouteGraph {
                 node_counter = cmp::max(node_counter, node_hnd.id);
             }
             match data {
-                adjlist::NodeData::Effect(desc) =>
-                    (handle.clone(), NodeData::Effect(Effect::from_desc(desc, res).unwrap())),
+                adjlist::NodeData::Effect(meta) =>
+                    (handle.clone(), NodeData::Effect(Effect::from_meta(meta, res).unwrap())),
                 adjlist::NodeData::Graph(dag_handle) =>
                     (handle.clone(), NodeData::Graph(dag_handle)),
             }

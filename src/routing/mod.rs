@@ -10,5 +10,5 @@ mod routegraph;
 //mod sinusoid;
 
 // re-export the things we want public
-pub use self::effect::EffectDesc;
+pub use self::effect::EffectMeta;
 pub use self::routegraph::{Edge, NodeHandle};

@@ -6,11 +6,11 @@ use std::collections::hash_map::HashMap;
 use std::collections::hash_set::HashSet;
 
 use super::routegraph::{NodeHandle, DagHandle, Edge};
-use super::effect::EffectDesc;
+use super::effect::EffectMeta;
 
 #[derive(Serialize, Deserialize)]
 pub enum NodeData {
-    Effect(EffectDesc),
+    Effect(EffectMeta),
     Graph(DagHandle),
 }
 
