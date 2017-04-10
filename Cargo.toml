@@ -13,8 +13,5 @@ serde = "*"
 serde_derive = "*"
 serde_json = "*"
 
-[dependencies.online_dag]
-git = "https://github.com/wallacoloo/online_dag.git"
-
 [dependencies.pwline]
 git = "https://github.com/wallacoloo/rust-pwline.git"
