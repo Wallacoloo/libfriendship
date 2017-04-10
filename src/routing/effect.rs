@@ -5,8 +5,8 @@ use self::serde_json::value::Value;
 
 use super::routegraph::RouteGraph;
 
-#[derive(Serialize, Deserialize)]
 /// Serializable info needed to look up an effect.
+#[derive(Serialize, Deserialize)]
 pub struct EffectDesc {
     /// Canonical name of the effect
     name: String,
@@ -18,10 +18,14 @@ pub struct EffectDesc {
     effect_args: Map<String, Value>,
 }
 
+// TODO: Effect should be flattened during {de,}serialization
 /// All information needed to synthesize the effect.
+#[derive(Serialize, Deserialize)]
 pub struct Effect {
     desc: EffectDesc,
     // option, because effect MAY be primitive.
+    #[serde(skip_serializing)]
+    #[serde(skip_deserializing)]
     graph: Option<RouteGraph>,
 }
 

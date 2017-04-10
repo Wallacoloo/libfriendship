@@ -3,6 +3,8 @@
 /// Edges are also allowed to go to null, in which case they only have a destination slot and
 /// channel. These are outputs.
 /// Edges can also COME from null, in which case the source has the format (slot, channel)
+extern crate serde;
+use self::serde::ser::{Serialize, Serializer, SerializeStruct};
 
 use super::effect::Effect;
 use super::graphwatcher::GraphWatcher;
@@ -13,6 +15,7 @@ use std::collections::hash_map;
 use std::rc::Rc;
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
+#[derive(Serialize)]
 struct EdgeWeight {
     from_slot: u32,
     from_ch: u8,
@@ -21,29 +24,34 @@ struct EdgeWeight {
 }
 
 #[derive(Eq, PartialEq)]
+#[derive(Serialize)]
 enum NodeData {
     Effect(Rc<Effect>),
     Graph(DagHandle),
 }
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
+#[derive(Serialize)]
 pub struct DagHandle {
     // None represents the Top-level DAG
     id: Option<u32>,
 }
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
+#[derive(Serialize)]
 pub struct PrimNodeHandle {
     id: u64,
 }
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
+#[derive(Serialize)]
 pub struct NodeHandle {
     dag_handle: DagHandle,
     node_handle: Option<PrimNodeHandle>,
 }
 
 #[derive(Clone, Hash, Eq, PartialEq)]
+#[derive(Serialize)]
 pub struct Edge {
     dag_handle: DagHandle,
     from: Option<PrimNodeHandle>,
@@ -331,3 +339,21 @@ impl EdgeSet {
         self.outbound.is_empty() && self.inbound.is_empty()
     }
 }
+
+
+
+impl Serialize for RouteGraph {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer
+    {
+        let mut struc = serializer.serialize_struct("RouteGraph", 2)?;
+        // We want to serialize the graph as an adjacency list.
+        let edge_set: HashSet<&Edge> = self.edges.iter().flat_map(|(_key, edge_set)| {
+            edge_set.outbound.iter()
+        }).collect();
+        struc.serialize_field("edges", &edge_set)?;
+        struc.serialize_field("node_data", &self.node_data)?;
+        struc.end()
+    }
+}
+
