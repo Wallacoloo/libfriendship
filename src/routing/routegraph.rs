@@ -28,7 +28,8 @@ enum NodeData {
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 pub struct DagHandle {
-    id: u32,
+    // None represents the Top-level DAG
+    id: Option<u32>,
 }
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
@@ -93,7 +94,7 @@ impl RouteGraph {
         self.edges.values().flat_map(|v_set| v_set.outbound.iter())
     }
     pub fn add_dag(&mut self) -> DagHandle {
-        let handle = DagHandle{ id: self.dag_counter };
+        let handle = DagHandle{ id: Some(self.dag_counter) };
         self.dag_counter += 1;
         handle
     }
@@ -116,41 +117,30 @@ impl RouteGraph {
     }
     pub fn add_edge(&mut self, edge: Edge) -> Result<(), ()> {
         // Algorithm:
+        //   Assume we currently have a DAG.
+        //   Given that, the only way this new edge could introduce a cycle is if it was a part of
+        //     that cycle.
+        //   Therefore, if no path exists from the edge to itself, then it is safe to add the edge.
+        let is_reachable = self.is_edge_reachable(&edge, &edge);
+        if is_reachable {
+            Err(())
+        } else {
+            self.add_edge_unchecked(edge);
+            Ok(())
+        }
+    }
+    fn add_edge_unchecked(&mut self, edge: Edge) {
+        // associate the edge with its origin.
+        self.edges.entry(edge.from_full()).or_insert_with(EdgeSet::new).outbound.insert(edge.clone());
+        // associate the edge with its destination.
+        self.edges.entry(edge.to_full()).or_insert_with(EdgeSet::new).inbound.insert(edge);
+    }
+    fn is_edge_reachable(&self, from: &Edge, to: &Edge) -> bool {
+        // Algorithm:
         //   Try to reach `edge` from `edge`.
         //   If we reach the boundary of the DAG while doing so, consider all reachable outbound
         //     edges of the DAG
         //     For each such edge, try to reach this DAG (recursively), and then resume the search for `edge`.
-        let is_reachable = self.is_edge_reachable(&edge, &edge);
-        // Locate all nodes that alias to this DAG:
-        /*let aliased_nodes = self.edges.iter().filter(|&(k, v)| {
-            k.dag_handle == edge.dag_handle
-        });
-        let edges_to_check = aliased_nodes.flat_map(|(k, v)| {
-            v.outbound.iter()
-        });*/
-        // If a cycle was introduced (
-        unimplemented!();
-        /*let ok_to_add = {
-            let ref dag = self.dags[edge.dag_handle()];
-            dag.can_add_edge(edge.edge(),
-                &|e1, e2| self.are_node_slots_connected(
-                    dag.node_data(e1.to().unwrap()),
-                    e1.weight().to_slot, e1.weight().to_ch,
-                    e2.weight().from_slot, e2.weight().from_ch
-                )
-            )
-        };
-        if let Ok(_) = ok_to_add {
-            // only notify watchers on a successful operation.
-            for w in &mut self.watchers {
-                w.on_add_edge(&edge);
-            }
-            let mut mdag = self.dags.get_mut(edge.dag_handle()).unwrap();
-            mdag.add_edge_unchecked(edge.edge);
-        }
-        ok_to_add*/
-    }
-    fn is_edge_reachable(&self, from: &Edge, to: &Edge) -> bool {
         let dag_handle = from.dag_handle.clone();
         let dagnode_handle = NodeHandle::new(dag_handle, None);
         for candidate in self.edges[&from.to_full()].outbound.iter() {
@@ -231,35 +221,24 @@ impl RouteGraph {
             handle.clone()
         })
     }
-    /*fn toplevel_dag(&self) -> &DagImpl {
-        &self.dags[&DagHandle{ id: 0 }]
-    }*/
-    /*fn are_node_slots_connected(&self, data: &NodeData, in_slot: u32, in_ch: u8, out_slot: u32, out_ch: u8) -> bool {
-        unimplemented!();
-        match *data {
-            // TODO: for now, consider all inputs tied to all outputs for each graph.
-            // In future, may enforce constraints or actually calculate the connections,
-            // but this requires careful planning due to aliasing.
-            NodeData::Graph(ref dag_handle) => true,
-            NodeData::Effect(ref effect) => effect.are_slots_connected(in_slot, in_ch, out_slot, out_ch)
-        }
-    }*/
-    /// Returns true if there's a path from `in` to `out`.
+    /// Returns true if there's a path from `in` to `out` at the toplevel DAG.
     pub fn are_slots_connected(&self, in_slot: u32, in_ch: u8, out_slot: u32, out_ch: u8) -> bool {
-        unimplemented!();
-        /*
-        let mut are_connected = false;
-        assert!(self.dags.len() == 1); // no nested DAGs
-        self.toplevel_dag().traverse(&mut |edge| {
-            // ensure we have no nested DAGs.
-            assert!(edge.to().map(|to| self.toplevel_dag().node_data(to).is_effect()).unwrap_or(true));
-            let do_follow = edge.from() != &None || edge.weight().from_slot == in_slot && edge.weight().from_ch == in_ch;
-            if do_follow && edge.weight().to_slot == out_slot && edge.weight().to_ch == out_ch {
-                are_connected = true;
-            }
-            do_follow
+        // Consider all edges from None paired with all edges to None:
+        let root_dag = NodeHandle::new(DagHandle { id: None }, None);
+        let edges_from = self.edges[&root_dag].outbound.iter().filter(|&edge| {
+            edge.weight.from_slot == in_slot && edge.weight.from_ch == in_ch
         });
-        are_connected*/
+        for edge_from in edges_from {
+            let edges_to = self.edges[&root_dag].inbound.iter().filter(|&edge| {
+                edge.weight.to_slot == out_slot && edge.weight.to_ch == out_ch
+            });
+            for edge_to in edges_to {
+                if self.is_edge_reachable(edge_from, edge_to) {
+                    return true;
+                }
+            }
+        }
+        false
     }
     pub fn del_node(&mut self, node: NodeHandle) -> Result<(), ()> {
         let ok_to_delete = match self.edges.entry(node) {
@@ -286,6 +265,7 @@ impl RouteGraph {
         ok_to_delete
     }
     pub fn del_edge(&mut self, edge: Edge) {
+        // TODO: garbage collect the edge sets.
         if let Some(edge_set) = self.edges.get_mut(&edge.from_full()) {
             edge_set.outbound.remove(&edge);
         }
@@ -314,13 +294,6 @@ impl NodeHandle {
 }
 
 impl Edge {
-    fn new(dag: DagHandle) -> Self {
-        unimplemented!();
-        /*Self {
-            dag_handle: dag,
-            edge: edge,
-        }*/
-    }
     fn dag_handle(&self) -> &DagHandle {
         &self.dag_handle
     }
@@ -355,6 +328,6 @@ impl EdgeSet {
         }
     }
     fn is_empty(&self) -> bool {
-        self.outbound.is_empty()
+        self.outbound.is_empty() && self.inbound.is_empty()
     }
 }
