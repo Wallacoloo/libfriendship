@@ -12,7 +12,7 @@ use routing::EffectDesc;
 /// Resource manager. Where to search for various file types (e.g. Effects).
 /// Uses a 'dumb' implementation - doesn't try to auto-configure paths (/usr/bin/share/[...],
 /// ~/.friendship, etc). Instead, designed to be configured by the host.
-struct ResMan {
+pub struct ResMan {
     dirs: Vec<PathBuf>,
 }
 

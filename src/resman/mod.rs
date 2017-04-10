@@ -3,3 +3,4 @@
 
 mod resman;
 
+pub use self::resman::ResMan;
