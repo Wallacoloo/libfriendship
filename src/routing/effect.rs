@@ -89,6 +89,7 @@ impl EffectMeta {
     /// This is determined by the fact that its url(s) will all begin with primitive://
     pub fn is_primitive(&self) -> bool {
         return !self.urls.is_empty() && self.urls.iter().all(|url| {
+            // TODO: use a URI crate
             url.starts_with("primitive://")
         });
     }
