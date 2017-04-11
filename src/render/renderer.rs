@@ -1,6 +1,4 @@
-/// Declares traits that allow for rendering a Tree.
-use routing::RouteGraph;
-
+/// Trait that allows for rendering a RouteGraph
 pub trait Renderer {
-    fn step(&mut self, tree: &RouteGraph, output: &mut [f32]);
+    fn get_sample(&mut self, idx: u64) -> f32;
 }

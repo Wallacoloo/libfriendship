@@ -1,6 +1,6 @@
 /// Specifies quality settings, etc that are mostly static over
 /// the lifetime of an audio stream
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct RenderSpec {
     // target latency, in samples.
     max_latency: u32,
