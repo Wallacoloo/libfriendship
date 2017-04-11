@@ -25,8 +25,8 @@ struct EdgeWeight {
     to_ch: u8,
 }
 
-#[derive(Eq, PartialEq)]
-enum NodeData {
+#[derive(Clone, Eq, PartialEq)]
+pub enum NodeData {
     Effect(Rc<Effect>),
     Graph(DagHandle),
 }
@@ -89,7 +89,7 @@ impl RouteGraph {
     pub fn add_watcher(&mut self, mut watcher: Box<GraphWatcher>, do_replay: bool) {
         if do_replay {
             for node in self.iter_nodes() {
-                watcher.on_add_node(node);
+                watcher.on_add_node(node, &self.node_data[node]);
             }
             for edge in self.iter_edges() {
                 watcher.on_add_edge(edge);
@@ -119,9 +119,9 @@ impl RouteGraph {
         // Panic if the NodeHandle was somehow already in use.
         assert!(self.edges.insert(handle, EdgeSet::new()).is_none());
         // Store the node's data
-        assert!(self.node_data.insert(handle, node_data).is_none());
+        assert!(self.node_data.insert(handle, node_data.clone()).is_none());
         for w in &mut self.watchers {
-            w.on_add_node(&handle);
+            w.on_add_node(&handle, &node_data);
         }
         handle
     }
@@ -345,6 +345,9 @@ impl RouteGraph {
 }
 
 impl NodeHandle {
+    pub fn toplevel() -> Self {
+        NodeHandle::new(DagHandle::toplevel(), None)
+    }
     fn new(dag: DagHandle, node: Option<PrimNodeHandle>) -> Self {
         Self {
             dag_handle: dag,
@@ -363,17 +366,23 @@ impl Edge {
     fn dag_handle(&self) -> &DagHandle {
         &self.dag_handle
     }
-    fn from_full(&self) -> NodeHandle {
+    pub fn from_full(&self) -> NodeHandle {
         NodeHandle {
             dag_handle: self.dag_handle,
             node_handle: self.from,
         }
     }
-    fn to_full(&self) -> NodeHandle {
+    pub fn to_full(&self) -> NodeHandle {
         NodeHandle {
             dag_handle: self.dag_handle,
             node_handle: self.to,
         }
+    }
+    pub fn to_slot(&self) -> u32 {
+        self.weight.to_slot
+    }
+    pub fn to_ch(&self) -> u8 {
+        self.weight.to_ch
     }
 }
 
@@ -398,3 +407,10 @@ impl EdgeSet {
     }
 }
 
+impl DagHandle {
+    fn toplevel() -> Self {
+        DagHandle {
+            id: None
+        }
+    }
+}
