@@ -348,16 +348,16 @@ impl NodeHandle {
     pub fn toplevel() -> Self {
         NodeHandle::new(DagHandle::toplevel(), None)
     }
-    fn new(dag: DagHandle, node: Option<PrimNodeHandle>) -> Self {
+    pub fn new(dag: DagHandle, node: Option<PrimNodeHandle>) -> Self {
         Self {
             dag_handle: dag,
             node_handle: node,
         }
     }
-    fn dag_handle(&self) -> &DagHandle {
+    pub fn dag_handle(&self) -> &DagHandle {
         &self.dag_handle
     }
-    fn node_handle(&self) -> &Option<PrimNodeHandle> {
+    pub fn node_handle(&self) -> &Option<PrimNodeHandle> {
         &self.node_handle
     }
 }
@@ -383,6 +383,12 @@ impl Edge {
     }
     pub fn to_ch(&self) -> u8 {
         self.weight.to_ch
+    }
+    pub fn from_slot(&self) -> u32 {
+        self.weight.from_slot
+    }
+    pub fn from_ch(&self) -> u8 {
+        self.weight.from_ch
     }
 }
 
