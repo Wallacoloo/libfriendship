@@ -291,7 +291,7 @@ impl RouteGraph {
         // Map Effect -> EffectMeta
         let nodes = self.node_data.iter().map(|(handle, data)| {
             match *data {
-                NodeData::Effect(ref effect) => (handle.clone(), adjlist::NodeData::Effect(effect.meta())),
+                NodeData::Effect(ref effect) => (handle.clone(), adjlist::NodeData::Effect(effect.meta().clone())),
                 NodeData::Graph(ref dag) => (handle.clone(), adjlist::NodeData::Graph(dag.clone())),
             }
         }).collect();

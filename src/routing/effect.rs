@@ -1,8 +1,12 @@
+use std::collections::HashSet;
+use std::ops::Deref;
 use std::rc::Rc;
 
 use serde_json;
 use serde_json::map::Map;
 use serde_json::value::Value;
+use url::Url;
+use url_serde;
 
 use resman::ResMan;
 use super::routegraph::RouteGraph;
@@ -16,10 +20,9 @@ pub struct EffectMeta {
     name: String,
     /// Hash of the effect's definition file, or None if the effect is primitive
     sha256: Option<[u8; 32]>,
+    // TODO: consider a smallset.
     /// List of URLs where the Effect can be obtained
-    urls: Vec<String>,
-    /// Arguments specific to the given effect (relevant for e.g. Constant).
-    effect_args: Map<String, Value>,
+    urls: HashSet<url_serde::Serde<Url>>,
 }
 
 /// All information that will be loaded from disk/network to describe how to
@@ -46,8 +49,8 @@ impl Effect {
             None => true,
         }
     }
-    pub fn meta(&self) -> EffectMeta {
-        self.meta.clone()
+    pub fn meta(&self) -> &EffectMeta {
+        &self.meta
     }
     /// Given the effect's information, and an interface by which to load
     /// resources, return an actual Effect.
@@ -86,12 +89,18 @@ impl EffectMeta {
         &self.sha256
     }
     /// Returns true if the effect cannot be decomposed.
-    /// This is determined by the fact that its url(s) will all begin with primitive://
+    /// This is determined by the effect providing a SINGLE url, with the primitive:// Schema
     pub fn is_primitive(&self) -> bool {
-        return !self.urls.is_empty() && self.urls.iter().all(|url| {
-            // TODO: use a URI crate
-            url.starts_with("primitive://")
-        });
+        !self.urls.len() == 1 && self.urls.iter().all(|url| {
+            url.scheme() == "primitive"
+        })
+    }
+    pub fn get_primitive_url(&self) -> Option<&Url> {
+        if self.is_primitive() {
+            self.urls.iter().next().map(|url| url.deref())
+        } else {
+            None
+        }
     }
 }
 
@@ -101,7 +110,7 @@ impl PartialEq for EffectMeta {
     fn eq(&self, other: &EffectMeta) -> bool {
         self.name == other.name &&
             self.sha256 == other.sha256 &&
-            self.effect_args == other.effect_args
+            self.urls == other.urls
     }
 }
 impl Eq for EffectMeta {}

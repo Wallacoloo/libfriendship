@@ -10,6 +10,6 @@ mod routegraph;
 //mod sinusoid;
 
 // re-export the things we want public
-pub use self::effect::EffectMeta;
+pub use self::effect::{Effect, EffectMeta};
 pub use self::graphwatcher::GraphWatcher;
-pub use self::routegraph::{Edge, NodeData, NodeHandle};
+pub use self::routegraph::{DagHandle, Edge, NodeData, NodeHandle};

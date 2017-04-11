@@ -1,15 +1,27 @@
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
+use std::collections::hash_map;
+use std::rc::Rc;
 
 use render::Renderer;
-use routing::{Edge, GraphWatcher, NodeData, NodeHandle};
+use routing::{DagHandle, Edge, Effect, GraphWatcher, NodeData, NodeHandle};
 
 pub struct RefRenderer {
     nodes: HashMap<NodeHandle, Node>,
 }
 
 struct Node {
-    data: NodeData,
+    data: MyNodeData,
     inbound: HashSet<Edge>
+}
+
+enum MyNodeData {
+    UserNode(Rc<Effect>),
+    Graph(DagHandle),
+    /// Primitive Delay(samples) effect
+    Delay(u64),
+    /// Primitive Constant(value) effect,
+    Constant(f32),
 }
 
 impl Renderer for RefRenderer {
@@ -40,7 +52,39 @@ impl RefRenderer {
 
 impl GraphWatcher for RefRenderer {
     fn on_add_node(&mut self, handle: &NodeHandle, data: &NodeData) {
-        self.nodes.insert(handle.clone(), Node::new(data.clone()));
+        let my_node_data = match *data {
+            NodeData::Graph(ref handle) => MyNodeData::Graph(handle.clone()),
+            NodeData::Effect(ref effect) => {
+                match effect.meta().get_primitive_url() {
+                    Some(ref url) => {
+                        let mut params: HashMap<_, _> = url.query_pairs().collect();
+                        match url.path() {
+                            "/Delay" => {
+                                let frames: u64 = match params.entry(Cow::from("frames")) {
+                                    hash_map::Entry::Occupied(e) => e.remove().parse().unwrap(),
+                                    hash_map::Entry::Vacant(_) => 0u64,
+                                };
+                                // Make sure we consumed all arguments.
+                                assert!(params.is_empty());
+                                MyNodeData::Delay(frames)
+                            },
+                            "/Constant" => {
+                                let value: f32 = match params.entry(Cow::from("value")) {
+                                    hash_map::Entry::Occupied(e) => e.remove().parse().unwrap(),
+                                    hash_map::Entry::Vacant(_) => 0f32,
+                                };
+                                // Make sure we consumed all arguments.
+                                assert!(params.is_empty());
+                                MyNodeData::Constant(value)
+                            },
+                            _ => panic!("Unrecognized primitive effect"),
+                        }
+                    }
+                    None => MyNodeData::UserNode(effect.clone())
+                }
+            }
+        };
+        self.nodes.insert(handle.clone(), Node::new(my_node_data));
     }
     fn on_del_node(&mut self, handle: &NodeHandle) {
         self.nodes.remove(handle);
@@ -55,7 +99,7 @@ impl GraphWatcher for RefRenderer {
 
 
 impl Node {
-    fn new(data: NodeData) -> Self {
+    fn new(data: MyNodeData) -> Self {
         Node {
             data: data,
             inbound: HashSet::new(),
