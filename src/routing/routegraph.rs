@@ -290,10 +290,7 @@ impl RouteGraph {
     pub fn to_adjlist(&self) -> AdjList {
         // Map Effect -> EffectMeta
         let nodes = self.node_data.iter().map(|(handle, data)| {
-            match *data {
-                NodeData::Effect(ref effect) => (handle.clone(), adjlist::NodeData::Effect(effect.meta().clone())),
-                NodeData::Graph(ref dag) => (handle.clone(), adjlist::NodeData::Graph(dag.clone())),
-            }
+            (handle.clone(), data.to_adjlist_data())
         }).collect();
         // Doubly-linked edges -> singly-linked
         let edges = self.edges.iter().flat_map(|(_key, edgeset)| {
@@ -397,6 +394,16 @@ impl NodeData {
         match *self {
             NodeData::Effect(_) => true,
             _ => false,
+        }
+    }
+    /// NodeData normally encodes references to actual node implementations -
+    /// in order to know their internal connections, etc.
+    /// This transforms it into a type that is suitable for transmission, i.e.
+    /// metadata explaining how to locate the correct effect implementation.
+    fn to_adjlist_data(&self) -> adjlist::NodeData {
+        match *self {
+            NodeData::Effect(ref effect) => adjlist::NodeData::Effect(effect.meta().clone()),
+            NodeData::Graph(ref dag) => adjlist::NodeData::Graph(dag.clone()),
         }
     }
 }

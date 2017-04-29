@@ -3,7 +3,7 @@
 /// It's the Renderer's job to determine the most optimial order to computations to satisfy these
 /// mathematical relationships.
 
-mod adjlist;
+pub mod adjlist;
 mod effect;
 mod graphwatcher;
 mod routegraph;
@@ -12,4 +12,4 @@ mod routegraph;
 // re-export the things we want public
 pub use self::effect::{Effect, EffectMeta};
 pub use self::graphwatcher::GraphWatcher;
-pub use self::routegraph::{DagHandle, Edge, NodeData, NodeHandle};
+pub use self::routegraph::{DagHandle, Edge, NodeData, NodeHandle, RouteGraph};

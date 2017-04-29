@@ -8,6 +8,12 @@ extern crate sha2;
 extern crate url;
 extern crate url_serde;
 
+#[macro_use]
+extern crate osc_address_derive;
+extern crate osc_address;
+extern crate serde_osc;
+
+pub mod dispatch;
 pub mod render;
 pub mod routing;
 pub mod resman;
