@@ -1,19 +1,23 @@
 [package]
-
 name = "libfriendship"
 version = "0.0.1"
-authors = [ "Colin Wallace <wallacoloo@gmail.com>" ]
+authors = ["Colin Wallace <wallacoloo@gmail.com>"]
 
 license = "MIT"
 
 [dependencies]
 sha2 = "0.5"
 # Serialization
-serde = "0.9"
-serde_derive = "0.9"
-serde_json = "0.9"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
 url = "1.4"
-url_serde = "0.1"
+# url_serde is not updated for serde 1.0.
+# See below dependencies section for alternative git repo.
+#url_serde = "0.2"
 
 [dependencies.pwline]
 git = "https://github.com/wallacoloo/rust-pwline.git"
+
+[dependencies.url_serde]
+git = "https://github.com/maximih/rust-url.git"
