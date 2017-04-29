@@ -37,6 +37,8 @@ struct EffectDesc {
 /// Validated version of EffectDesc. Guaranteed to be synthesizable.
 pub struct Effect {
     meta: EffectMeta,
+    // TODO: Effects are immutable, so we can make this an AdjList and store
+    // the connectivity information separately.
     // option, because effect MAY be primitive.
     graph: Option<RouteGraph>,
 }
