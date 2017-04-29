@@ -13,6 +13,7 @@ use std::rc::Rc;
 use resman::ResMan;
 use super::adjlist::AdjList;
 use super::adjlist;
+use super::effect;
 use super::effect::Effect;
 use super::graphwatcher::GraphWatcher;
 
@@ -66,6 +67,8 @@ pub enum Error {
     WouldCycle,
     /// Raised on attempt to delete a node when it still has edges.
     NodeInUse,
+    /// Error inside some Effect:: method
+    EffectError(effect::Error),
 }
 
 /// Alias for a `Result` with our error type.
@@ -320,20 +323,23 @@ impl RouteGraph {
         // Map EffectMeta -> Effect and also determine the highest ids in use
         let mut dag_counter = 0;
         let mut node_counter = 0;
-        let nodes = nodes.into_iter().map(|(handle, data)| {
+        let nodes: ResultE<HashMap<NodeHandle, NodeData>> = nodes.into_iter().map(|(handle, data)| {
             if let Some(dag_hnd) = handle.dag_handle.id {
                 dag_counter = cmp::max(dag_counter, dag_hnd);
             }
             if let Some(node_hnd) = handle.node_handle {
                 node_counter = cmp::max(node_counter, node_hnd.id);
             }
-            match data {
+            let decoded_data = match data {
                 adjlist::NodeData::Effect(meta) =>
-                    (handle.clone(), NodeData::Effect(Effect::from_meta(meta, res).unwrap())),
+                    NodeData::Effect(Effect::from_meta(meta, res)?),
                 adjlist::NodeData::Graph(dag_handle) =>
-                    (handle.clone(), NodeData::Graph(dag_handle)),
-            }
+                    NodeData::Graph(dag_handle),
+            };
+            Ok((handle.clone(), decoded_data))
         }).collect();
+        // Type deduction isn't smart enough to unwrap nodes in above statement.
+        let nodes = nodes?;
 
         // Build self with only nodes and no edges
         let mut me = Self {
@@ -436,5 +442,14 @@ impl DagHandle {
         DagHandle {
             id: None
         }
+    }
+}
+
+
+
+/// Conversion from `effect::Error` for use with the `?` operator
+impl From<effect::Error> for Error {
+    fn from(e: effect::Error) -> Self {
+        Error::EffectError(e)
     }
 }

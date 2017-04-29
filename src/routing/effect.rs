@@ -12,6 +12,15 @@ use resman::ResMan;
 use super::routegraph::RouteGraph;
 use super::adjlist::AdjList;
 
+#[derive(Debug)]
+pub enum Error {
+    /// No effect matches the metadata requested.
+    NoMatchingEffect,
+}
+
+/// Alias for a `Result` with our error type.
+pub type ResultE<T> = Result<T, Error>;
+
 /// Serializable info needed to look up an effect.
 #[derive(Clone)]
 #[derive(Serialize, Deserialize)]
@@ -56,7 +65,7 @@ impl Effect {
     }
     /// Given the effect's information, and an interface by which to load
     /// resources, return an actual Effect.
-    pub fn from_meta(meta: EffectMeta, resman: &ResMan) -> Result<Rc<Self>, ()> {
+    pub fn from_meta(meta: EffectMeta, resman: &ResMan) -> ResultE<Rc<Self>> {
         // For primitive effects, don't attempt to locate their descriptions (they don't exist)
         if meta.is_primitive() {
             let me = Self {
@@ -82,7 +91,7 @@ impl Effect {
             }
         }
         // No matching effects
-        Err(())
+        Err(Error::NoMatchingEffect)
     }
 }
 
