@@ -60,6 +60,17 @@ pub struct Edge {
     weight: EdgeWeight,
 }
 
+#[derive(Debug)]
+pub enum Error {
+    /// Raised when an attempt to modify the graph would create a dependency cycle.
+    WouldCycle,
+    /// Raised on attempt to delete a node when it still has edges.
+    NodeInUse,
+}
+
+/// Alias for a `Result` with our error type.
+pub type ResultE<T> = Result<T, Error>;
+
 
 pub struct RouteGraph {
     // TODO: can make these non-zero for more efficient Option<NodeHandle> encoding
@@ -125,7 +136,7 @@ impl RouteGraph {
         }
         handle
     }
-    pub fn add_edge(&mut self, edge: Edge) -> Result<(), ()> {
+    pub fn add_edge(&mut self, edge: Edge) -> ResultE<()> {
         // Algorithm:
         //   Assume we currently have a DAG.
         //   Given that, the only way this new edge could introduce a cycle is if it was a part of
@@ -133,7 +144,7 @@ impl RouteGraph {
         //   Therefore, if no path exists from the edge to itself, then it is safe to add the edge.
         let is_reachable = self.is_edge_reachable(&edge, &edge);
         if is_reachable {
-            Err(())
+            Err(Error::WouldCycle)
         } else {
             self.add_edge_unchecked(edge);
             Ok(())
@@ -250,7 +261,7 @@ impl RouteGraph {
         }
         false
     }
-    pub fn del_node(&mut self, node: NodeHandle) -> Result<(), ()> {
+    pub fn del_node(&mut self, node: NodeHandle) -> ResultE<()> {
         let ok_to_delete = match self.edges.entry(node) {
             // Already deleted
             hash_map::Entry::Vacant(_) => Ok(()),
@@ -260,7 +271,7 @@ impl RouteGraph {
                     Ok(())
                 } else {
                     // Node has edges
-                    Err(())
+                    Err(Error::NodeInUse)
                 }
             }
         };
@@ -302,7 +313,7 @@ impl RouteGraph {
             edges: edges,
         }
     }
-    pub fn from_adjlist(adj: AdjList, res: &ResMan) -> Result<Self, ()> {
+    pub fn from_adjlist(adj: AdjList, res: &ResMan) -> ResultE<Self> {
         // Unwrap struct fields to local variables
         let (nodes, edges) = (adj.nodes, adj.edges);
 
