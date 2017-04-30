@@ -17,13 +17,13 @@ struct Dispatch {
     routegraph: RouteGraph,
     /// Collection of all objects that are rendering the routegraph,
     /// mapped by id.
-    renderers: HashMap<u64, Box<Renderer>>,
+    renderers: HashMap<u32, Box<Renderer>>,
     /// Resource manager. Knows where to find all data that might be stored
     /// outside the application.
     resman: ResMan,
     /// All clients that wish to receive notifications of state change or
     /// reults from the renderer, etc.
-    clients: HashMap<u64, Box<Client>>,
+    clients: HashMap<u32, Box<Client>>,
 }
 
 /// OSC message to /<...>
@@ -57,11 +57,11 @@ enum OscRenderer {
     /// Currently instantiates a reference renderer with default settings.
     /// TODO: this should someday accept the typename of a renderer.
     #[osc_address(address="new")]
-    New((), (u64,)),
+    New((), (u32,)),
     /// Delete the renderer that has id=msg payload.
     #[osc_address(address="del")]
-    Del((), (u64,)),
-    ById(u64, OscRendererById),
+    Del((), (u32,)),
+    ById(u32, OscRendererById),
 }
 
 /// OSC message to /renderer/<renderer_id>/<...>
@@ -93,7 +93,7 @@ impl Dispatch {
     }
     /// Registers the client to receive event messages.
     /// Returns the id that has been assigned to the client.
-    pub fn register_client(&mut self, c: Box<Client>) -> u64 {
+    pub fn register_client(&mut self, c: Box<Client>) -> u32 {
         let id = 1+self.clients.keys().max().unwrap_or(&0);
         self.clients.insert(id, c);
         id
