@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use osc_address::OscMessage;
 
 use render::{Renderer, RefRenderer};
-use routing::{DagHandle, Edge, NodeHandle, RouteGraph};
+use routing::{Edge, NodeHandle, RouteGraph};
 use routing::adjlist;
 
 struct Dispatch {
@@ -30,7 +30,7 @@ enum OscToplevel {
 #[derive(OscMessage)]
 enum OscRouteGraph {
     #[osc_address(address="add_node")]
-    AddNode((), (DagHandle, adjlist::NodeData)),
+    AddNode((), (NodeHandle, adjlist::NodeData)),
     #[osc_address(address="add_edge")]
     AddEdge((), (Edge,)),
     #[osc_address(address="del_node")]
@@ -70,7 +70,7 @@ impl Dispatch {
                 OscRouteGraph::DelEdge((), (edge,)) => self.routegraph.del_edge(edge),
             },
             OscToplevel::Renderer((), rend_msg) => match rend_msg {
-                // TODO: create/delete the renderers
+                // TODO: upon creation, we need to read the current graph into the new renderer.
                 OscRenderer::New((), (id,)) => { self.renderers.insert(id, Box::new(RefRenderer::new())); }
                 OscRenderer::Del((), (id,)) => { self.renderers.remove(&id); }
             },

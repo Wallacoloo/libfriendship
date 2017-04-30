@@ -15,7 +15,6 @@ use super::adjlist::AdjList;
 use super::adjlist;
 use super::effect;
 use super::effect::Effect;
-use super::graphwatcher::GraphWatcher;
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
@@ -67,6 +66,8 @@ pub enum Error {
     WouldCycle,
     /// Raised on attempt to delete a node when it still has edges.
     NodeInUse,
+    /// Raised on attempt to create a node with an id that's already in use.
+    NodeExists,
     /// Error inside some Effect:: method
     EffectError(effect::Error),
 }
@@ -78,8 +79,6 @@ pub type ResultE<T> = Result<T, Error>;
 pub struct RouteGraph {
     // TODO: can make these non-zero for more efficient Option<NodeHandle> encoding
     dag_counter: u32,
-    node_counter: u64,
-    watchers: Vec<Box<GraphWatcher>>,
     edges: HashMap<NodeHandle, EdgeSet>,
     node_data: HashMap<NodeHandle, NodeData>,
 }
@@ -94,13 +93,11 @@ impl RouteGraph {
     pub fn new() -> Self {
         RouteGraph {
             dag_counter: 0,
-            node_counter: 0,
-            watchers: Vec::new(),
             edges: HashMap::new(),
             node_data: HashMap::new(),
         }
     }
-    pub fn add_watcher(&mut self, mut watcher: Box<GraphWatcher>, do_replay: bool) {
+    /*pub fn add_watcher(&mut self, mut watcher: Box<GraphWatcher>, do_replay: bool) {
         if do_replay {
             for node in self.iter_nodes() {
                 watcher.on_add_node(node, &self.node_data[node]);
@@ -110,7 +107,7 @@ impl RouteGraph {
             }
         }
         self.watchers.push(watcher);
-    }
+    }*/
     pub fn iter_nodes<'a>(&'a self) -> impl Iterator<Item=&NodeHandle> + 'a {
         self.node_data.keys()
     }
@@ -122,22 +119,17 @@ impl RouteGraph {
         self.dag_counter += 1;
         handle
     }
-    pub fn add_node(&mut self, dag: DagHandle, node_data: NodeData) -> NodeHandle {
-        let primhandle = PrimNodeHandle { id: self.node_counter };
-        let handle = NodeHandle {
-            dag_handle: dag,
-            node_handle: Some(primhandle),
-        };
-        self.node_counter = self.node_counter+1;
+    /// Try to create a node with the given handle/data.
+    /// Will error if the handle is already in use.
+    pub fn add_node(&mut self, handle: NodeHandle, node_data: NodeData) -> ResultE<()> {
         // Create storage for the node's outgoing edges
-        // Panic if the NodeHandle was somehow already in use.
-        assert!(self.edges.insert(handle, EdgeSet::new()).is_none());
+        match self.edges.entry(handle) {
+            hash_map::Entry::Occupied(_) => Err(Error::NodeExists),
+            hash_map::Entry::Vacant(entry) => { entry.insert(EdgeSet::new()); Ok(()) },
+        }?;
         // Store the node's data
         assert!(self.node_data.insert(handle, node_data.clone()).is_none());
-        for w in &mut self.watchers {
-            w.on_add_node(&handle, &node_data);
-        }
-        handle
+        Ok(())
     }
     pub fn add_edge(&mut self, edge: Edge) -> ResultE<()> {
         // Algorithm:
@@ -281,10 +273,6 @@ impl RouteGraph {
         if let Ok(_) = ok_to_delete {
             // delete the data associated with this node
             self.node_data.remove(&node);
-            // notify watchers of successful deletion
-            for w in &mut self.watchers {
-                w.on_del_node(&node);
-            }
         }
         ok_to_delete
     }
@@ -295,9 +283,6 @@ impl RouteGraph {
         }
         if let Some(edge_set) = self.edges.get_mut(&edge.to_full()) {
             edge_set.inbound.remove(&edge);
-        }
-        for w in &mut self.watchers {
-            w.on_del_edge(&edge);
         }
     }
 
@@ -322,13 +307,9 @@ impl RouteGraph {
 
         // Map EffectMeta -> Effect and also determine the highest ids in use
         let mut dag_counter = 0;
-        let mut node_counter = 0;
         let nodes: ResultE<HashMap<NodeHandle, NodeData>> = nodes.into_iter().map(|(handle, data)| {
             if let Some(dag_hnd) = handle.dag_handle.id {
                 dag_counter = cmp::max(dag_counter, dag_hnd);
-            }
-            if let Some(node_hnd) = handle.node_handle {
-                node_counter = cmp::max(node_counter, node_hnd.id);
             }
             let decoded_data = match data {
                 adjlist::NodeData::Effect(meta) =>
@@ -344,8 +325,6 @@ impl RouteGraph {
         // Build self with only nodes and no edges
         let mut me = Self {
             dag_counter: dag_counter,
-            node_counter: node_counter,
-            watchers: Vec::new(),
             edges: HashMap::new(),
             node_data: nodes,
         };
