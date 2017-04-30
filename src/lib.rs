@@ -13,6 +13,7 @@ extern crate osc_address_derive;
 extern crate osc_address;
 extern crate serde_osc;
 
+pub mod client;
 pub mod dispatch;
 pub mod render;
 pub mod routing;
