@@ -6,3 +6,4 @@ mod tests;
 
 // Exports
 pub use self::renderer::Renderer;
+pub use self::reference::RefRenderer;

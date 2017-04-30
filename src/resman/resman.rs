@@ -74,7 +74,7 @@ impl ResMan {
         let mut hasher = Sha256::default();
         let mut file_contents = Vec::new();
         hasher.input({
-            File::open(path).unwrap().read_to_end(&mut file_contents);
+            File::open(path).unwrap().read_to_end(&mut file_contents).unwrap();
             &file_contents
         });
         let mut res: [u8; 32] = Default::default();

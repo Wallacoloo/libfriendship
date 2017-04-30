@@ -2,4 +2,5 @@
 /// i.e. it aims to be simple and easy to understand, with little care
 /// towards resource usage.
 
-pub mod renderer;
+mod renderer;
+pub use self::renderer::RefRenderer;
