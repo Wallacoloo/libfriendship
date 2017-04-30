@@ -3,8 +3,6 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 use serde_json;
-use serde_json::map::Map;
-use serde_json::value::Value;
 use url::Url;
 use url_serde;
 

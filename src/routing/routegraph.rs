@@ -220,9 +220,9 @@ impl RouteGraph {
         }
     }
     fn node_data_to_handles<'a>(&'a self, data: &'a NodeData) -> impl Iterator<Item=NodeHandle> + 'a {
-        self.node_data.iter().filter(move |&(handle, node)| {
+        self.node_data.iter().filter(move |&(_handle, node)| {
             node == data
-        }).map(|(handle, node)| {
+        }).map(|(handle, _node)| {
             handle.clone()
         })
     }
