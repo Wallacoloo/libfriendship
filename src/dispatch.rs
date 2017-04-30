@@ -149,7 +149,7 @@ impl Dispatch {
                         let mut buff: Vec<f32> = (0..size).map(|i| { 0f32}).collect();
                         // TODO: handle index error
                         self.renderers.get_mut(&id).unwrap().fill_buffer(&mut buff, start, num_ch);
-                        self.audio_rendered(&buff, start, num_ch);
+                        self.audio_rendered(id, &buff, start, num_ch);
                     }
                 }
             },
@@ -173,9 +173,9 @@ impl From<effect::Error> for Error {
 }
 
 impl Client for Dispatch {
-    fn audio_rendered(&mut self, buffer: &[f32], idx: u64, num_ch: u8) {
+    fn audio_rendered(&mut self, renderer_id: u32, buffer: &[f32], idx: u64, num_ch: u8) {
         for c in self.clients.values_mut() {
-            c.audio_rendered(buffer, idx, num_ch);
+            c.audio_rendered(renderer_id, buffer, idx, num_ch);
         }
     }
 }
