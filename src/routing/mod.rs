@@ -4,9 +4,9 @@
 /// mathematical relationships.
 
 pub mod adjlist;
-mod effect;
+pub mod effect;
 mod graphwatcher;
-mod routegraph;
+pub mod routegraph;
 //mod sinusoid;
 
 // re-export the things we want public

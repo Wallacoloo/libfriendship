@@ -6,8 +6,10 @@ use std::collections::HashMap;
 use osc_address::OscMessage;
 
 use render::{Renderer, RefRenderer};
-use routing::{Edge, NodeHandle, RouteGraph};
-use routing::adjlist;
+use resman::ResMan;
+use routing;
+use routing::{Edge, Effect, NodeHandle, RouteGraph};
+use routing::{adjlist, effect, routegraph};
 
 struct Dispatch {
     /// Contains the toplevel description of the audio being generated.
@@ -15,6 +17,9 @@ struct Dispatch {
     /// Collection of all objects that are rendering the routegraph,
     /// mapped by id.
     renderers: HashMap<usize, Box<Renderer>>,
+    /// Resource manager. Knows where to find all data that might be stored
+    /// outside the application.
+    resman: ResMan,
 }
 
 #[derive(OscMessage)]
@@ -51,23 +56,56 @@ enum OscRenderer {
     Del((), (usize,)),
 }
 
+pub enum Error {
+    RouteGraphError(routegraph::Error),
+    EffectError(effect::Error),
+}
+
+type ResultE<T> = Result<T, Error>;
+
 
 impl Dispatch {
     pub fn new() -> Dispatch {
         Dispatch {
             routegraph: RouteGraph::new(),
             renderers: HashMap::new(),
+            resman: ResMan::new(),
         }
     }
     /// Process the OSC message.
-    fn dispatch(&mut self, msg: OscToplevel) {
+    fn dispatch(&mut self, msg: OscToplevel) -> ResultE<()> {
         match msg {
-            // TODO: move callbacks from inside routegraph to here.
             OscToplevel::RouteGraph((), rg_msg) => match rg_msg {
-                OscRouteGraph::AddNode((), (handle, data)) => unimplemented!(),
-                OscRouteGraph::AddEdge((), (edge,)) => self.routegraph.add_edge(edge).unwrap(),
-                OscRouteGraph::DelNode((), (handle,)) => self.routegraph.del_node(handle).unwrap(),
-                OscRouteGraph::DelEdge((), (edge,)) => self.routegraph.del_edge(edge),
+                OscRouteGraph::AddNode((), (handle, data)) => {
+                    let node_data = match data {
+                        adjlist::NodeData::Effect(meta) =>
+                            routing::NodeData::Effect(Effect::from_meta(meta, &self.resman)?),
+                        adjlist::NodeData::Graph(dag_handle) =>
+                            routing::NodeData::Graph(dag_handle),
+                    };
+                    self.routegraph.add_node(handle.clone(), node_data.clone())?;
+                    for watcher in self.renderers.values_mut() {
+                        watcher.on_add_node(&handle, &node_data);
+                    }
+                }
+                OscRouteGraph::AddEdge((), (edge,)) => {
+                    self.routegraph.add_edge(edge.clone())?;
+                    for watcher in self.renderers.values_mut() {
+                        watcher.on_add_edge(&edge);
+                    }
+                }
+                OscRouteGraph::DelNode((), (handle,)) => {
+                    self.routegraph.del_node(handle.clone())?;
+                    for watcher in self.renderers.values_mut() {
+                        watcher.on_del_node(&handle);
+                    }
+                }
+                OscRouteGraph::DelEdge((), (edge,)) => {
+                    self.routegraph.del_edge(edge.clone());
+                    for watcher in self.renderers.values_mut() {
+                        watcher.on_del_edge(&edge);
+                    }
+                }
             },
             OscToplevel::Renderer((), rend_msg) => match rend_msg {
                 // TODO: upon creation, we need to read the current graph into the new renderer.
@@ -75,5 +113,20 @@ impl Dispatch {
                 OscRenderer::Del((), (id,)) => { self.renderers.remove(&id); }
             },
         }
+        Ok(())
+    }
+}
+
+/// Conversion from `routegraph::Error` for use with the `?` operator
+impl From<routegraph::Error> for Error {
+    fn from(e: routegraph::Error) -> Self {
+        Error::RouteGraphError(e)
+    }
+}
+
+/// Conversion from `effect::Error` for use with the `?` operator
+impl From<effect::Error> for Error {
+    fn from(e: effect::Error) -> Self {
+        Error::EffectError(e)
     }
 }
