@@ -97,17 +97,6 @@ impl RouteGraph {
             node_data: HashMap::new(),
         }
     }
-    /*pub fn add_watcher(&mut self, mut watcher: Box<GraphWatcher>, do_replay: bool) {
-        if do_replay {
-            for node in self.iter_nodes() {
-                watcher.on_add_node(node, &self.node_data[node]);
-            }
-            for edge in self.iter_edges() {
-                watcher.on_add_edge(edge);
-            }
-        }
-        self.watchers.push(watcher);
-    }*/
     pub fn iter_nodes<'a>(&'a self) -> impl Iterator<Item=&NodeHandle> + 'a {
         self.node_data.keys()
     }
