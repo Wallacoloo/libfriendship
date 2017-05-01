@@ -133,43 +133,47 @@ impl RouteGraph {
         // associate the edge with its destination.
         self.edges.entry(edge.to_full()).or_insert_with(EdgeSet::new).inbound.insert(edge);
     }
-    fn is_edge_reachable(&self, from: &Edge, to: &Edge) -> bool {
+    fn is_edge_reachable(&self, from: &Edge, target: &Edge) -> bool {
         // Algorithm:
         //   Try to reach `edge` from `edge`.
         //   If we reach the boundary of the DAG while doing so, consider all reachable outbound
         //     edges of the DAG
         //     For each such edge, try to reach this DAG (recursively), and then resume the search for `edge`.
-        let dag_handle = from.dag_handle.clone();
-        let dagnode_handle = NodeHandle::new(dag_handle, None);
-        for candidate in self.edges[&from.to_full()].outbound.iter() {
-            if self.are_edges_internally_connected(&self.node_data[&candidate.from_full()], &from, &candidate) {
-                // See if we can reach `to` from the candidate
-                match candidate.to {
-                    // The edge we traversed keeps us inside the current DAG
-                    Some(_) => if self.is_edge_reachable(candidate, to) {
-                        return true
-                    },
-                    // The edge we traversed takes us out of the DAG.
-                    // Consider all nodes aliased to this DAG;
-                    //   for each one, consider all paths that lead back to it & continue the
-                    //   search.
-                    None => {
-                        let search = NodeData::Graph(candidate.dag_handle);
-                        for node in self.node_data_to_handles(&search) {
-                            for edge_out in self.edges[&node].outbound.iter() {
-                                // Consider all edges leaving this node that are reachable
-                                if edge_out.weight.from_slot == to.weight.to_slot &&
-                                    edge_out.weight.from_ch == to.weight.to_ch {
-                                    for edge_in in self.paths_from_edge_to_node(edge_out, &node) {
-                                        for edge in self.edges[&dagnode_handle].inbound.iter() {
-                                            // Follow the edge back into this DAG.
-                                            if edge_in.weight.to_slot == edge.weight.from_slot &&
-                                                edge_in.weight.to_ch == edge.weight.from_ch {
-                                                // Now we're back in the DAG; continue the search
-                                                if self.is_edge_reachable(&edge, to) {
-                                                    return true
-                                                }
-                                            }
+        match from.to {
+            // The edge points to a NODE inside a DAG.
+            Some(to) => {
+                // TODO: rewrite this as iterator with .any()
+                // Consider all (reachable) outgoing edges of the node:
+                for candidate_edge in self.edges[&from.to_full()].outbound.iter() {
+                    if self.are_edges_internally_connected(&from, &candidate_edge) {
+                        if self.is_edge_reachable(candidate_edge, target) {
+                            return true;
+                        }
+                    }
+                }
+            },
+            // The edge points to a DAG output.
+            None => {
+                // Consider all nodes aliased to this DAG;
+                //   for each one, consider all paths that lead back to it &
+                //   continue the search.
+                let dagnode_handle = NodeHandle::new(from.dag_handle().clone(), None);
+                let search = NodeData::Graph(from.dag_handle);
+                for aliased_node in self.node_data_to_handles(&search) {
+                    for edge_out in self.edges[&aliased_node].outbound.iter() {
+                        // Consider all edges leaving this node that are reachable
+                        if edge_out.weight.from_slot == from.weight.to_slot &&
+                            edge_out.weight.from_ch == from.weight.to_ch {
+                            // iter the edges back into this DAG.
+                            for edge_in in self.paths_from_edge_to_node(edge_out, &aliased_node) {
+                                // Translate from edges INTO the dag to edges inside the DAG coming
+                                // from null.
+                                for edge in self.edges[&dagnode_handle].outbound.iter() {
+                                    if edge_in.weight.to_slot == edge.weight.from_slot &&
+                                        edge_in.weight.to_ch == edge.weight.from_ch {
+                                        // Now we're back in the DAG; continue the search
+                                        if self.is_edge_reachable(&edge, target) {
+                                            return true
                                         }
                                     }
                                 }
@@ -177,7 +181,7 @@ impl RouteGraph {
                         }
                     }
                 }
-            }
+            },
         }
         false
     }
@@ -189,8 +193,8 @@ impl RouteGraph {
     }
     /// Assuming from.to() == to.from(), will return true if & only if
     /// from and to are internally connected within the node.
-    fn are_edges_internally_connected(&self, node_data: &NodeData, from: &Edge, to: &Edge) -> bool {
-        match *node_data {
+    fn are_edges_internally_connected(&self, from: &Edge, to: &Edge) -> bool {
+        match self.node_data[&from.to_full()] {
             NodeData::Effect(ref effect) => effect.are_slots_connected(
                 from.weight.to_slot, from.weight.to_ch,
                 to.weight.from_slot, to.weight.from_ch),
