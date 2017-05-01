@@ -15,12 +15,8 @@ serde_json = "1.0"
 serde_osc = "0.4.1"
 sha2 = "0.5"
 url = "1.4"
-# url_serde is not updated for serde 1.0.
-# See below dependencies section for alternative git repo.
-#url_serde = "0.2"
+url_serde = "0.2"
 
 [dependencies.pwline]
 git = "https://github.com/wallacoloo/rust-pwline.git"
 
-[dependencies.url_serde]
-git = "https://github.com/maximih/rust-url.git"
