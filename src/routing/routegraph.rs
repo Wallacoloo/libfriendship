@@ -212,11 +212,15 @@ impl RouteGraph {
             }
         }
     }
+    /// Return handles to all nodes that match the search.
+    /// Note: this iterates over EVERY node in the DAG.
     fn node_data_to_handles<'a>(&'a self, data: &'a NodeData) -> impl Iterator<Item=NodeHandle> + 'a {
-        self.node_data.iter().filter(move |&(_handle, node)| {
-            node == data
-        }).map(|(handle, _node)| {
-            handle.clone()
+        self.node_data.iter().filter_map(move |(handle, node)| {
+            if node == data {
+                Some(handle.clone())
+            } else {
+                None
+            }
         })
     }
     /// Returns true if there's a path from `in` to `out` at the toplevel DAG.
