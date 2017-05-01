@@ -17,7 +17,7 @@ struct MyClient {
 }
 impl Client for MyClient {
     fn audio_rendered(&mut self, renderer_id: u32, buffer: &[f32], idx: u64, num_ch: u8) {
-        self.tx.send(buffer.iter().map(|x| *x).collect());
+        self.tx.send(buffer.iter().map(|x| *x).collect()).unwrap();
     }
 }
 
