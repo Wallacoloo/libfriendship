@@ -19,3 +19,6 @@ pub mod render;
 pub mod routing;
 pub mod resman;
 
+
+pub use dispatch::Dispatch;
+pub use client::Client;

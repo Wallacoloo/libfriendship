@@ -126,7 +126,7 @@ impl GraphWatcher for RefRenderer {
                                 assert!(params.is_empty());
                                 MyNodeData::Constant(value)
                             },
-                            _ => panic!("Unrecognized primitive effect"),
+                            _ => panic!("Unrecognized primitive effect: {} (full url: {})", url.path(), url),
                         }
                     }
                     None => MyNodeData::UserNode(effect.clone())

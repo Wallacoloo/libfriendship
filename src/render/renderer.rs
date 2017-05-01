@@ -9,6 +9,8 @@ pub trait Renderer: GraphWatcher {
     /// It's a good idea to make sure the buffer size is a multiple of the number of channels.
     fn fill_buffer(&mut self, buff: &mut [f32], idx: u64, num_ch: u8) {
         for (buff_idx, sample) in buff.iter_mut().enumerate() {
+            // Note: if num_ch == 0, buff.len() == 0, so this block isn't reached.
+            // Risk of division by zero is low & caused by error in the caller.
             let time_idx = (buff_idx / num_ch as usize) as u64;
             let ch = (buff_idx % num_ch as usize) as u8;
             *sample = self.get_sample(time_idx, ch);

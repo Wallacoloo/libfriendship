@@ -12,7 +12,7 @@ use routing;
 use routing::{Edge, Effect, NodeHandle, RouteGraph};
 use routing::{adjlist, effect, routegraph};
 
-struct Dispatch {
+pub struct Dispatch {
     /// Contains the toplevel description of the audio being generated.
     routegraph: RouteGraph,
     /// Collection of all objects that are rendering the routegraph,
@@ -28,7 +28,7 @@ struct Dispatch {
 
 /// OSC message to /<...>
 #[derive(OscMessage)]
-enum OscToplevel {
+pub enum OscToplevel {
     /// Send a message to the primary RouteGraph
     #[osc_address(address="routegraph")]
     RouteGraph((), OscRouteGraph),
@@ -39,7 +39,7 @@ enum OscToplevel {
 
 /// OSC message to /routegraph/<...>
 #[derive(OscMessage)]
-enum OscRouteGraph {
+pub enum OscRouteGraph {
     #[osc_address(address="add_node")]
     AddNode((), (NodeHandle, adjlist::NodeData)),
     #[osc_address(address="add_edge")]
@@ -52,7 +52,7 @@ enum OscRouteGraph {
 
 /// OSC message to /renderer/<...>
 #[derive(OscMessage)]
-enum OscRenderer {
+pub enum OscRenderer {
     /// Create a new renderer with id=msg payload.
     /// Currently instantiates a reference renderer with default settings.
     /// TODO: this should someday accept the typename of a renderer.
@@ -66,7 +66,7 @@ enum OscRenderer {
 
 /// OSC message to /renderer/<renderer_id>/<...>
 #[derive(OscMessage)]
-enum OscRendererById {
+pub enum OscRendererById {
     /// Render a range of samples from [a, b)
     /// Last argument indicates the number of channels to render.
     /// TODO: The channel count should become a property of the RouteGraph.
@@ -74,6 +74,7 @@ enum OscRendererById {
     RenderRange((), (u64, u64, u8)),
 }
 
+#[derive(Debug)]
 pub enum Error {
     RouteGraphError(routegraph::Error),
     EffectError(effect::Error),
@@ -99,7 +100,7 @@ impl Dispatch {
         id
     }
     /// Process the OSC message.
-    fn dispatch(&mut self, msg: OscToplevel) -> ResultE<()> {
+    pub fn dispatch(&mut self, msg: OscToplevel) -> ResultE<()> {
         match msg {
             OscToplevel::RouteGraph((), rg_msg) => match rg_msg {
                 OscRouteGraph::AddNode((), (handle, data)) => {
@@ -146,7 +147,7 @@ impl Dispatch {
                         // Avoid underflows if the range isn't positive.
                         if stop < start { return Ok(()); }
                         let size = (stop-start)*(num_ch as u64);
-                        let mut buff: Vec<f32> = (0..size).map(|i| { 0f32}).collect();
+                        let mut buff: Vec<f32> = (0..size).map(|i| { 0f32 }).collect();
                         // TODO: handle index error
                         self.renderers.get_mut(&id).unwrap().fill_buffer(&mut buff, start, num_ch);
                         self.audio_rendered(id, &buff, start, num_ch);
@@ -172,7 +173,24 @@ impl From<effect::Error> for Error {
     }
 }
 
-impl Client for Dispatch {
+/// Deterministic mapping from one OSC message to a container OSC message
+impl From<OscRouteGraph> for OscToplevel {
+    fn from(m: OscRouteGraph) -> Self {
+        OscToplevel::RouteGraph((), m)
+    }
+}
+
+/// Deterministic mapping from one OSC message to a container OSC message
+impl From<OscRenderer> for OscToplevel {
+    fn from(m: OscRenderer) -> Self {
+        OscToplevel::Renderer((), m)
+    }
+}
+
+
+/// Calling any Client method on Dispatch routes it to all the Dispatch's own
+/// clients. This is meant to be used internally.
+impl Dispatch {
     fn audio_rendered(&mut self, renderer_id: u32, buffer: &[f32], idx: u64, num_ch: u8) {
         for c in self.clients.values_mut() {
             c.audio_rendered(renderer_id, buffer, idx, num_ch);

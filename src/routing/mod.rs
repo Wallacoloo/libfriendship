@@ -12,4 +12,4 @@ pub mod routegraph;
 // re-export the things we want public
 pub use self::effect::{Effect, EffectMeta};
 pub use self::graphwatcher::GraphWatcher;
-pub use self::routegraph::{DagHandle, Edge, NodeData, NodeHandle, RouteGraph};
+pub use self::routegraph::{DagHandle, Edge, EdgeWeight, NodeData, NodeHandle, RouteGraph};

@@ -18,7 +18,7 @@ use super::effect::Effect;
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
-struct EdgeWeight {
+pub struct EdgeWeight {
     from_slot: u32,
     from_ch: u8,
     to_slot: u32,
@@ -41,7 +41,7 @@ pub struct DagHandle {
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
 pub struct PrimNodeHandle {
-    id: u64,
+    id: u32,
 }
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
@@ -336,6 +336,9 @@ impl NodeHandle {
             node_handle: node,
         }
     }
+    pub fn new_node(dag: DagHandle, node: u32) -> Self {
+        NodeHandle::new(dag, Some(PrimNodeHandle{ id: node }))
+    }
     pub fn dag_handle(&self) -> &DagHandle {
         &self.dag_handle
     }
@@ -345,6 +348,15 @@ impl NodeHandle {
 }
 
 impl Edge {
+    /// Create an edge from `from` to null (i.e. an output)
+    pub fn new_to_null(from: NodeHandle, weight: EdgeWeight) -> Self {
+        Self {
+            dag_handle: from.dag_handle,
+            from: from.node_handle,
+            to: None,
+            weight,
+        }
+    }
     fn dag_handle(&self) -> &DagHandle {
         &self.dag_handle
     }
@@ -371,6 +383,12 @@ impl Edge {
     }
     pub fn from_ch(&self) -> u8 {
         self.weight.from_ch
+    }
+}
+
+impl EdgeWeight {
+    pub fn new(from_slot: u32, from_ch: u8, to_slot: u32, to_ch: u8) -> Self {
+        Self{ from_slot, from_ch, to_slot, to_ch }
     }
 }
 
@@ -406,7 +424,7 @@ impl EdgeSet {
 }
 
 impl DagHandle {
-    fn toplevel() -> Self {
+    pub fn toplevel() -> Self {
         DagHandle {
             id: None
         }

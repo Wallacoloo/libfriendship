@@ -28,6 +28,7 @@ pub struct EffectMeta {
     /// Hash of the effect's definition file, or None if the effect is primitive
     sha256: Option<[u8; 32]>,
     // TODO: consider a smallset.
+    // TODO: use #[serde(with = "url_serde")]
     /// List of URLs where the Effect can be obtained
     urls: HashSet<url_serde::Serde<Url>>,
 }
@@ -94,13 +95,22 @@ impl Effect {
 }
 
 impl EffectMeta {
+    pub fn new<U>(name: String, sha256: Option<[u8; 32]>, urls: U) -> Self 
+        where U: Iterator<Item=Url>
+    {
+        Self {
+            name,
+            sha256,
+            urls: urls.map(|url| url_serde::Serde(url)).collect(),
+        }
+    }
     pub fn sha256(&self) -> &Option<[u8; 32]> {
         &self.sha256
     }
     /// Returns true if the effect cannot be decomposed.
     /// This is determined by the effect providing a SINGLE url, with the primitive:// Schema
     pub fn is_primitive(&self) -> bool {
-        !self.urls.len() == 1 && self.urls.iter().all(|url| {
+        self.urls.len() == 1 && self.urls.iter().all(|url| {
             url.scheme() == "primitive"
         })
     }
