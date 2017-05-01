@@ -55,6 +55,7 @@ pub struct NodeHandle {
 #[derive(Serialize, Deserialize)]
 pub struct Edge {
     dag_handle: DagHandle,
+    // TODO: can make these non-zero for more efficient Option<NodeHandle> encoding
     from: Option<PrimNodeHandle>,
     to: Option<PrimNodeHandle>,
     weight: EdgeWeight,
@@ -77,8 +78,6 @@ pub type ResultE<T> = Result<T, Error>;
 
 
 pub struct RouteGraph {
-    // TODO: can make these non-zero for more efficient Option<NodeHandle> encoding
-    dag_counter: u32,
     edges: HashMap<NodeHandle, EdgeSet>,
     node_data: HashMap<NodeHandle, NodeData>,
 }
@@ -92,7 +91,6 @@ struct EdgeSet {
 impl RouteGraph {
     pub fn new() -> Self {
         RouteGraph {
-            dag_counter: 0,
             edges: HashMap::new(),
             node_data: HashMap::new(),
         }
@@ -102,11 +100,6 @@ impl RouteGraph {
     }
     pub fn iter_edges<'a>(&'a self) -> impl Iterator<Item=&Edge> + 'a {
         self.edges.values().flat_map(|v_set| v_set.outbound.iter())
-    }
-    pub fn add_dag(&mut self) -> DagHandle {
-        let handle = DagHandle{ id: Some(self.dag_counter) };
-        self.dag_counter += 1;
-        handle
     }
     /// Try to create a node with the given handle/data.
     /// Will error if the handle is already in use.
@@ -295,11 +288,7 @@ impl RouteGraph {
         let (nodes, edges) = (adj.nodes, adj.edges);
 
         // Map EffectMeta -> Effect and also determine the highest ids in use
-        let mut dag_counter = 0;
         let nodes: ResultE<HashMap<NodeHandle, NodeData>> = nodes.into_iter().map(|(handle, data)| {
-            if let Some(dag_hnd) = handle.dag_handle.id {
-                dag_counter = cmp::max(dag_counter, dag_hnd);
-            }
             let decoded_data = match data {
                 adjlist::NodeData::Effect(meta) =>
                     NodeData::Effect(Effect::from_meta(meta, res)?),
@@ -313,7 +302,6 @@ impl RouteGraph {
 
         // Build self with only nodes and no edges
         let mut me = Self {
-            dag_counter: dag_counter,
             edges: HashMap::new(),
             node_data: nodes,
         };
