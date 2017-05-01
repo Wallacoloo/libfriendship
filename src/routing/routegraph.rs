@@ -335,6 +335,9 @@ impl NodeHandle {
     pub fn new_node(dag: DagHandle, node: u32) -> Self {
         NodeHandle::new(dag, Some(PrimNodeHandle{ id: node }))
     }
+    pub fn new_dag(dag: DagHandle) -> Self {
+        NodeHandle::new(dag, None)
+    }
     pub fn dag_handle(&self) -> &DagHandle {
         &self.dag_handle
     }

@@ -16,12 +16,16 @@ struct Node {
 }
 
 enum MyNodeData {
+    /// This node is a non-primitive effect.
     UserNode(Rc<Effect>),
+    /// This node is an instance of another DAG.
     Graph(DagHandle),
     /// Primitive Delay(samples) effect
     Delay(u64),
     /// Primitive Constant(value) effect,
     Constant(f32),
+    /// This node is a DAG definition. i.e. it holds the output edges of a DAG.
+    DagIO,
 }
 
 impl Renderer for RefRenderer {
@@ -94,6 +98,7 @@ impl RefRenderer {
                     in_values.sum()
                 },
                 MyNodeData::Constant(ref value) => value.clone(),
+                _ => panic!("Internal RefRenderer error: illegal node type"),
             }
         }
     }
@@ -134,6 +139,11 @@ impl GraphWatcher for RefRenderer {
             }
         };
         self.nodes.insert(handle.clone(), Node::new(my_node_data));
+        // If the node is part of a new DAG, allocate data so that future edges
+        // to null within the DAG can be held.
+        self.nodes.entry(NodeHandle::new_dag(handle.dag_handle().clone())).or_insert_with(|| {
+            Node::new(MyNodeData::DagIO)
+        });
     }
     fn on_del_node(&mut self, handle: &NodeHandle) {
         self.nodes.remove(handle);
