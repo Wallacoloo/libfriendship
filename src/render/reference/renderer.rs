@@ -23,8 +23,12 @@ enum MyNodeData {
     Graph(DagHandle),
     /// Primitive Delay(samples) effect
     Delay(u64),
-    /// Primitive Constant(value) effect,
+    /// Primitive Constant(value) effect.
+    /// Also serves as a unit step;
+    /// Returns the f32 value for t >= 0, else 0.
     Constant(f32),
+    /// Primitive effect to multiply TWO input streams sample-wise.
+    Multiply,
     /// This node is a DAG definition. i.e. it holds the output edges of a DAG.
     DagIO,
 }
@@ -58,7 +62,7 @@ impl RefRenderer {
             // Reading from one of the inputs to the top of `context`
             let mut new_context = context.clone();
             let head = new_context.pop().unwrap();
-            // Sum the inputs to the matchin slot/ch
+            // Sum the inputs to the matching slot/ch
             let in_edges = self.nodes[&head].inbound.iter().filter(|in_edge| {
                 in_edge.to_slot() == edge.from_slot() && in_edge.to_ch() == edge.from_ch()
             });
@@ -86,17 +90,41 @@ impl RefRenderer {
                 }
                 // Output = sum of all inputs to slot 0 of the same ch.
                 MyNodeData::Delay(ref frames) => {
-                    assert!(edge.from_slot() == 1);
-                    let in_edges = node.inbound.iter().filter(|in_edge| {
-                        in_edge.to_slot() == 0 && in_edge.to_ch() == edge.from_ch()
-                    });
-                    let in_values = in_edges.map(|in_edge| {
-                        // TODO: handle time underflow
-                        self.get_value(in_edge, time-frames, context)
-                    });
-                    in_values.sum()
+                    // The only nonzero output is slot=1.
+                    if edge.from_slot() != 1 {
+                        println!("Warning: attempt to read from Delay slot != 1");
+                        0f32
+                    } else {
+                        let in_edges = node.inbound.iter().filter(|in_edge| {
+                            in_edge.to_slot() == 0 && in_edge.to_ch() == edge.from_ch()
+                        });
+                        let in_values = in_edges.map(|in_edge| {
+                            // TODO: handle time underflow
+                            self.get_value(in_edge, time-frames, context)
+                        });
+                        in_values.sum()
+                    }
                 },
                 MyNodeData::Constant(ref value) => value.clone(),
+                MyNodeData::Multiply => {
+                    // The only nonzero output is slot=1.
+                    if edge.from_slot() != 1 {
+                        println!("Warning: attempt to read from Multiply slot != 1");
+                        0f32
+                    } else {
+                        // Sum all inputs from slot=0 and slot=2 into two separate
+                        // variables, then multiply them.
+                        let edges_a = node.inbound.iter().filter(|in_edge| {
+                            in_edge.to_slot() == 0 && in_edge.to_ch() == edge.from_ch()
+                        });
+                        let edges_b = node.inbound.iter().filter(|in_edge| {
+                            in_edge.to_slot() == 2 && in_edge.to_ch() == edge.from_ch()
+                        });
+                        let val_a: f32 = edges_a.map(|edge| self.get_value(edge, time, context)).sum();
+                        let val_b: f32 = edges_b.map(|edge| self.get_value(edge, time, context)).sum();
+                        val_a * val_b
+                    }
+                },
                 _ => panic!("Internal RefRenderer error: illegal node type"),
             }
         }
