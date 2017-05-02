@@ -3,21 +3,18 @@
 //! and all commands are meant to pass through this instead.
 
 use std::collections::HashMap;
-//use osc_address::OscMessage;
 
 use client::Client;
-use render::{Renderer, RefRenderer};
+use render::Renderer;
 use resman::ResMan;
 use routing;
-use routing::{Edge, Effect, NodeHandle, RouteGraph};
+use routing::{Edge, Effect, NodeData, NodeHandle, RouteGraph};
 use routing::{adjlist, effect, routegraph};
 
-pub struct Dispatch {
+pub struct Dispatch<R> {
     /// Contains the toplevel description of the audio being generated.
     routegraph: RouteGraph,
-    /// Collection of all objects that are rendering the routegraph,
-    /// mapped by id.
-    renderers: HashMap<u32, Box<Renderer>>,
+    renderer: R,
     /// Resource manager. Knows where to find all data that might be stored
     /// outside the application.
     resman: ResMan,
@@ -53,26 +50,13 @@ pub enum OscRouteGraph {
 /// OSC message to /renderer/<...>
 #[derive(OscMessage)]
 pub enum OscRenderer {
-    /// Create a new renderer with id=msg payload.
-    /// Currently instantiates a reference renderer with default settings.
-    /// TODO: this should someday accept the typename of a renderer.
-    #[osc_address(address="new")]
-    New((), (u32,)),
-    /// Delete the renderer that has id=msg payload.
-    #[osc_address(address="del")]
-    Del((), (u32,)),
-    ById(u32, OscRendererById),
-}
-
-/// OSC message to /renderer/<renderer_id>/<...>
-#[derive(OscMessage)]
-pub enum OscRendererById {
     /// Render a range of samples from [a, b)
     /// Last argument indicates the number of channels to render.
     /// TODO: The channel count should become a property of the RouteGraph.
     #[osc_address(address="render")]
     RenderRange((), (u64, u64, u8)),
 }
+
 
 #[derive(Debug)]
 pub enum Error {
@@ -83,11 +67,11 @@ pub enum Error {
 type ResultE<T> = Result<T, Error>;
 
 
-impl Dispatch {
-    pub fn new() -> Dispatch {
+impl<R: Renderer + Default> Dispatch<R> {
+    pub fn new() -> Dispatch<R> {
         Dispatch {
             routegraph: RouteGraph::new(),
-            renderers: HashMap::new(),
+            renderer: Default::default(),
             resman: ResMan::new(),
             clients: HashMap::new(),
         }
@@ -111,47 +95,30 @@ impl Dispatch {
                             routing::NodeData::Graph(dag_handle),
                     };
                     self.routegraph.add_node(handle.clone(), node_data.clone())?;
-                    for watcher in self.renderers.values_mut() {
-                        watcher.on_add_node(&handle, &node_data);
-                    }
+                    self.on_add_node(&handle, &node_data);
                 }
                 OscRouteGraph::AddEdge((), (edge,)) => {
                     self.routegraph.add_edge(edge.clone())?;
-                    for watcher in self.renderers.values_mut() {
-                        watcher.on_add_edge(&edge);
-                    }
+                    self.on_add_edge(&edge);
                 }
                 OscRouteGraph::DelNode((), (handle,)) => {
                     self.routegraph.del_node(handle.clone())?;
-                    for watcher in self.renderers.values_mut() {
-                        watcher.on_del_node(&handle);
-                    }
+                    self.on_del_node(&handle);
                 }
                 OscRouteGraph::DelEdge((), (edge,)) => {
                     self.routegraph.del_edge(edge.clone());
-                    for watcher in self.renderers.values_mut() {
-                        watcher.on_del_edge(&edge);
-                    }
+                    self.on_del_edge(&edge);
                 }
             },
             OscToplevel::Renderer((), rend_msg) => match rend_msg {
-                // TODO: upon creation, we need to read the current graph into the new renderer.
-                OscRenderer::New((), (id,)) => {
-                    self.renderers.insert(id, Box::new(RefRenderer::new()));
-                }
-                OscRenderer::Del((), (id,)) => {
-                    self.renderers.remove(&id);
-                }
-                OscRenderer::ById(id, rend_msg) => match rend_msg {
-                    OscRendererById::RenderRange((), (start, stop, num_ch)) => {
-                        // Avoid underflows if the range isn't positive.
-                        if stop < start { return Ok(()); }
-                        let size = (stop-start)*(num_ch as u64);
-                        let mut buff: Vec<f32> = (0..size).map(|_| { 0f32 }).collect();
-                        // TODO: handle index error
-                        self.renderers.get_mut(&id).unwrap().fill_buffer(&mut buff, start, num_ch);
-                        self.audio_rendered(id, &buff, start, num_ch);
-                    }
+                OscRenderer::RenderRange((), (start, stop, num_ch)) => {
+                    // Avoid underflows if the range isn't positive.
+                    if stop < start { return Ok(()); }
+                    let size = (stop-start)*(num_ch as u64);
+                    let mut buff: Vec<f32> = (0..size).map(|_| { 0f32 }).collect();
+                    // TODO: handle index error
+                    self.renderer.fill_buffer(&mut buff, start, num_ch);
+                    self.audio_rendered(&buff, start, num_ch);
                 }
             },
         }
@@ -189,11 +156,28 @@ impl From<OscRenderer> for OscToplevel {
 
 
 /// Calling any Client method on Dispatch routes it to all the Dispatch's own
-/// clients. This is meant to be used internally.
-impl Dispatch {
-    fn audio_rendered(&mut self, renderer_id: u32, buffer: &[f32], idx: u64, num_ch: u8) {
+/// clients.
+impl<R: Renderer + Default> Dispatch<R> {
+    fn audio_rendered(&mut self, buffer: &[f32], idx: u64, num_ch: u8) {
         for c in self.clients.values_mut() {
-            c.audio_rendered(renderer_id, buffer, idx, num_ch);
+            c.audio_rendered(buffer, idx, num_ch);
         }
+    }
+}
+
+/// Calling any GraphWatcher method on Dispatch routes it to all the
+/// Dispatch's own GraphWatchers.
+impl<R: Renderer + Default> Dispatch<R> {
+    fn on_add_node(&mut self, node: &NodeHandle, data: &NodeData) {
+        self.renderer.on_add_node(node, data);
+    }
+    fn on_del_node(&mut self, node: &NodeHandle) {
+        self.renderer.on_del_node(node);
+    }
+    fn on_add_edge(&mut self, edge: &Edge) {
+        self.renderer.on_add_edge(edge);
+    }
+    fn on_del_edge(&mut self, edge: &Edge) {
+        self.renderer.on_del_edge(edge);
     }
 }

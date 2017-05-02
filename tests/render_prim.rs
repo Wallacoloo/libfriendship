@@ -6,8 +6,9 @@ extern crate url;
 use std::sync::mpsc::{channel, Sender};
 
 use libfriendship::{Dispatch, Client};
-use libfriendship::dispatch::{OscRouteGraph, OscRenderer, OscRendererById};
+use libfriendship::dispatch::{OscRouteGraph, OscRenderer};
 use libfriendship::routing::{adjlist, DagHandle, Edge, EdgeWeight, EffectMeta, NodeHandle};
+use libfriendship::render::RefRenderer;
 use url::Url;
 
 
@@ -16,7 +17,7 @@ struct MyClient {
     tx: Sender<Vec<f32>>,
 }
 impl Client for MyClient {
-    fn audio_rendered(&mut self, _renderer_id: u32, buffer: &[f32], _idx: u64, _num_ch: u8) {
+    fn audio_rendered(&mut self, buffer: &[f32], _idx: u64, _num_ch: u8) {
         self.tx.send(buffer.iter().map(|x| *x).collect()).unwrap();
     }
 }
@@ -25,17 +26,14 @@ impl Client for MyClient {
 fn render_zeros() {
     let (tx, rx) = channel();
     let client = Box::new(MyClient{ tx });
-    let mut dispatch = Dispatch::new();
+    let mut dispatch: Dispatch<RefRenderer> = Dispatch::new();
     dispatch.register_client(client);
-    // Create the renderer
-    let rend_id = 1;
-    dispatch.dispatch(OscRenderer::New((), (rend_id,)).into()).unwrap();
 
     // Read some data from ch=0.
     // This should be all zeros because we have no data being rendered.
-    dispatch.dispatch(OscRenderer::ById(rend_id,
-        OscRendererById::RenderRange((), (0, 4, 1))
-    ).into()).unwrap();
+    dispatch.dispatch(
+        OscRenderer::RenderRange((), (0, 4, 1))
+    .into()).unwrap();
     let rendered = rx.recv().unwrap();
     assert_eq!(rendered, vec![0f32, 0f32, 0f32, 0f32]);
 
@@ -48,9 +46,9 @@ fn render_zeros() {
     
     // Read some data from ch=0.
     // This should be all 0.5 because of the new node we added.
-    dispatch.dispatch(OscRenderer::ById(rend_id,
-        OscRendererById::RenderRange((), (0, 4, 1))
-    ).into()).unwrap();
+    dispatch.dispatch(
+        OscRenderer::RenderRange((), (0, 4, 1))
+    .into()).unwrap();
     let rendered = rx.recv().unwrap();
     assert_eq!(rendered, vec![0.5f32, 0.5f32, 0.5f32, 0.5f32]);
 }

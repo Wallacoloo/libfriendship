@@ -6,6 +6,7 @@ use std::rc::Rc;
 use render::Renderer;
 use routing::{DagHandle, Edge, Effect, GraphWatcher, NodeData, NodeHandle};
 
+#[derive(Default)]
 pub struct RefRenderer {
     nodes: HashMap<NodeHandle, Node>,
 }
@@ -48,9 +49,6 @@ impl Renderer for RefRenderer {
     }
 }
 impl RefRenderer {
-    pub fn new() -> Self {
-        Self{ nodes: HashMap::new() }
-    }
     /// Get the value on an edge at a particular time
     /// When backtracking from the output, we push each Node onto the context if we enter inside of
     ///   it (i.e. if it's a nested DAG) & pop when exiting.
