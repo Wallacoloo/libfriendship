@@ -11,7 +11,7 @@ pub trait Renderer: GraphWatcher {
         for (buff_idx, sample) in buff.iter_mut().enumerate() {
             // Note: if num_ch == 0, buff.len() == 0, so this block isn't reached.
             // Risk of division by zero is low & caused by error in the caller.
-            let time_idx = (buff_idx / num_ch as usize) as u64;
+            let time_idx = idx + (buff_idx / num_ch as usize) as u64;
             let ch = (buff_idx % num_ch as usize) as u8;
             *sample = self.get_sample(time_idx, ch);
         }
