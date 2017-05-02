@@ -354,6 +354,19 @@ impl Edge {
             weight,
         }
     }
+    /// Create an edge between the two nodes.
+    /// Note: nodes must be in the same DAG, else will return None.
+    pub fn new(from: NodeHandle, to: NodeHandle, weight: EdgeWeight) -> Option<Self> {
+        if from.dag_handle != to.dag_handle {
+            return None;
+        }
+        Some(Self {
+            dag_handle: from.dag_handle,
+            from: from.node_handle,
+            to: to.node_handle,
+            weight
+        })
+    }
     fn dag_handle(&self) -> &DagHandle {
         &self.dag_handle
     }
