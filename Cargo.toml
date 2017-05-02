@@ -6,7 +6,7 @@ authors = ["Colin Wallace <wallacoloo@gmail.com>"]
 license = "MIT"
 
 [dependencies]
-# Serialization
+digest = {version="*", features=["std"]}
 osc_address = "0.2"
 osc_address_derive = "0.2"
 serde = "1.0"

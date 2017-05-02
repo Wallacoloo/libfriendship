@@ -4,7 +4,7 @@ use std::fs;
 use std::fs::File;
 
 use sha2::Sha256;
-use sha2::Digest;
+use digest::digest_reader;
 
 use routing::EffectMeta;
 
@@ -71,14 +71,10 @@ impl ResMan {
     fn file_sha256_hash(&self, path: &PathBuf) -> [u8; 32] {
         // TODO: Rewrite surroundings to avoid the possibility that the file doesn't exist / has
         // been deleted since the time the directory was enumerated.
-        let mut hasher = Sha256::default();
-        let mut file_contents = Vec::new();
-        hasher.input({
-            File::open(path).unwrap().read_to_end(&mut file_contents).unwrap();
-            &file_contents
-        });
+        let mut file = File::open(path).unwrap();
+        let hash_result = digest_reader::<Sha256>(&mut file).unwrap();
         let mut res: [u8; 32] = Default::default();
-        res.copy_from_slice(hasher.result().as_slice());
+        res.copy_from_slice(hash_result.as_slice());
         res
     }
 }

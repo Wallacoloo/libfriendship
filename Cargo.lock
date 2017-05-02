@@ -2,6 +2,7 @@
 name = "libfriendship"
 version = "0.0.1"
 dependencies = [
+ "digest 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "osc_address 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "osc_address_derive 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "pwline 0.1.0 (git+https://github.com/wallacoloo/rust-pwline.git)",
