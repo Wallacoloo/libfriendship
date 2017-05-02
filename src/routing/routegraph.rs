@@ -4,7 +4,6 @@
 /// channel. These are outputs.
 /// Edges can also COME from null, in which case the source has the format (slot, channel)
 
-use std::cmp;
 use std::collections::hash_map::HashMap;
 use std::collections::hash_map;
 use std::collections::hash_set::HashSet;
@@ -141,8 +140,7 @@ impl RouteGraph {
         //     For each such edge, try to reach this DAG (recursively), and then resume the search for `edge`.
         match from.to {
             // The edge points to a NODE inside a DAG.
-            Some(to) => {
-                // TODO: rewrite this as iterator with .any()
+            Some(_to) => {
                 // Consider all (reachable) outgoing edges of the node:
                 for candidate_edge in self.edges[&from.to_full()].outbound.iter() {
                     if self.are_edges_internally_connected(&from, &candidate_edge) {
@@ -392,12 +390,6 @@ impl EdgeWeight {
 }
 
 impl NodeData {
-    fn is_effect(&self) -> bool {
-        match *self {
-            NodeData::Effect(_) => true,
-            _ => false,
-        }
-    }
     /// NodeData normally encodes references to actual node implementations -
     /// in order to know their internal connections, etc.
     /// This transforms it into a type that is suitable for transmission, i.e.

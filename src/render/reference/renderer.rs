@@ -72,7 +72,7 @@ impl RefRenderer {
             // Reading from another node within the DAG
             let node = &self.nodes[&from];
             match node.data {
-                MyNodeData::UserNode(ref effect) => unimplemented!(),
+                MyNodeData::UserNode(ref _effect) => unimplemented!(),
                 // Output = sum of all edges to Null of the same slot & ch, within the given DAG.
                 MyNodeData::Graph(ref dag_handle) => {
                     let mut new_context = context.clone();
@@ -93,7 +93,8 @@ impl RefRenderer {
                         in_edge.to_slot() == 0 && in_edge.to_ch() == edge.from_ch()
                     });
                     let in_values = in_edges.map(|in_edge| {
-                        self.get_value(in_edge, time, context)
+                        // TODO: handle time underflow
+                        self.get_value(in_edge, time-frames, context)
                     });
                     in_values.sum()
                 },

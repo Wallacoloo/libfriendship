@@ -6,7 +6,7 @@ extern crate url;
 use std::sync::mpsc::{channel, Sender};
 
 use libfriendship::{Dispatch, Client};
-use libfriendship::dispatch::{OscToplevel, OscRouteGraph, OscRenderer, OscRendererById};
+use libfriendship::dispatch::{OscRouteGraph, OscRenderer, OscRendererById};
 use libfriendship::routing::{adjlist, DagHandle, Edge, EdgeWeight, EffectMeta, NodeHandle};
 use url::Url;
 
@@ -16,7 +16,7 @@ struct MyClient {
     tx: Sender<Vec<f32>>,
 }
 impl Client for MyClient {
-    fn audio_rendered(&mut self, renderer_id: u32, buffer: &[f32], idx: u64, num_ch: u8) {
+    fn audio_rendered(&mut self, _renderer_id: u32, buffer: &[f32], _idx: u64, _num_ch: u8) {
         self.tx.send(buffer.iter().map(|x| *x).collect()).unwrap();
     }
 }

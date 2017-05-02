@@ -3,7 +3,7 @@
 //! and all commands are meant to pass through this instead.
 
 use std::collections::HashMap;
-use osc_address::OscMessage;
+//use osc_address::OscMessage;
 
 use client::Client;
 use render::{Renderer, RefRenderer};
@@ -147,7 +147,7 @@ impl Dispatch {
                         // Avoid underflows if the range isn't positive.
                         if stop < start { return Ok(()); }
                         let size = (stop-start)*(num_ch as u64);
-                        let mut buff: Vec<f32> = (0..size).map(|i| { 0f32 }).collect();
+                        let mut buff: Vec<f32> = (0..size).map(|_| { 0f32 }).collect();
                         // TODO: handle index error
                         self.renderers.get_mut(&id).unwrap().fill_buffer(&mut buff, start, num_ch);
                         self.audio_rendered(id, &buff, start, num_ch);
