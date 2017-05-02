@@ -97,7 +97,15 @@ impl RefRenderer {
                         }
                     }
                 },
-                MyNodeData::Constant(ref value) => value.clone(),
+                MyNodeData::Constant(ref value) => {
+                    // The only nonzero output is slot=1.
+                    if edge.from_slot() != 1 {
+                        println!("Warning: attempt to read from Constant slot != 1");
+                        0f32
+                    } else {
+                        *value
+                    }
+                },
                 MyNodeData::Multiply => {
                     // The only nonzero output is slot=1.
                     if edge.from_slot() != 1 {
