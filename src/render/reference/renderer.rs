@@ -42,12 +42,7 @@ impl Renderer for RefRenderer {
             None => 0f32,
             Some(node) => {
                 // find all edges to ([Null], slot=0, ch=ch)
-                let matches = node.inbound.iter().filter(|edge| {
-                    edge.to_slot() == 0 && edge.to_ch() == ch
-                });
-                matches.map(|edge| {
-                    self.get_value(edge, time, &vec!())
-                }).sum()
+                self.sum_input_to_slot(node, time, 0, ch, &Vec::new())
             }
         }
     }
@@ -95,14 +90,11 @@ impl RefRenderer {
                         println!("Warning: attempt to read from Delay slot != 1");
                         0f32
                     } else {
-                        let in_edges = node.inbound.iter().filter(|in_edge| {
-                            in_edge.to_slot() == 0 && in_edge.to_ch() == edge.from_ch()
-                        });
-                        let in_values = in_edges.map(|in_edge| {
-                            // TODO: handle time underflow
-                            self.get_value(in_edge, time-frames, context)
-                        });
-                        in_values.sum()
+                        match time.checked_sub(*frames) {
+                            // t < 0 => no audio
+                            None => 0f32,
+                            Some(origin_time) => self.sum_input_to_slot(node, origin_time, 0, edge.from_ch(), context)
+                        }
                     }
                 },
                 MyNodeData::Constant(ref value) => value.clone(),
@@ -114,20 +106,22 @@ impl RefRenderer {
                     } else {
                         // Sum all inputs from slot=0 and slot=2 into two separate
                         // variables, then multiply them.
-                        let edges_a = node.inbound.iter().filter(|in_edge| {
-                            in_edge.to_slot() == 0 && in_edge.to_ch() == edge.from_ch()
-                        });
-                        let edges_b = node.inbound.iter().filter(|in_edge| {
-                            in_edge.to_slot() == 2 && in_edge.to_ch() == edge.from_ch()
-                        });
-                        let val_a: f32 = edges_a.map(|edge| self.get_value(edge, time, context)).sum();
-                        let val_b: f32 = edges_b.map(|edge| self.get_value(edge, time, context)).sum();
+                        let val_a = self.sum_input_to_slot(node, time, 0, edge.from_ch(), context);
+                        let val_b = self.sum_input_to_slot(node, time, 2, edge.from_ch(), context);
                         val_a * val_b
                     }
                 },
                 _ => panic!("Internal RefRenderer error: illegal node type"),
             }
         }
+    }
+    /// Return the sum of all inputs into a specific slot/channel of the given
+    /// node at the given time.
+    fn sum_input_to_slot(&self, node: &Node, time: u64, slot: u32, ch: u8, context: &Vec<NodeHandle>) -> f32 {
+        let edges_in = node.inbound.iter().filter(|in_edge| {
+            in_edge.to_slot() == slot && in_edge.to_ch() == ch
+        });
+        edges_in.map(|edge| self.get_value(edge, time, context)).sum()
     }
 }
 
@@ -158,6 +152,7 @@ impl GraphWatcher for RefRenderer {
                                 assert!(params.is_empty());
                                 MyNodeData::Constant(value)
                             },
+                            "/Multiply" => MyNodeData::Multiply,
                             _ => panic!("Unrecognized primitive effect: {} (full url: {})", url.path(), url),
                         }
                     }
