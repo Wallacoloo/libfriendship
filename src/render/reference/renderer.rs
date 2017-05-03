@@ -74,7 +74,7 @@ impl RefRenderer {
                 MyNodeData::Graph(ref dag_handle) => {
                     let mut new_context = context.clone();
                     new_context.push(from);
-                    let subdag = &self.nodes[&NodeHandle::new(dag_handle.clone(), None)];
+                    let subdag = &self.nodes[&NodeHandle::new_dag(dag_handle.clone())];
                     let out_edges = subdag.inbound.iter().filter(|out_edge| {
                         out_edge.to_slot() == edge.from_slot() && out_edge.to_ch() == edge.from_ch()
                     });

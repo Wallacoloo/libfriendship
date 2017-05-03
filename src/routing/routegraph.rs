@@ -14,6 +14,7 @@ use super::adjlist::AdjList;
 use super::adjlist;
 use super::effect;
 use super::effect::Effect;
+use super::nullable_int::NullableInt;
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
@@ -30,16 +31,11 @@ pub enum NodeData {
     Graph(DagHandle),
 }
 
-#[derive(Copy, Clone, Hash, Eq, PartialEq)]
-#[derive(Serialize, Deserialize)]
-pub struct DagHandle {
-    // None represents the Top-level DAG
-    id: Option<u32>,
-}
+/// None represents the Top-level DAG
+pub type DagHandle = NullableInt<u32>;
 
-// TODO: can make this non-zero for more efficient storage.
 /// None represents the Dag's I/O
-type PrimNodeHandle = Option<u32>;
+type PrimNodeHandle = NullableInt<u32>;
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
@@ -135,7 +131,7 @@ impl RouteGraph {
         //   If we reach the boundary of the DAG while doing so, consider all reachable outbound
         //     edges of the DAG
         //     For each such edge, try to reach this DAG (recursively), and then resume the search for `edge`.
-        match from.to {
+        match from.to.get() {
             // The edge points to a NODE inside a DAG.
             Some(_to) => {
                 // Consider all (reachable) outgoing edges of the node:
@@ -152,7 +148,7 @@ impl RouteGraph {
                 // Consider all nodes aliased to this DAG;
                 //   for each one, consider all paths that lead back to it &
                 //   continue the search.
-                let dagnode_handle = NodeHandle::new(from.dag_handle().clone(), None);
+                let dagnode_handle = NodeHandle::new_dag(from.dag_handle().clone());
                 let search = NodeData::Graph(from.dag_handle);
                 for aliased_node in self.node_data_to_handles(&search) {
                     for edge_out in self.edges[&aliased_node].outbound.iter() {
@@ -195,7 +191,7 @@ impl RouteGraph {
                 to.weight.from_slot, to.weight.from_ch),
             // See if there's a path from (None->from.to) to (to.from->None) within the dag
             NodeData::Graph(ref dag_handle) => {
-                let dagnode_handle = NodeHandle::new(dag_handle.clone(), None);
+                let dagnode_handle = NodeHandle::new_dag(dag_handle.clone());
                 // Consider all edges from (None->from.to)
                 self.edges[&dagnode_handle].outbound.iter().filter(|new_from| {
                     new_from.weight.from_slot == from.weight.to_slot &&
@@ -225,7 +221,7 @@ impl RouteGraph {
     /// Returns true if there's a path from `in` to `out` at the toplevel DAG.
     pub fn are_slots_connected(&self, in_slot: u32, in_ch: u8, out_slot: u32, out_ch: u8) -> bool {
         // Consider all edges from None paired with all edges to None:
-        let root_dag = NodeHandle::new(DagHandle { id: None }, None);
+        let root_dag = NodeHandle::new_dag(DagHandle::toplevel());
         let edges_from = self.edges[&root_dag].outbound.iter().filter(|&edge| {
             edge.weight.from_slot == in_slot && edge.weight.from_ch == in_ch
         });
@@ -319,7 +315,7 @@ impl RouteGraph {
 
 impl NodeHandle {
     pub fn toplevel() -> Self {
-        NodeHandle::new(DagHandle::toplevel(), None)
+        NodeHandle::new_dag(DagHandle::toplevel())
     }
     pub fn new(dag: DagHandle, node: PrimNodeHandle) -> Self {
         Self {
@@ -328,10 +324,10 @@ impl NodeHandle {
         }
     }
     pub fn new_node(dag: DagHandle, node: u32) -> Self {
-        NodeHandle::new(dag, Some(node))
+        NodeHandle::new(dag, Some(node).into())
     }
     pub fn new_dag(dag: DagHandle) -> Self {
-        NodeHandle::new(dag, None)
+        NodeHandle::new(dag, None.into())
     }
     pub fn dag_handle(&self) -> &DagHandle {
         &self.dag_handle
@@ -347,7 +343,7 @@ impl Edge {
         Self {
             dag_handle: from.dag_handle,
             from: from.node_handle,
-            to: None,
+            to: None.into(),
             weight,
         }
     }
@@ -426,9 +422,7 @@ impl EdgeSet {
 
 impl DagHandle {
     pub fn toplevel() -> Self {
-        DagHandle {
-            id: None
-        }
+        None.into()
     }
 }
 

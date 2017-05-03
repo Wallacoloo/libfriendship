@@ -8,6 +8,7 @@ pub mod effect;
 mod graphwatcher;
 pub mod routegraph;
 //mod sinusoid;
+mod nullable_int;
 
 // re-export the things we want public
 pub use self::effect::{Effect, EffectMeta};

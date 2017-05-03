@@ -7,6 +7,7 @@ license = "MIT"
 
 [dependencies]
 digest = {version="*", features=["std"]}
+num = "0.1"
 osc_address = "0.2"
 osc_address_derive = "0.2"
 serde = "1.0"
