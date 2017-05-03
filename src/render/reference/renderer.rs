@@ -38,14 +38,10 @@ impl Renderer for RefRenderer {
     fn get_sample(&mut self, time: u64, ch: u8) -> f32 {
         // Try to find the edge that goes to -> (Null, slot=0, ch=ch)
         let root_handle = NodeHandle::toplevel();
-        match self.nodes.get(&root_handle) {
-            // for an empty graph, yield silence.
-            None => 0f32,
-            Some(node) => {
-                // find all edges to ([Null], slot=0, ch=ch)
-                self.sum_input_to_slot(&self.nodes, node, time, 0, ch, &Vec::new())
-            }
-        }
+        self.nodes.get(&root_handle).map(|node| {
+            // find all edges to ([Null], slot=0, ch=ch)
+            self.sum_input_to_slot(&self.nodes, node, time, 0, ch, &Vec::new())
+        }).unwrap_or(0f32)
     }
 }
 impl RefRenderer {
@@ -86,11 +82,10 @@ impl RefRenderer {
                         println!("Warning: attempt to read from Delay slot != 1");
                         0f32
                     } else {
-                        match time.checked_sub(*frames) {
-                            // t < 0 => no audio
-                            None => 0f32,
-                            Some(origin_time) => self.sum_input_to_slot(nodes, node, origin_time, 0, edge.from_ch(), context)
-                        }
+                        // t<0 -> value is 0f32.
+                        time.checked_sub(*frames).map(|origin_time| {
+                            self.sum_input_to_slot(nodes, node, origin_time, 0, edge.from_ch(), context)
+                        }).unwrap_or(0f32)
                     }
                 },
                 MyNodeData::Constant(ref value) => {
