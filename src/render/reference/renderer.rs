@@ -38,6 +38,7 @@ impl Renderer for RefRenderer {
     fn get_sample(&mut self, time: u64, ch: u8) -> f32 {
         // Try to find the edge that goes to -> (Null, slot=0, ch=ch)
         let root_handle = NodeHandle::toplevel();
+        // empty graph is 0f32 = silence
         self.nodes.get(&root_handle).map(|node| {
             // find all edges to ([Null], slot=0, ch=ch)
             self.sum_input_to_slot(&self.nodes, node, time, 0, ch, &Vec::new())
@@ -64,8 +65,10 @@ impl RefRenderer {
                 MyNodeData::UserNode(ref new_nodes) => {
                     let mut new_context = context.clone();
                     new_context.push((nodes, from));
-                    // Now find the *output* of the sub dag.
-                    self.sum_input_to_slot(&new_nodes, new_nodes.get(&NodeHandle::toplevel()).unwrap(), time, edge.from_slot(), edge.from_ch(), &new_context)
+                    // Now find the *output* of the sub dag (or 0 if the sub dag has no outputs)
+                    new_nodes.get(&NodeHandle::toplevel()).map(|root_node| {
+                        self.sum_input_to_slot(&new_nodes, root_node, time, edge.from_slot(), edge.from_ch(), &new_context)
+                    }).unwrap_or(0f32)
                 },
                 // Output = sum of all edges to Null of the same slot & ch, within the given DAG.
                 MyNodeData::Graph(ref dag_handle) => {
