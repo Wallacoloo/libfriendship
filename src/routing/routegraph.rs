@@ -37,26 +37,23 @@ pub struct DagHandle {
     id: Option<u32>,
 }
 
-#[derive(Copy, Clone, Hash, Eq, PartialEq)]
-#[derive(Serialize, Deserialize)]
-pub struct PrimNodeHandle {
-    id: u32,
-}
+// TODO: can make this non-zero for more efficient storage.
+/// None represents the Dag's I/O
+type PrimNodeHandle = Option<u32>;
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
 pub struct NodeHandle {
     dag_handle: DagHandle,
-    node_handle: Option<PrimNodeHandle>,
+    node_handle: PrimNodeHandle,
 }
 
 #[derive(Clone, Hash, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
 pub struct Edge {
     dag_handle: DagHandle,
-    // TODO: can make these non-zero for more efficient Option<NodeHandle> encoding
-    from: Option<PrimNodeHandle>,
-    to: Option<PrimNodeHandle>,
+    from: PrimNodeHandle,
+    to: PrimNodeHandle,
     weight: EdgeWeight,
 }
 
@@ -324,14 +321,14 @@ impl NodeHandle {
     pub fn toplevel() -> Self {
         NodeHandle::new(DagHandle::toplevel(), None)
     }
-    pub fn new(dag: DagHandle, node: Option<PrimNodeHandle>) -> Self {
+    pub fn new(dag: DagHandle, node: PrimNodeHandle) -> Self {
         Self {
             dag_handle: dag,
             node_handle: node,
         }
     }
     pub fn new_node(dag: DagHandle, node: u32) -> Self {
-        NodeHandle::new(dag, Some(PrimNodeHandle{ id: node }))
+        NodeHandle::new(dag, Some(node))
     }
     pub fn new_dag(dag: DagHandle) -> Self {
         NodeHandle::new(dag, None)
@@ -339,7 +336,7 @@ impl NodeHandle {
     pub fn dag_handle(&self) -> &DagHandle {
         &self.dag_handle
     }
-    pub fn node_handle(&self) -> &Option<PrimNodeHandle> {
+    pub fn node_handle(&self) -> &PrimNodeHandle {
         &self.node_handle
     }
 }
