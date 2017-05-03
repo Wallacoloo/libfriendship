@@ -39,10 +39,10 @@ impl Renderer for RefRenderer {
         // Try to find the edge that goes to -> (Null, slot=0, ch=ch)
         let root_handle = NodeHandle::toplevel();
         // empty graph is 0f32 = silence
-        self.nodes.get(&root_handle).map(|node| {
+        self.nodes.get(&root_handle).map_or(0f32, |node| {
             // find all edges to ([Null], slot=0, ch=ch)
             self.sum_input_to_slot(&self.nodes, node, time, 0, ch, &Vec::new())
-        }).unwrap_or(0f32)
+        })
     }
 }
 impl RefRenderer {
@@ -66,9 +66,9 @@ impl RefRenderer {
                     let mut new_context = context.clone();
                     new_context.push((nodes, from));
                     // Now find the *output* of the sub dag (or 0 if the sub dag has no outputs)
-                    new_nodes.get(&NodeHandle::toplevel()).map(|root_node| {
+                    new_nodes.get(&NodeHandle::toplevel()).map_or(0f32, |root_node| {
                         self.sum_input_to_slot(&new_nodes, root_node, time, edge.from_slot(), edge.from_ch(), &new_context)
-                    }).unwrap_or(0f32)
+                    })
                 },
                 // Output = sum of all edges to Null of the same slot & ch, within the given DAG.
                 MyNodeData::Graph(ref dag_handle) => {
@@ -86,9 +86,9 @@ impl RefRenderer {
                         0f32
                     } else {
                         // t<0 -> value is 0f32.
-                        time.checked_sub(*frames).map(|origin_time| {
+                        time.checked_sub(*frames).map_or(0f32, |origin_time| {
                             self.sum_input_to_slot(nodes, node, origin_time, 0, edge.from_ch(), context)
-                        }).unwrap_or(0f32)
+                        })
                     }
                 },
                 MyNodeData::Constant(ref value) => {
