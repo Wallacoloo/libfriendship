@@ -97,6 +97,9 @@ impl Effect {
         // No matching effects
         Err(Error::NoMatchingEffect(meta))
     }
+    pub fn routegraph(&self) -> &Option<RouteGraph> {
+        &self.graph
+    }
 }
 
 impl EffectMeta {

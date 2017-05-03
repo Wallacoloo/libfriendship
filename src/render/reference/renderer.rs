@@ -1,14 +1,15 @@
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map;
-use std::rc::Rc;
 
 use render::Renderer;
-use routing::{DagHandle, Edge, Effect, GraphWatcher, NodeData, NodeHandle};
+use routing::{DagHandle, Edge, GraphWatcher, NodeData, NodeHandle};
+
+type NodeMap = HashMap<NodeHandle, Node>;
 
 #[derive(Default)]
 pub struct RefRenderer {
-    nodes: HashMap<NodeHandle, Node>,
+    nodes: NodeMap,
 }
 
 struct Node {
@@ -18,7 +19,7 @@ struct Node {
 
 enum MyNodeData {
     /// This node is a non-primitive effect.
-    UserNode(Rc<Effect>),
+    UserNode(NodeMap),
     /// This node is an instance of another DAG.
     Graph(DagHandle),
     /// Primitive Delay(samples) effect
@@ -42,7 +43,7 @@ impl Renderer for RefRenderer {
             None => 0f32,
             Some(node) => {
                 // find all edges to ([Null], slot=0, ch=ch)
-                self.sum_input_to_slot(node, time, 0, ch, &Vec::new())
+                self.sum_input_to_slot(&self.nodes, node, time, 0, ch, &Vec::new())
             }
         }
     }
@@ -51,25 +52,32 @@ impl RefRenderer {
     /// Get the value on an edge at a particular time
     /// When backtracking from the output, we push each Node onto the context if we enter inside of
     ///   it (i.e. if it's a nested DAG) & pop when exiting.
-    fn get_value(&self, edge: &Edge, time: u64, context: &Vec<NodeHandle>) -> f32 {
+    fn get_value(&self, nodes: &NodeMap, edge: &Edge, time: u64, context: &Vec<(&NodeMap, NodeHandle)>) -> f32 {
         let from = edge.from_full();
         if *from.node_handle() == None {
             // Reading from one of the inputs to the top of `context`
+            // TODO: we can avoid cloning by reversing the pop after recursing.
             let mut new_context = context.clone();
-            let head = new_context.pop().unwrap();
+            let (new_nodes, head) = new_context.pop().unwrap();
             // Sum the inputs to the matching slot/ch
-            self.sum_input_to_slot(&self.nodes[&head], time, edge.from_slot(), edge.from_ch(), &new_context)
+            self.sum_input_to_slot(new_nodes, &new_nodes[&head], time, edge.from_slot(), edge.from_ch(), &new_context)
         } else {
             // Reading from another node within the DAG
-            let node = &self.nodes[&from];
+            let node = &nodes[&from];
             match node.data {
-                MyNodeData::UserNode(ref _effect) => unimplemented!(),
+                MyNodeData::UserNode(ref new_nodes) => {
+                    let mut new_context = context.clone();
+                    new_context.push((nodes, from));
+                    // Now find the *output* of the sub dag.
+                    self.sum_input_to_slot(&new_nodes, new_nodes.get(&NodeHandle::toplevel()).unwrap(), time, edge.from_slot(), edge.from_ch(), &new_context)
+                },
                 // Output = sum of all edges to Null of the same slot & ch, within the given DAG.
                 MyNodeData::Graph(ref dag_handle) => {
+                    // TODO: we can avoid cloning by reversing the push after recursing.
                     let mut new_context = context.clone();
-                    new_context.push(from);
-                    let subdag = &self.nodes[&NodeHandle::new_dag(dag_handle.clone())];
-                    self.sum_input_to_slot(&subdag, time, edge.from_slot(), edge.from_ch(), &new_context)
+                    new_context.push((nodes, from));
+                    let subdag = &nodes[&NodeHandle::new_dag(dag_handle.clone())];
+                    self.sum_input_to_slot(nodes, &subdag, time, edge.from_slot(), edge.from_ch(), &new_context)
                 }
                 // Output = sum of all inputs to slot 0 of the same ch.
                 MyNodeData::Delay(ref frames) => {
@@ -81,7 +89,7 @@ impl RefRenderer {
                         match time.checked_sub(*frames) {
                             // t < 0 => no audio
                             None => 0f32,
-                            Some(origin_time) => self.sum_input_to_slot(node, origin_time, 0, edge.from_ch(), context)
+                            Some(origin_time) => self.sum_input_to_slot(nodes, node, origin_time, 0, edge.from_ch(), context)
                         }
                     }
                 },
@@ -102,8 +110,8 @@ impl RefRenderer {
                     } else {
                         // Sum all inputs from slot=0 and slot=2 into two separate
                         // variables, then multiply them.
-                        let val_a = self.sum_input_to_slot(node, time, 0, edge.from_ch(), context);
-                        let val_b = self.sum_input_to_slot(node, time, 2, edge.from_ch(), context);
+                        let val_a = self.sum_input_to_slot(nodes, node, time, 0, edge.from_ch(), context);
+                        let val_b = self.sum_input_to_slot(nodes, node, time, 2, edge.from_ch(), context);
                         val_a * val_b
                     }
                 },
@@ -113,17 +121,15 @@ impl RefRenderer {
     }
     /// Return the sum of all inputs into a specific slot/channel of the given
     /// node at the given time.
-    fn sum_input_to_slot(&self, node: &Node, time: u64, slot: u32, ch: u8, context: &Vec<NodeHandle>) -> f32 {
+    fn sum_input_to_slot(&self, nodes: &NodeMap, node: &Node, time: u64, slot: u32, ch: u8, context: &Vec<(&NodeMap, NodeHandle)>) -> f32 {
         let edges_in = node.inbound.iter().filter(|in_edge| {
             in_edge.to_slot() == slot && in_edge.to_ch() == ch
         });
-        edges_in.map(|edge| self.get_value(edge, time, context)).sum()
+        edges_in.map(|edge| self.get_value(nodes, edge, time, context)).sum()
     }
-}
 
-impl GraphWatcher for RefRenderer {
-    fn on_add_node(&mut self, handle: &NodeHandle, data: &NodeData) {
-        let my_node_data = match *data {
+    fn make_node(&self, data: &NodeData) -> MyNodeData {
+        match *data {
             NodeData::Graph(ref handle) => MyNodeData::Graph(handle.clone()),
             NodeData::Effect(ref effect) => {
                 match effect.meta().get_primitive_url() {
@@ -152,10 +158,28 @@ impl GraphWatcher for RefRenderer {
                             _ => panic!("Unrecognized primitive effect: {} (full url: {})", url.path(), url),
                         }
                     }
-                    None => MyNodeData::UserNode(effect.clone())
+                    None => {
+                        let graph = effect.routegraph().as_ref().unwrap();
+                        let mut nodes = HashMap::new();
+                        for (node, data) in graph.iter_nodes() {
+                            nodes.insert(node.clone(), Node::new(self.make_node(data)));
+                        }
+                        for edge in graph.iter_edges() {
+                            nodes.entry(edge.to_full()).or_insert_with(|| {
+                                Node::new(MyNodeData::DagIO)
+                            }).inbound.insert(edge.clone());
+                        }
+                        MyNodeData::UserNode(nodes)
+                    }
                 }
             }
-        };
+        }
+    }
+}
+
+impl GraphWatcher for RefRenderer {
+    fn on_add_node(&mut self, handle: &NodeHandle, data: &NodeData) {
+        let my_node_data = self.make_node(data);
         self.nodes.insert(handle.clone(), Node::new(my_node_data));
         // If the node is part of a new DAG, allocate data so that future edges
         // to null within the DAG can be held.

@@ -87,8 +87,8 @@ impl RouteGraph {
             node_data: HashMap::new(),
         }
     }
-    pub fn iter_nodes<'a>(&'a self) -> impl Iterator<Item=&NodeHandle> + 'a {
-        self.node_data.keys()
+    pub fn iter_nodes<'a>(&'a self) -> impl Iterator<Item=(&NodeHandle, &NodeData)> + 'a {
+        self.node_data.iter()
     }
     pub fn iter_edges<'a>(&'a self) -> impl Iterator<Item=&Edge> + 'a {
         self.edges.values().flat_map(|v_set| v_set.outbound.iter())
