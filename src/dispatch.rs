@@ -3,6 +3,7 @@
 //! and all commands are meant to pass through this instead.
 
 use std::collections::HashMap;
+use std::path::Path;
 
 use client::Client;
 use render::Renderer;
@@ -32,6 +33,9 @@ pub enum OscToplevel {
     /// Send a message to one of the Renderers.
     #[osc_address(address="renderer")]
     Renderer((), OscRenderer),
+    /// Send a message to the resource manager
+    #[osc_address(address="resman")]
+    ResMan((), OscResMan),
 }
 
 /// OSC message to /routegraph/<...>
@@ -55,6 +59,14 @@ pub enum OscRenderer {
     /// TODO: The channel count should become a property of the RouteGraph.
     #[osc_address(address="render")]
     RenderRange((), (u64, u64, u8)),
+}
+
+/// OOSC message to /resman/<...>
+#[derive(OscMessage)]
+pub enum OscResMan {
+    /// Add another directory to watch when loading resources.
+    #[osc_address(address="add_dir")]
+    AddDir((), (String,)),
 }
 
 
@@ -116,11 +128,15 @@ impl<R: Renderer + Default> Dispatch<R> {
                     if stop < start { return Ok(()); }
                     let size = (stop-start)*(num_ch as u64);
                     let mut buff: Vec<f32> = (0..size).map(|_| { 0f32 }).collect();
-                    // TODO: handle index error
                     self.renderer.fill_buffer(&mut buff, start, num_ch);
                     self.audio_rendered(&buff, start, num_ch);
                 }
             },
+            OscToplevel::ResMan((), res_msg) => match res_msg {
+                OscResMan::AddDir((), (dir,)) => {
+                    self.resman.add_dir(Path::new(&dir).to_path_buf());
+                }
+            }
         }
         Ok(())
     }
@@ -151,6 +167,13 @@ impl From<OscRouteGraph> for OscToplevel {
 impl From<OscRenderer> for OscToplevel {
     fn from(m: OscRenderer) -> Self {
         OscToplevel::Renderer((), m)
+    }
+}
+
+/// Deterministic mapping from one OSC message to a container OSC message
+impl From<OscResMan> for OscToplevel {
+    fn from(m: OscResMan) -> Self {
+        OscToplevel::ResMan((), m)
     }
 }
 

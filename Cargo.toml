@@ -21,3 +21,6 @@ url_serde = "0.2"
 [dependencies.pwline]
 git = "https://github.com/wallacoloo/rust-pwline.git"
 
+
+[dev-dependencies]
+tempdir = "0.3"

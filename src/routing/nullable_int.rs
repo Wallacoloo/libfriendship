@@ -6,7 +6,7 @@
 use num::Zero;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 
-#[derive(Copy, Clone, Hash, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub struct NullableInt<T> {
     raw: T,
 }

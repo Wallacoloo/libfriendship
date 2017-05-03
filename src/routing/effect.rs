@@ -13,14 +13,14 @@ use super::adjlist::AdjList;
 #[derive(Debug)]
 pub enum Error {
     /// No effect matches the metadata requested.
-    NoMatchingEffect,
+    NoMatchingEffect(EffectMeta),
 }
 
 /// Alias for a `Result` with our error type.
 pub type ResultE<T> = Result<T, Error>;
 
 /// Serializable info needed to look up an effect.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 #[derive(Serialize, Deserialize)]
 pub struct EffectMeta {
     /// Canonical name of the effect
@@ -36,7 +36,7 @@ pub struct EffectMeta {
 /// All information that will be loaded from disk/network to describe how to
 /// synthesize the Effect.
 #[derive(Serialize, Deserialize)]
-struct EffectDesc {
+pub struct EffectDesc {
     // TODO: when de/serializing, the hashes should be removed from EffectMeta
     meta: EffectMeta,
     adjlist: AdjList,
@@ -77,20 +77,25 @@ impl Effect {
         for reader in resman.find_effect(&meta) {
             // Try to deserialize to an effect description
             let desc: Result<EffectDesc, serde_json::Error> = serde_json::from_reader(reader);
-            if let Ok(desc) = desc {
-                // Validate the data
-                if let Ok(graph) = RouteGraph::from_adjlist(desc.adjlist, resman) {
-                    let me = Self {
-                        meta: desc.meta,
-                        graph: Some(graph),
-                    };
-                    // TODO: implement some form of caching
-                    return Ok(Rc::new(me));
-                }
+            match desc {
+                Ok(desc) => match RouteGraph::from_adjlist(desc.adjlist, resman) {
+                    Ok(graph) => {
+                        let me = Self {
+                            meta: desc.meta,
+                            graph: Some(graph),
+                        };
+                        // TODO: implement some form of caching
+                        return Ok(Rc::new(me));
+                    },
+                    Err(error) => {
+                        println!("Warning: RouteGraph::from_adjlist failed: {:?}", error)
+                    }
+                },
+                Err(error) => println!("Warning: unable to deserialize EffectDesc: {:?}", error)
             }
         }
         // No matching effects
-        Err(Error::NoMatchingEffect)
+        Err(Error::NoMatchingEffect(meta))
     }
 }
 
@@ -123,6 +128,12 @@ impl EffectMeta {
     }
 }
 
+impl EffectDesc {
+    pub fn new(meta: EffectMeta, adjlist: AdjList) -> Self {
+        Self{ meta, adjlist }
+    }
+}
+
 impl PartialEq for EffectMeta {
     // Equality implemented in a way where we can easily check things like
     //   "Is this the same primitive Delay effect this renderer knows how to implement?"
@@ -140,3 +151,4 @@ impl PartialEq for Effect {
     }
 }
 impl Eq for Effect {}
+

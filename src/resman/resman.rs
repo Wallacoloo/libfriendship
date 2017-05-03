@@ -3,8 +3,8 @@ use std::io::Read;
 use std::fs;
 use std::fs::File;
 
-use sha2::Sha256;
 use digest::digest_reader;
+use sha2::Sha256;
 
 use routing::EffectMeta;
 

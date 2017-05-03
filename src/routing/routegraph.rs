@@ -135,10 +135,12 @@ impl RouteGraph {
             // The edge points to a NODE inside a DAG.
             Some(_to) => {
                 // Consider all (reachable) outgoing edges of the node:
-                for candidate_edge in self.edges[&from.to_full()].outbound.iter() {
-                    if self.are_edges_internally_connected(&from, &candidate_edge) {
-                        if self.is_edge_reachable(candidate_edge, target) {
-                            return true;
+                if let Some(node_data) = self.edges.get(&from.to_full()) {
+                    for candidate_edge in node_data.outbound.iter() {
+                        if self.are_edges_internally_connected(&from, &candidate_edge) {
+                            if self.is_edge_reachable(candidate_edge, target) {
+                                return true;
+                            }
                         }
                     }
                 }
@@ -286,7 +288,7 @@ impl RouteGraph {
         // Unwrap struct fields to local variables
         let (nodes, edges) = (adj.nodes, adj.edges);
 
-        // Map EffectMeta -> Effect and also determine the highest ids in use
+        // Map EffectMeta -> Effect
         let nodes: ResultE<HashMap<NodeHandle, NodeData>> = nodes.into_iter().map(|(handle, data)| {
             let decoded_data = match data {
                 adjlist::NodeData::Effect(meta) =>
@@ -345,6 +347,14 @@ impl Edge {
             from: from.node_handle,
             to: None.into(),
             weight,
+        }
+    }
+    pub fn new_from_null(to: NodeHandle, weight: EdgeWeight) -> Self {
+        Self {
+            dag_handle: to.dag_handle,
+            from: None.into(),
+            to: to.node_handle,
+            weight
         }
     }
     /// Create an edge between the two nodes.
