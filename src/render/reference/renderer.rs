@@ -58,13 +58,7 @@ impl RefRenderer {
             let mut new_context = context.clone();
             let head = new_context.pop().unwrap();
             // Sum the inputs to the matching slot/ch
-            let in_edges = self.nodes[&head].inbound.iter().filter(|in_edge| {
-                in_edge.to_slot() == edge.from_slot() && in_edge.to_ch() == edge.from_ch()
-            });
-            let in_values = in_edges.map(|in_edge| {
-                self.get_value(in_edge, time, &new_context)
-            });
-            in_values.sum()
+            self.sum_input_to_slot(&self.nodes[&head], time, edge.from_slot(), edge.from_ch(), &new_context)
         } else {
             // Reading from another node within the DAG
             let node = &self.nodes[&from];
@@ -75,13 +69,7 @@ impl RefRenderer {
                     let mut new_context = context.clone();
                     new_context.push(from);
                     let subdag = &self.nodes[&NodeHandle::new_dag(dag_handle.clone())];
-                    let out_edges = subdag.inbound.iter().filter(|out_edge| {
-                        out_edge.to_slot() == edge.from_slot() && out_edge.to_ch() == edge.from_ch()
-                    });
-                    let out_values = out_edges.map(|out_edge| {
-                        self.get_value(out_edge, time, &new_context)
-                    });
-                    out_values.sum()
+                    self.sum_input_to_slot(&subdag, time, edge.from_slot(), edge.from_ch(), &new_context)
                 }
                 // Output = sum of all inputs to slot 0 of the same ch.
                 MyNodeData::Delay(ref frames) => {
