@@ -36,7 +36,11 @@ impl ResMan {
         self.iter_all_files().filter(move |f| {
             match meta.sha256() {
                 &None => true,
-                &Some(hash) => hash == self.file_sha256_hash(f),
+                &Some(hash) => {
+                    let mut file = File::open(f).unwrap();
+                    let result = digest_reader::<Sha256>(&mut file).unwrap();
+                    hash == result.as_slice()
+                }
             }
         })
     }
@@ -65,16 +69,5 @@ impl ResMan {
         .map(|dir_entry| {
             dir_entry.path()
         })
-    }
-
-    /// Returns the sha256 hash of the file's contents.
-    fn file_sha256_hash(&self, path: &PathBuf) -> [u8; 32] {
-        // TODO: Rewrite surroundings to avoid the possibility that the file doesn't exist / has
-        // been deleted since the time the directory was enumerated.
-        let mut file = File::open(path).unwrap();
-        let hash_result = digest_reader::<Sha256>(&mut file).unwrap();
-        let mut res: [u8; 32] = Default::default();
-        res.copy_from_slice(hash_result.as_slice());
-        res
     }
 }
