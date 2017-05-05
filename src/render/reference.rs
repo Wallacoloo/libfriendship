@@ -26,7 +26,7 @@ enum MyNodeData {
     Delay(u64),
     /// Primitive Constant(value) effect.
     /// Also serves as a unit step;
-    /// Returns the f32 value for t >= 0, else 0.
+    /// Returns the float value for t >= 0, else 0.
     Constant(f32),
     /// Primitive effect to multiply TWO input streams sample-wise.
     Multiply,
@@ -38,10 +38,10 @@ impl Renderer for RefRenderer {
     fn get_sample(&mut self, time: u64, ch: u8) -> f32 {
         // Try to find the edge that goes to -> (Null, slot=0, ch=ch)
         let root_handle = NodeHandle::toplevel();
-        // empty graph is 0f32 = silence
+        // empty graph is 0 = silence
         self.nodes.get(&root_handle).map_or(0f32, |node| {
             // find all edges to ([Null], slot=0, ch=ch)
-            self.sum_input_to_slot(&self.nodes, node, time, 0, ch, &Vec::new())
+            self.sum_input_to_slot(&self.nodes, node, time, 0, ch, &Vec::new()) as f32
         })
     }
 }
@@ -49,7 +49,7 @@ impl RefRenderer {
     /// Get the value on an edge at a particular time
     /// When backtracking from the output, we push each Node onto the context if we enter inside of
     ///   it (i.e. if it's a nested DAG) & pop when exiting.
-    fn get_value(&self, nodes: &NodeMap, edge: &Edge, time: u64, context: &Vec<(&NodeMap, NodeHandle)>) -> f32 {
+    fn get_value(&self, nodes: &NodeMap, edge: &Edge, time: u64, context: &Vec<(&NodeMap, NodeHandle)>) -> f64 {
         let from = edge.from_full();
         if *from.node_handle() == None {
             // Reading from one of the inputs to the top of `context`
@@ -66,7 +66,7 @@ impl RefRenderer {
                     let mut new_context = context.clone();
                     new_context.push((nodes, from));
                     // Now find the *output* of the sub dag (or 0 if the sub dag has no outputs)
-                    new_nodes.get(&NodeHandle::toplevel()).map_or(0f32, |root_node| {
+                    new_nodes.get(&NodeHandle::toplevel()).map_or(0f64, |root_node| {
                         self.sum_input_to_slot(&new_nodes, root_node, time, edge.from_slot(), edge.from_ch(), &new_context)
                     })
                 },
@@ -83,10 +83,10 @@ impl RefRenderer {
                     // The only nonzero output is slot=1.
                     if edge.from_slot() != 0 {
                         println!("Warning: attempt to read from Delay slot != 0");
-                        0f32
+                        0f64
                     } else {
-                        // t<0 -> value is 0f32.
-                        time.checked_sub(*frames).map_or(0f32, |origin_time| {
+                        // t<0 -> value is 0.
+                        time.checked_sub(*frames).map_or(0f64, |origin_time| {
                             self.sum_input_to_slot(nodes, node, origin_time, 0, edge.from_ch(), context)
                         })
                     }
@@ -95,16 +95,16 @@ impl RefRenderer {
                     // The only nonzero output is slot=1.
                     if edge.from_slot() != 0 {
                         println!("Warning: attempt to read from Constant slot != 0");
-                        0f32
+                        0f64
                     } else {
-                        *value
+                        *value as f64
                     }
                 },
                 MyNodeData::Multiply => {
                     // The only nonzero output is slot=1.
                     if edge.from_slot() != 0 {
                         println!("Warning: attempt to read from Multiply slot != 0");
-                        0f32
+                        0f64
                     } else {
                         // Sum all inputs from slot=0 and slot=2 into two separate
                         // variables, then multiply them.
@@ -119,7 +119,7 @@ impl RefRenderer {
     }
     /// Return the sum of all inputs into a specific slot/channel of the given
     /// node at the given time.
-    fn sum_input_to_slot(&self, nodes: &NodeMap, node: &Node, time: u64, slot: u32, ch: u8, context: &Vec<(&NodeMap, NodeHandle)>) -> f32 {
+    fn sum_input_to_slot(&self, nodes: &NodeMap, node: &Node, time: u64, slot: u32, ch: u8, context: &Vec<(&NodeMap, NodeHandle)>) -> f64 {
         let edges_in = node.inbound.iter().filter(|in_edge| {
             in_edge.to_slot() == slot && in_edge.to_ch() == ch
         });
