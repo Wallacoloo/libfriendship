@@ -30,6 +30,10 @@ enum MyNodeData {
     Constant(f32),
     /// Primitive effect to multiply TWO input streams sample-wise.
     Multiply,
+    /// Primitive effect to calculate 1/A
+    MultInv,
+    /// Primitive effect to calculate A%1 (i.e. A - A.floor())
+    ModuloOne,
     /// This node is a DAG definition. i.e. it holds the output edges of a DAG.
     DagIO,
 }
@@ -80,7 +84,7 @@ impl RefRenderer {
                 }
                 // Output = sum of all inputs to slot 0 of the same ch.
                 MyNodeData::Delay(ref frames) => {
-                    // The only nonzero output is slot=1.
+                    // The only nonzero output is slot=0.
                     if edge.from_slot() != 0 {
                         println!("Warning: attempt to read from Delay slot != 0");
                         0f64
@@ -92,7 +96,7 @@ impl RefRenderer {
                     }
                 },
                 MyNodeData::Constant(ref value) => {
-                    // The only nonzero output is slot=1.
+                    // The only nonzero output is slot=0.
                     if edge.from_slot() != 0 {
                         println!("Warning: attempt to read from Constant slot != 0");
                         0f64
@@ -101,7 +105,7 @@ impl RefRenderer {
                     }
                 },
                 MyNodeData::Multiply => {
-                    // The only nonzero output is slot=1.
+                    // The only nonzero output is slot=0.
                     if edge.from_slot() != 0 {
                         println!("Warning: attempt to read from Multiply slot != 0");
                         0f64
@@ -111,6 +115,37 @@ impl RefRenderer {
                         let val_a = self.sum_input_to_slot(nodes, node, time, 0, edge.from_ch(), context);
                         let val_b = self.sum_input_to_slot(nodes, node, time, 1, edge.from_ch(), context);
                         val_a * val_b
+                    }
+                },
+                MyNodeData::MultInv => {
+                    // The only nonzero output is slot=0.
+                    if edge.from_slot() != 0 {
+                        println!("Warning: attempt to read from MultInv slot != 0");
+                        0f64
+                    } else {
+                        // Sum all inputs
+                        let val_in = self.sum_input_to_slot(nodes, node, time, 0, edge.from_ch(), context);
+                        1.0f64 / val_in
+                    }
+                },
+                MyNodeData::ModuloOne => {
+                    // The only nonzero output is slot=0.
+                    if edge.from_slot() != 0 {
+                        println!("Warning: attempt to read from ModOne slot != 0");
+                        0f64
+                    } else {
+                        // Sum all inputs
+                        let val_in = self.sum_input_to_slot(nodes, node, time, 0, edge.from_ch(), context);
+                        //val_in - val_in.floor()
+                        // avoid subtracting unbounded numbers: approximate modulus via this:
+                        let rem = val_in.fract();
+                        if rem < 0f64 {
+                            // TODO: We may be losing precision here, if rem is small.
+                            // We should find a way to do true modulus.
+                            rem + 1.0f64
+                        } else {
+                            rem
+                        }
                     }
                 },
                 _ => panic!("Internal RefRenderer error: illegal node type"),
@@ -153,6 +188,8 @@ impl RefRenderer {
                                 MyNodeData::Constant(value)
                             },
                             "/Multiply" => MyNodeData::Multiply,
+                            "/MultInv" => MyNodeData::MultInv,
+                            "/ModuloOne" => MyNodeData::ModuloOne,
                             _ => panic!("Unrecognized primitive effect: {} (full url: {})", url.path(), url),
                         }
                     }
