@@ -22,8 +22,8 @@ enum MyNodeData {
     UserNode(NodeMap),
     /// This node is an instance of another DAG.
     Graph(DagHandle),
-    /// Primitive Delay(samples) effect
-    Delay(u64),
+    /// Primitive Delay effect
+    Delay,
     /// Primitive Constant(value) effect.
     /// Also serves as a unit step;
     /// Returns the float value for t >= 0, else 0.
@@ -83,17 +83,11 @@ impl RefRenderer {
                     self.sum_input_to_slot(nodes, &subdag, time, edge.from_slot(), edge.from_ch(), &new_context)
                 }
                 // Output = sum of all inputs to slot 0 of the same ch.
-                MyNodeData::Delay(ref frames) => {
-                    // The only nonzero output is slot=0.
-                    if edge.from_slot() != 0 {
-                        println!("Warning: attempt to read from Delay slot != 0");
-                        0f64
-                    } else {
-                        // t<0 -> value is 0.
-                        time.checked_sub(*frames).map_or(0f64, |origin_time| {
-                            self.sum_input_to_slot(nodes, node, origin_time, 0, edge.from_ch(), context)
-                        })
-                    }
+                MyNodeData::Delay => {
+                    // t<0 -> value is 0.
+                    time.checked_sub(edge.from_slot() as u64).map_or(0f64, |origin_time| {
+                        self.sum_input_to_slot(nodes, node, origin_time, 0, edge.from_ch(), context)
+                    })
                 },
                 MyNodeData::Constant(ref value) => {
                     // The only nonzero output is slot=0.
@@ -169,15 +163,6 @@ impl RefRenderer {
                     Some(ref url) => {
                         let mut params: HashMap<_, _> = url.query_pairs().collect();
                         match url.path() {
-                            "/Delay" => {
-                                let frames: u64 = match params.entry(Cow::from("frames")) {
-                                    hash_map::Entry::Occupied(e) => e.remove().parse().unwrap(),
-                                    hash_map::Entry::Vacant(_) => 0u64,
-                                };
-                                // Make sure we consumed all arguments.
-                                assert!(params.is_empty());
-                                MyNodeData::Delay(frames)
-                            },
                             "/Constant" => {
                                 let value: f32 = match params.entry(Cow::from("value")) {
                                     hash_map::Entry::Occupied(e) => e.remove().parse().unwrap(),
@@ -187,6 +172,7 @@ impl RefRenderer {
                                 assert!(params.is_empty());
                                 MyNodeData::Constant(value)
                             },
+                            "/Delay" => MyNodeData::Delay,
                             "/Multiply" => MyNodeData::Multiply,
                             "/MultInv" => MyNodeData::MultInv,
                             "/ModuloOne" => MyNodeData::ModuloOne,

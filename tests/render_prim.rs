@@ -71,10 +71,10 @@ fn render_delay() {
     // Create delay node (id=1)
     let delay_hnd = NodeHandle::new_node(DagHandle::toplevel(), 1);
     dispatch.dispatch(OscRouteGraph::AddNode((), (delay_hnd, adjlist::NodeData::Effect(
-        EffectMeta::new("Delay".to_string(), None, [Url::parse("primitive:///Delay?frames=2").unwrap()].iter().cloned())
+        EffectMeta::new("Delay".to_string(), None, [Url::parse("primitive:///Delay").unwrap()].iter().cloned())
     ))).into()).unwrap();
     // Connect delay output to master output.
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(delay_hnd, EdgeWeight::new(0, 0, 0, 0)),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(delay_hnd, EdgeWeight::new(2, 0, 0, 0)),)).into()).unwrap();
 
     // Create Constant node (id=2)
     let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 2);
