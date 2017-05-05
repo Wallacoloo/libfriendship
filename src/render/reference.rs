@@ -81,8 +81,8 @@ impl RefRenderer {
                 // Output = sum of all inputs to slot 0 of the same ch.
                 MyNodeData::Delay(ref frames) => {
                     // The only nonzero output is slot=1.
-                    if edge.from_slot() != 1 {
-                        println!("Warning: attempt to read from Delay slot != 1");
+                    if edge.from_slot() != 0 {
+                        println!("Warning: attempt to read from Delay slot != 0");
                         0f32
                     } else {
                         // t<0 -> value is 0f32.
@@ -93,8 +93,8 @@ impl RefRenderer {
                 },
                 MyNodeData::Constant(ref value) => {
                     // The only nonzero output is slot=1.
-                    if edge.from_slot() != 1 {
-                        println!("Warning: attempt to read from Constant slot != 1");
+                    if edge.from_slot() != 0 {
+                        println!("Warning: attempt to read from Constant slot != 0");
                         0f32
                     } else {
                         *value
@@ -102,14 +102,14 @@ impl RefRenderer {
                 },
                 MyNodeData::Multiply => {
                     // The only nonzero output is slot=1.
-                    if edge.from_slot() != 1 {
-                        println!("Warning: attempt to read from Multiply slot != 1");
+                    if edge.from_slot() != 0 {
+                        println!("Warning: attempt to read from Multiply slot != 0");
                         0f32
                     } else {
                         // Sum all inputs from slot=0 and slot=2 into two separate
                         // variables, then multiply them.
                         let val_a = self.sum_input_to_slot(nodes, node, time, 0, edge.from_ch(), context);
-                        let val_b = self.sum_input_to_slot(nodes, node, time, 2, edge.from_ch(), context);
+                        let val_b = self.sum_input_to_slot(nodes, node, time, 1, edge.from_ch(), context);
                         val_a * val_b
                     }
                 },

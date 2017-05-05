@@ -51,9 +51,12 @@ fn create_multby2() -> EffectDesc {
 
     let nodes = [(mult_hnd, mult_data), (const_hnd, const_data)];
 
+    // input data sent to multiply (A)
     let edge_in = Edge::new_from_null(mult_hnd, EdgeWeight::new(0, 0, 0, 0));
-    let edge_out = Edge::new_to_null(mult_hnd, EdgeWeight::new(1, 0, 1, 0));
-    let edge_const = Edge::new(const_hnd, mult_hnd, EdgeWeight::new(1, 0, 2, 0)).unwrap();
+    // multiply out sent to effect out
+    let edge_out = Edge::new_to_null(mult_hnd, EdgeWeight::new(0, 0, 0, 0));
+    // const data sent to multiply (B)
+    let edge_const = Edge::new(const_hnd, mult_hnd, EdgeWeight::new(0, 0, 1, 0)).unwrap();
 
     let edges = [edge_in, edge_out, edge_const];
 
@@ -93,7 +96,7 @@ fn load_multby2() {
         EffectMeta::new("MulBy2".to_string(), Some(sha), [].iter().cloned())
     ))).into()).unwrap();
     // Connect MulBy2 output to master output.
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(mul_hnd, EdgeWeight::new(1, 0, 0, 0)),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(mul_hnd, EdgeWeight::new(0, 0, 0, 0)),)).into()).unwrap();
     
     // Create Constant node (id=2)
     let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 2);
@@ -101,7 +104,7 @@ fn load_multby2() {
         EffectMeta::new("Constant".to_string(), None, [Url::parse("primitive:///Constant?value=0.5").unwrap()].iter().cloned())
     ))).into()).unwrap();
     // Route constant output to mul input
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mul_hnd, EdgeWeight::new(1, 0, 0, 0)).unwrap(),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mul_hnd, EdgeWeight::new(0, 0, 0, 0)).unwrap(),)).into()).unwrap();
     
     // Read some data from ch=0.
     // This should be 0.5*5 = [2.5, 2.5, 2.5, 2.5]

@@ -53,7 +53,7 @@ fn render_const() {
     dispatch.dispatch(OscRouteGraph::AddNode((), (handle, adjlist::NodeData::Effect(
         EffectMeta::new("Constant".to_string(), None, [Url::parse("primitive:///Constant?value=0.5").unwrap()].iter().cloned())
     ))).into()).unwrap();
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(handle, EdgeWeight::new(1, 0, 0, 0)),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(handle, EdgeWeight::new(0, 0, 0, 0)),)).into()).unwrap();
     
     // Read some data from ch=0.
     // This should be all 0.5 because of the new node we added.
@@ -74,7 +74,7 @@ fn render_delay() {
         EffectMeta::new("Delay".to_string(), None, [Url::parse("primitive:///Delay?frames=2").unwrap()].iter().cloned())
     ))).into()).unwrap();
     // Connect delay output to master output.
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(delay_hnd, EdgeWeight::new(1, 0, 0, 0)),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(delay_hnd, EdgeWeight::new(0, 0, 0, 0)),)).into()).unwrap();
 
     // Create Constant node (id=2)
     let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 2);
@@ -82,7 +82,7 @@ fn render_delay() {
         EffectMeta::new("Constant".to_string(), None, [Url::parse("primitive:///Constant?value=0.5").unwrap()].iter().cloned())
     ))).into()).unwrap();
     // Route constant output to delay input
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, delay_hnd, EdgeWeight::new(1, 0, 0, 0)).unwrap(),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, delay_hnd, EdgeWeight::new(0, 0, 0, 0)).unwrap(),)).into()).unwrap();
     
     // Read some data from ch=0.
     // This should be [0, 0, 0.5, 0.5]: constant but delayed by 2.
@@ -103,7 +103,7 @@ fn render_mult() {
         EffectMeta::new("Multiply".to_string(), None, [Url::parse("primitive:///Multiply").unwrap()].iter().cloned())
     ))).into()).unwrap();
     // Connect delay output to master output.
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(mult_hnd, EdgeWeight::new(1, 0, 0, 0)),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(mult_hnd, EdgeWeight::new(0, 0, 0, 0)),)).into()).unwrap();
     
     // Create Constant node (id=2)
     let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 2);
@@ -111,7 +111,7 @@ fn render_mult() {
         EffectMeta::new("Constant".to_string(), None, [Url::parse("primitive:///Constant?value=0.5").unwrap()].iter().cloned())
     ))).into()).unwrap();
     // Route constant output to multiply input (A)
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mult_hnd, EdgeWeight::new(1, 0, 0, 0)).unwrap(),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mult_hnd, EdgeWeight::new(0, 0, 0, 0)).unwrap(),)).into()).unwrap();
     
     // Create Constant node (id=3)
     let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 3);
@@ -119,7 +119,7 @@ fn render_mult() {
         EffectMeta::new("Constant".to_string(), None, [Url::parse("primitive:///Constant?value=-3.0").unwrap()].iter().cloned())
     ))).into()).unwrap();
     // Route constant output to multiply input (B)
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mult_hnd, EdgeWeight::new(1, 0, 2, 0)).unwrap(),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mult_hnd, EdgeWeight::new(0, 0, 1, 0)).unwrap(),)).into()).unwrap();
     
     // Read some data from ch=0.
     // This should be 0.5 * -3.0 = -1.5
