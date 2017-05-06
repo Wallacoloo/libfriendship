@@ -11,6 +11,7 @@ use libfriendship::{Dispatch, Client};
 use libfriendship::dispatch::{OscRouteGraph, OscRenderer};
 use libfriendship::render::RefRenderer;
 use libfriendship::routing::{adjlist, DagHandle, Edge, EdgeWeight, EffectMeta, NodeHandle};
+use libfriendship::util::pack_f32;
 
 
 struct MyClient {
@@ -51,9 +52,9 @@ fn render_const() {
     // Route a constant into ch=0.
     let handle = NodeHandle::new_node(DagHandle::toplevel(), 1);
     dispatch.dispatch(OscRouteGraph::AddNode((), (handle, adjlist::NodeData::Effect(
-        EffectMeta::new("Constant".to_string(), None, [Url::parse("primitive:///Constant?value=0.5").unwrap()].iter().cloned())
+        EffectMeta::new("F32Const".to_string(), None, [Url::parse("primitive:///F32Const").unwrap()].iter().cloned())
     ))).into()).unwrap();
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(handle, EdgeWeight::new(0, 0, 0, 0)),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(handle, EdgeWeight::new(pack_f32(0.5f32), 0, 0, 0)),)).into()).unwrap();
     
     // Read some data from ch=0.
     // This should be all 0.5 because of the new node we added.
@@ -79,10 +80,10 @@ fn render_delay() {
     // Create Constant node (id=2)
     let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 2);
     dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
-        EffectMeta::new("Constant".to_string(), None, [Url::parse("primitive:///Constant?value=0.5").unwrap()].iter().cloned())
+        EffectMeta::new("Constant".to_string(), None, [Url::parse("primitive:///F32Const").unwrap()].iter().cloned())
     ))).into()).unwrap();
     // Route constant output to delay input
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, delay_hnd, EdgeWeight::new(0, 0, 0, 0)).unwrap(),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, delay_hnd, EdgeWeight::new(pack_f32(0.5f32), 0, 0, 0)).unwrap(),)).into()).unwrap();
     
     // Read some data from ch=0.
     // This should be [0, 0, 0.5, 0.5]: constant but delayed by 2.
@@ -108,18 +109,18 @@ fn render_mult() {
     // Create Constant node (id=2)
     let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 2);
     dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
-        EffectMeta::new("Constant".to_string(), None, [Url::parse("primitive:///Constant?value=0.5").unwrap()].iter().cloned())
+        EffectMeta::new("Constant".to_string(), None, [Url::parse("primitive:///F32Const").unwrap()].iter().cloned())
     ))).into()).unwrap();
     // Route constant output to multiply input (A)
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mult_hnd, EdgeWeight::new(0, 0, 0, 0)).unwrap(),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mult_hnd, EdgeWeight::new(pack_f32(0.5f32), 0, 0, 0)).unwrap(),)).into()).unwrap();
     
     // Create Constant node (id=3)
     let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 3);
     dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
-        EffectMeta::new("Constant".to_string(), None, [Url::parse("primitive:///Constant?value=-3.0").unwrap()].iter().cloned())
+        EffectMeta::new("Constant".to_string(), None, [Url::parse("primitive:///F32Const").unwrap()].iter().cloned())
     ))).into()).unwrap();
     // Route constant output to multiply input (B)
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mult_hnd, EdgeWeight::new(0, 0, 1, 0)).unwrap(),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mult_hnd, EdgeWeight::new(pack_f32(-3f32), 0, 1, 0)).unwrap(),)).into()).unwrap();
     
     // Read some data from ch=0.
     // This should be 0.5 * -3.0 = -1.5

@@ -1,9 +1,8 @@
-use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
-use std::collections::hash_map;
 
 use render::Renderer;
 use routing::{DagHandle, Edge, GraphWatcher, NodeData, NodeHandle};
+use util::unpack_f32;
 
 type NodeMap = HashMap<NodeHandle, Node>;
 
@@ -24,10 +23,10 @@ enum MyNodeData {
     Graph(DagHandle),
     /// Primitive Delay effect
     Delay,
-    /// Primitive Constant(value) effect.
+    /// Primitive Constant effect.
     /// Also serves as a unit step;
     /// Returns the float value for t >= 0, else 0.
-    Constant(f32),
+    F32Const,
     /// Primitive effect to multiply TWO input streams sample-wise.
     Multiply,
     /// Primitive effect to calculate 1/A
@@ -89,14 +88,10 @@ impl RefRenderer {
                         self.sum_input_to_slot(nodes, node, origin_time, 0, edge.from_ch(), context)
                     })
                 },
-                MyNodeData::Constant(ref value) => {
-                    // The only nonzero output is slot=0.
-                    if edge.from_slot() != 0 {
-                        println!("Warning: attempt to read from Constant slot != 0");
-                        0f64
-                    } else {
-                        *value as f64
-                    }
+                MyNodeData::F32Const => {
+                    // Float value is encoded via the slot.
+                    let value = edge.from_slot();
+                    unpack_f32(value) as f64
                 },
                 MyNodeData::Multiply => {
                     // The only nonzero output is slot=0.
@@ -161,17 +156,8 @@ impl RefRenderer {
             NodeData::Effect(ref effect) => {
                 match effect.meta().get_primitive_url() {
                     Some(ref url) => {
-                        let mut params: HashMap<_, _> = url.query_pairs().collect();
                         match url.path() {
-                            "/Constant" => {
-                                let value: f32 = match params.entry(Cow::from("value")) {
-                                    hash_map::Entry::Occupied(e) => e.remove().parse().unwrap(),
-                                    hash_map::Entry::Vacant(_) => 0f32,
-                                };
-                                // Make sure we consumed all arguments.
-                                assert!(params.is_empty());
-                                MyNodeData::Constant(value)
-                            },
+                            "/F32Const" => MyNodeData::F32Const,
                             "/Delay" => MyNodeData::Delay,
                             "/Multiply" => MyNodeData::Multiply,
                             "/MultInv" => MyNodeData::MultInv,

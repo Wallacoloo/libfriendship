@@ -20,6 +20,7 @@ use libfriendship::dispatch::{OscRouteGraph, OscRenderer, OscResMan};
 use libfriendship::render::RefRenderer;
 use libfriendship::routing::{adjlist, NodeHandle, DagHandle, Edge, EdgeWeight, EffectMeta, EffectDesc};
 use libfriendship::routing::AdjList;
+use libfriendship::util::pack_f32;
 
 struct MyClient {
     /// Where to send the rendered audio.
@@ -46,7 +47,7 @@ fn create_multby2() -> EffectDesc {
     );
     let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 2);
     let const_data = adjlist::NodeData::Effect(
-        EffectMeta::new("Constant".to_string(), None, [Url::parse("primitive:///Constant?value=5").unwrap()].iter().cloned())
+        EffectMeta::new("Constant".to_string(), None, [Url::parse("primitive:///F32Const").unwrap()].iter().cloned())
     );
 
     let nodes = [(mult_hnd, mult_data), (const_hnd, const_data)];
@@ -56,7 +57,7 @@ fn create_multby2() -> EffectDesc {
     // multiply out sent to effect out
     let edge_out = Edge::new_to_null(mult_hnd, EdgeWeight::new(0, 0, 0, 0));
     // const data sent to multiply (B)
-    let edge_const = Edge::new(const_hnd, mult_hnd, EdgeWeight::new(0, 0, 1, 0)).unwrap();
+    let edge_const = Edge::new(const_hnd, mult_hnd, EdgeWeight::new(pack_f32(5.0f32), 0, 1, 0)).unwrap();
 
     let edges = [edge_in, edge_out, edge_const];
 
@@ -101,10 +102,10 @@ fn load_multby2() {
     // Create Constant node (id=2)
     let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 2);
     dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
-        EffectMeta::new("Constant".to_string(), None, [Url::parse("primitive:///Constant?value=0.5").unwrap()].iter().cloned())
+        EffectMeta::new("Constant".to_string(), None, [Url::parse("primitive:///F32Const").unwrap()].iter().cloned())
     ))).into()).unwrap();
     // Route constant output to mul input
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mul_hnd, EdgeWeight::new(0, 0, 0, 0)).unwrap(),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mul_hnd, EdgeWeight::new(pack_f32(0.5f32), 0, 0, 0)).unwrap(),)).into()).unwrap();
     
     // Read some data from ch=0.
     // This should be 0.5*5 = [2.5, 2.5, 2.5, 2.5]
