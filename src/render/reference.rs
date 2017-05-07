@@ -37,6 +37,12 @@ enum MyNodeData {
     /// Primitive effect to calculate A%B (true modulo; not remainder.
     /// Result, y,  is always positive: y is bounded by [0, B).
     Modulo,
+    /// Primitive effect to return the sample-wise minimum of two input streams.
+    /// Max(A, B) can be implemented as -Min(-A, -B).
+    /// The choice to define Min instead of Max was mostly arbitrary,
+    /// and chosen because Min is more common in linear programming to avoid dealing
+    /// with Inf.
+    Min,
     /// This node is a DAG definition. i.e. it holds the output edges of a DAG.
     DagIO,
 }
@@ -140,6 +146,17 @@ impl RefRenderer {
                         dividend / divisor
                     }
                 },
+                MyNodeData::Min => {
+                    // The only nonzero output is slot=0.
+                    if edge.from_slot() != 0 {
+                        println!("Warning: attempt to read from Modulo slot != 0");
+                        0f64
+                    } else {
+                        let input_a = self.sum_input_to_slot(nodes, node, time, 0, edge.from_ch(), context);
+                        let input_b = self.sum_input_to_slot(nodes, node, time, 1, edge.from_ch(), context);
+                        input_a.min(input_b)
+                    }
+                }
                 MyNodeData::Modulo => {
                     // The only nonzero output is slot=0.
                     if edge.from_slot() != 0 {
@@ -185,6 +202,7 @@ impl RefRenderer {
                             "/Multiply" => MyNodeData::Multiply,
                             "/Divide" => MyNodeData::Divide,
                             "/Modulo" => MyNodeData::Modulo,
+                            "/Min" => MyNodeData::Min,
                             _ => panic!("Unrecognized primitive effect: {} (full url: {})", url.path(), url),
                         }
                     }
