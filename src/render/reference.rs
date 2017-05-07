@@ -29,10 +29,14 @@ enum MyNodeData {
     F32Const,
     /// Primitive effect to multiply TWO input streams sample-wise.
     Multiply,
-    /// Primitive effect to calculate 1/A
-    MultInv,
-    /// Primitive effect to calculate A%1 (i.e. A - A.floor())
-    ModuloOne,
+    /// Primitive effect to calculate A/B.
+    /// Note: because not all floating point numbers have inverses,
+    /// A * (1/B) != A/B. Hence, we need division (not inversion) for proper
+    /// precision.
+    Divide,
+    /// Primitive effect to calculate A%B (true modulo; not remainder.
+    /// Result, y,  is always positive: y is bounded by [0, B).
+    Modulo,
     /// This node is a DAG definition. i.e. it holds the output edges of a DAG.
     DagIO,
 }
@@ -106,32 +110,33 @@ impl RefRenderer {
                         val_a * val_b
                     }
                 },
-                MyNodeData::MultInv => {
+                MyNodeData::Divide => {
                     // The only nonzero output is slot=0.
                     if edge.from_slot() != 0 {
                         println!("Warning: attempt to read from MultInv slot != 0");
                         0f64
                     } else {
                         // Sum all inputs
-                        let val_in = self.sum_input_to_slot(nodes, node, time, 0, edge.from_ch(), context);
-                        1.0f64 / val_in
+                        let dividend = self.sum_input_to_slot(nodes, node, time, 0, edge.from_ch(), context);
+                        let divisor = self.sum_input_to_slot(nodes, node, time, 1, edge.from_ch(), context);
+                        dividend / divisor
                     }
                 },
-                MyNodeData::ModuloOne => {
+                MyNodeData::Modulo => {
                     // The only nonzero output is slot=0.
                     if edge.from_slot() != 0 {
-                        println!("Warning: attempt to read from ModOne slot != 0");
+                        println!("Warning: attempt to read from Modulo slot != 0");
                         0f64
                     } else {
-                        // Sum all inputs
-                        let val_in = self.sum_input_to_slot(nodes, node, time, 0, edge.from_ch(), context);
-                        //val_in - val_in.floor()
-                        // avoid subtracting unbounded numbers: approximate modulus via this:
-                        let rem = val_in.fract();
+                        // Sum all dividends
+                        let dividend = self.sum_input_to_slot(nodes, node, time, 0, edge.from_ch(), context);
+                        // Sum all divisors
+                        let divisor = self.sum_input_to_slot(nodes, node, time, 1, edge.from_ch(), context);
+                        let rem = dividend % divisor;
                         if rem < 0f64 {
                             // TODO: We may be losing precision here, if rem is small.
                             // We should find a way to do true modulus.
-                            rem + 1.0f64
+                            rem + divisor
                         } else {
                             rem
                         }
@@ -160,8 +165,8 @@ impl RefRenderer {
                             "/F32Const" => MyNodeData::F32Const,
                             "/Delay" => MyNodeData::Delay,
                             "/Multiply" => MyNodeData::Multiply,
-                            "/MultInv" => MyNodeData::MultInv,
-                            "/ModuloOne" => MyNodeData::ModuloOne,
+                            "/Divide" => MyNodeData::Divide,
+                            "/Modulo" => MyNodeData::Modulo,
                             _ => panic!("Unrecognized primitive effect: {} (full url: {})", url.path(), url),
                         }
                     }
