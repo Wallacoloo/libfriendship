@@ -22,6 +22,7 @@ pub mod render;
 pub mod routing;
 pub mod resman;
 pub mod util;
+pub mod stdfx;
 
 
 pub use dispatch::Dispatch;
