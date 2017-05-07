@@ -87,10 +87,28 @@ impl RefRenderer {
                 }
                 // Output = sum of all inputs to slot 0 of the same ch.
                 MyNodeData::Delay => {
-                    // t<0 -> value is 0.
-                    time.checked_sub(edge.from_slot() as u64).map_or(0f64, |origin_time| {
-                        self.sum_input_to_slot(nodes, node, origin_time, 0, edge.from_ch(), context)
-                    })
+                    // The only nonzero output is slot=0.
+                    if edge.from_slot() != 0 {
+                        println!("Warning: attempt to read from Delay slot != 0");
+                        0f64
+                    } else {
+                        let delay_frames = self.sum_input_to_slot(nodes, node, time, 1, edge.from_ch(), context);
+                        // Clamp delay value to [0, u64::max]
+                        let delay_int = if delay_frames < 0f64 {
+                            0u64
+                        } else if delay_frames > u64::max_value() as f64 {
+                            // TODO: u64::max isn't precisely representable in f64;
+                            // will this cause issues?
+                            u64::max_value()
+                        } else {
+                            // Note: this conversion is flooring.
+                            delay_frames as u64
+                        };
+                        // t<0 -> value is 0.
+                        time.checked_sub(delay_int).map_or(0f64, |origin_time| {
+                            self.sum_input_to_slot(nodes, node, origin_time, 0, edge.from_ch(), context)
+                        })
+                    }
                 },
                 MyNodeData::F32Const => {
                     // Float value is encoded via the slot.
