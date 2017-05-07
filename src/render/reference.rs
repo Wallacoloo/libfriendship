@@ -26,7 +26,7 @@ enum MyNodeData {
     /// Primitive Constant effect.
     /// Also serves as a unit step;
     /// Returns the float value for t >= 0, else 0.
-    F32Const,
+    F32Constant,
     /// Primitive effect to multiply TWO input streams sample-wise.
     Multiply,
     /// Primitive effect to calculate A/B.
@@ -42,7 +42,7 @@ enum MyNodeData {
     /// The choice to define Min instead of Max was mostly arbitrary,
     /// and chosen because Min is more common in linear programming to avoid dealing
     /// with Inf.
-    Min,
+    Minimum,
     /// This node is a DAG definition. i.e. it holds the output edges of a DAG.
     DagIO,
 }
@@ -116,7 +116,7 @@ impl RefRenderer {
                         })
                     }
                 },
-                MyNodeData::F32Const => {
+                MyNodeData::F32Constant => {
                     // Float value is encoded via the slot.
                     let value = edge.from_slot();
                     unpack_f32(value) as f64
@@ -146,7 +146,7 @@ impl RefRenderer {
                         dividend / divisor
                     }
                 },
-                MyNodeData::Min => {
+                MyNodeData::Minimum => {
                     // The only nonzero output is slot=0.
                     if edge.from_slot() != 0 {
                         println!("Warning: attempt to read from Modulo slot != 0");
@@ -197,12 +197,12 @@ impl RefRenderer {
                 match effect.meta().get_primitive_url() {
                     Some(ref url) => {
                         match url.path() {
-                            "/F32Const" => MyNodeData::F32Const,
+                            "/F32Constant" => MyNodeData::F32Constant,
                             "/Delay" => MyNodeData::Delay,
                             "/Multiply" => MyNodeData::Multiply,
                             "/Divide" => MyNodeData::Divide,
                             "/Modulo" => MyNodeData::Modulo,
-                            "/Min" => MyNodeData::Min,
+                            "/Minimum" => MyNodeData::Minimum,
                             _ => panic!("Unrecognized primitive effect: {} (full url: {})", url.path(), url),
                         }
                     }

@@ -47,7 +47,7 @@ fn create_multby2() -> EffectDesc {
     );
     let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 2);
     let const_data = adjlist::NodeData::Effect(
-        EffectMeta::new("Constant".to_string(), None, [Url::parse("primitive:///F32Const").unwrap()].iter().cloned())
+        EffectMeta::new("Constant".to_string(), None, [Url::parse("primitive:///F32Constant").unwrap()].iter().cloned())
     );
 
     let nodes = [(mult_hnd, mult_data), (const_hnd, const_data)];
@@ -102,7 +102,7 @@ fn load_multby2() {
     // Create Constant node (id=2)
     let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 2);
     dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
-        EffectMeta::new("Constant".to_string(), None, [Url::parse("primitive:///F32Const").unwrap()].iter().cloned())
+        EffectMeta::new("Constant".to_string(), None, [Url::parse("primitive:///F32Constant").unwrap()].iter().cloned())
     ))).into()).unwrap();
     // Route constant output to mul input
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mul_hnd, EdgeWeight::new(pack_f32(0.5f32), 0, 0, 0)).unwrap(),)).into()).unwrap();
