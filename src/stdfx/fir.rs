@@ -4,13 +4,13 @@ use routing::{adjlist, NodeHandle, DagHandle, Edge, EdgeWeight, EffectMeta, Effe
 use routing::AdjList;
 use util::pack_f32;
 
-/// Get the EffectDesc for the convolve effect.
-/// Convolve is constructed such that at any given time,
+/// Get the EffectDesc for the FIR effect.
+/// FIR is constructed such that at any given time,
 /// y[t] = \sum_{n=0}^{LEN-1} x[t-n] * SLOT_{n+1}[t]
 /// 
-/// In other words, the convolution coefficients are insert to SLOT_1 through
-/// SLOT_{LEN} and the audio to be convolved is input to SLOT_0.
-/// LEN is the length of the convolution kernel.
+/// In other words, the filter coefficients are insert to SLOT_1 through
+/// SLOT_{LEN} and the audio to be filtered is input to SLOT_0.
+/// LEN is the length of the filter kernel.
 pub fn get_desc(bits: u8) -> EffectDesc {
     // maximum length = 2^32-2 because of slot numbering
     assert!(bits < 32 && bits != 0);
@@ -18,9 +18,9 @@ pub fn get_desc(bits: u8) -> EffectDesc {
     let subnode_name = if bits == 1 {
         "Multiply".to_string()
     } else {
-        format!("Integrate{}", half_length)
+        format!("FIR{}", half_length)
     };
-    let my_name = format!("Convolve{}", 2*half_length);
+    let my_name = format!("FIR{}", 2*half_length);
 
     let delay_hnd = NodeHandle::new_node(DagHandle::toplevel(), 1);
     let delayamt_hnd = NodeHandle::new_node(DagHandle::toplevel(), 2);

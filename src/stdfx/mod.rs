@@ -2,7 +2,7 @@
 
 use routing::EffectDesc;
 
-mod convolve;
+mod fir;
 mod integrate;
 mod passthrough;
 
@@ -17,7 +17,7 @@ pub fn iter_all_effects() -> impl Iterator<Item=EffectDesc> {
 
     // Convolve
     let effects = effects.chain((1..16).map(|bits| {
-        convolve::get_desc(1 << bits)
+        fir::get_desc(1 << bits)
     }));
 
     effects
