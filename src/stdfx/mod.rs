@@ -4,6 +4,7 @@ use routing::EffectDesc;
 
 mod fir;
 mod integrate;
+mod hamming;
 mod passthrough;
 
 /// Iterate over ALL the EffectDescs in the library.
@@ -15,9 +16,14 @@ pub fn iter_all_effects() -> impl Iterator<Item=EffectDesc> {
         integrate::get_desc(bits)
     }));
 
-    // Convolve
+    // Finite Impulse Response
     let effects = effects.chain((1..16).map(|bits| {
         fir::get_desc(1 << bits)
+    }));
+
+    // Windowing functions
+    let effects = effects.chain((2..513).map(|n| {
+        hamming::get_desc(n)
     }));
 
     effects
