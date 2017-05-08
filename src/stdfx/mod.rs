@@ -2,15 +2,23 @@
 
 use routing::EffectDesc;
 
+mod convolve;
 mod integrate;
 mod passthrough;
 
 /// Iterate over ALL the EffectDescs in the library.
 pub fn iter_all_effects() -> impl Iterator<Item=EffectDesc> {
-    let mut effects = Vec::new();
-    effects.push(passthrough::get_desc());
-    for bits in 1..64 {
-        effects.push(integrate::get_desc(bits));
-    }
-    effects.into_iter()
+    let effects = Some(passthrough::get_desc()).into_iter();
+
+    // Integrate
+    let effects = effects.chain((1..64).map(|bits| {
+        integrate::get_desc(bits)
+    }));
+
+    // Convolve
+    let effects = effects.chain((1..16).map(|bits| {
+        convolve::get_desc(1 << bits)
+    }));
+
+    effects
 }
