@@ -17,7 +17,9 @@ use util::pack_f32;
 /// This is done as an attempt to minimize rounding errors by ensuring each
 /// addition operand is approximately the same magnitude given a regular input.
 pub fn get_desc(bits: u8) -> EffectDesc {
-    assert!(bits < 64 && bits != 0);
+    // Integrating beyond 2^64 samples is ridiculous.
+    // Sample indexes are generally limited to u64 anyway.
+    assert!(bits <= 64 && bits != 0);
     let half_length = 1 << ((bits-1) as u64);
     let subnode_name = if bits == 1 {
         "Passthrough".to_string()

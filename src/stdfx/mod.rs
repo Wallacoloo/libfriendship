@@ -11,7 +11,7 @@ pub fn iter_all_effects() -> impl Iterator<Item=EffectDesc> {
     let effects = Some(passthrough::get_desc()).into_iter();
 
     // Integrate
-    let effects = effects.chain((1..64).map(|bits| {
+    let effects = effects.chain((1..65).map(|bits| {
         integrate::get_desc(bits)
     }));
 
