@@ -16,6 +16,7 @@ mod fir;
 mod hamming;
 mod modulo_one;
 mod passthrough;
+mod unitsaw;
 
 /// Iterate over ALL the EffectDescs in the library.
 pub fn iter_all_effects() -> impl Iterator<Item=EffectDesc> {
@@ -36,10 +37,13 @@ pub fn iter_all_effects() -> impl Iterator<Item=EffectDesc> {
         fir::get_desc(1 << bits)
     }));
 
-    // Windowing functions
+    // Windowing function: Hamming
     let effects = effects.chain((2..513).map(|n| {
         hamming::get_desc(n)
     }));
+
+    // Oscillator function: Sawtooth
+    let effects = effects.chain(Some(unitsaw::get_desc()).into_iter());
 
     effects
 }
