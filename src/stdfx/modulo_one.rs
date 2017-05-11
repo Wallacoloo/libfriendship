@@ -1,6 +1,4 @@
-use url::Url;
-
-use routing::{adjlist, NodeHandle, DagHandle, Edge, EdgeWeight, EffectMeta, EffectDesc};
+use routing::{adjlist, NodeHandle, Edge, EdgeWeight, EffectMeta, EffectDesc};
 use routing::AdjList;
 use util::pack_f32;
 

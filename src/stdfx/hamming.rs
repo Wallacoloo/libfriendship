@@ -1,8 +1,6 @@
 use std;
 
-use url::Url;
-
-use routing::{adjlist, NodeHandle, DagHandle, Edge, EdgeWeight, EffectMeta, EffectDesc};
+use routing::{adjlist, NodeHandle, Edge, EdgeWeight, EffectMeta, EffectDesc};
 use routing::AdjList;
 use util::pack_f32;
 
@@ -24,7 +22,7 @@ pub fn get_desc(n: u32) -> EffectDesc {
     });
 
     let handles = || (0..n).map(|i| {
-        NodeHandle::new_node(DagHandle::toplevel(), 1+i)
+        NodeHandle::new_node_toplevel(1+i)
     });
     let node_data = (0..n).map(|_| {
         adjlist::NodeData::Effect(f32constant::get_meta())

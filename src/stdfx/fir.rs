@@ -1,6 +1,4 @@
-use url::Url;
-
-use routing::{adjlist, NodeHandle, DagHandle, Edge, EdgeWeight, EffectMeta, EffectDesc};
+use routing::{adjlist, NodeHandle, Edge, EdgeWeight, EffectMeta, EffectDesc};
 use routing::AdjList;
 use util::pack_f32;
 
@@ -23,10 +21,10 @@ pub fn get_desc(bits: u8) -> EffectDesc {
         get_meta(bits-1)
     };
 
-    let delay_hnd = NodeHandle::new_node(DagHandle::toplevel(), 1);
-    let delayamt_hnd = NodeHandle::new_node(DagHandle::toplevel(), 2);
-    let sub1_hnd = NodeHandle::new_node(DagHandle::toplevel(), 3);
-    let sub2_hnd = NodeHandle::new_node(DagHandle::toplevel(), 4);
+    let delay_hnd = NodeHandle::new_node_toplevel(1);
+    let delayamt_hnd = NodeHandle::new_node_toplevel(2);
+    let sub1_hnd = NodeHandle::new_node_toplevel(3);
+    let sub2_hnd = NodeHandle::new_node_toplevel(4);
 
     let delay_data = adjlist::NodeData::Effect(delay::get_meta());
     let delayamt_data = adjlist::NodeData::Effect(f32constant::get_meta());
