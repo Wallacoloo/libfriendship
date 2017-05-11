@@ -331,6 +331,9 @@ impl NodeHandle {
     pub fn new_dag(dag: DagHandle) -> Self {
         NodeHandle::new(dag, None.into())
     }
+    pub fn new_node_toplevel(node: u32) -> Self {
+        Self::new_node(DagHandle::toplevel(), node)
+    }
     pub fn dag_handle(&self) -> &DagHandle {
         &self.dag_handle
     }
