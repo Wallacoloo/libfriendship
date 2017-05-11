@@ -13,6 +13,10 @@ pub fn get_desc() -> EffectDesc {
         nodes: nodes.iter().cloned().collect(),
         edges: edges.iter().cloned().collect(),
     };
-    let meta = EffectMeta::new("Passthrough".to_string(), None, Vec::new().into_iter());
+    let meta = get_meta();
     EffectDesc::new(meta, list)
+}
+
+pub fn get_meta() -> EffectMeta {
+    EffectMeta::new("Passthrough".to_string(), None, Vec::new().into_iter())
 }

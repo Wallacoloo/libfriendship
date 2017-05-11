@@ -4,6 +4,8 @@ use routing::{adjlist, NodeHandle, DagHandle, Edge, EdgeWeight, EffectMeta, Effe
 use routing::AdjList;
 use util::pack_f32;
 
+use super::{delay, f32constant, passthrough};
+
 /// Get the EffectDesc for the integrate effect.
 /// Integrate is constructed such that at any given time,
 /// y[t] = \sum_{n=0}^t x[n],
@@ -17,31 +19,21 @@ use util::pack_f32;
 /// This is done as an attempt to minimize rounding errors by ensuring each
 /// addition operand is approximately the same magnitude given a regular input.
 pub fn get_desc(bits: u8) -> EffectDesc {
-    // Integrating beyond 2^64 samples is ridiculous.
-    // Sample indexes are generally limited to u64 anyway.
-    assert!(bits <= 64 && bits != 0);
     let half_length = 1 << ((bits-1) as u64);
-    let subnode_name = if bits == 1 {
-        "Passthrough".to_string()
+    let subnode_meta = if bits == 1 {
+        passthrough::get_meta()
     } else {
-        format!("Integrate{}", half_length)
+        get_meta(bits-1)
     };
-    let my_name = format!("Integrate{}", half_length * 2);
 
     let delay_hnd = NodeHandle::new_node(DagHandle::toplevel(), 1);
     let delayamt_hnd = NodeHandle::new_node(DagHandle::toplevel(), 2);
     let sub1_hnd = NodeHandle::new_node(DagHandle::toplevel(), 3);
     let sub2_hnd = NodeHandle::new_node(DagHandle::toplevel(), 4);
 
-    let delay_data = adjlist::NodeData::Effect(
-        EffectMeta::new("Delay".to_string(), None, [Url::parse("primitive:///Delay").unwrap()].iter().cloned())
-    );
-    let delayamt_data = adjlist::NodeData::Effect(
-        EffectMeta::new("F32Constant".to_string(), None, [Url::parse("primitive:///F32Constant").unwrap()].iter().cloned())
-    );
-    let sub1_data = adjlist::NodeData::Effect(
-        EffectMeta::new(subnode_name, None, Vec::new().into_iter())
-    );
+    let delay_data = adjlist::NodeData::Effect(delay::get_meta());
+    let delayamt_data = adjlist::NodeData::Effect(f32constant::get_meta());
+    let sub1_data = adjlist::NodeData::Effect(subnode_meta);
     let sub2_data = sub1_data.clone();
     
     // NOTE: half_length guaranteed to fit in f32 because it's a power of two in the range of f32.
@@ -64,7 +56,15 @@ pub fn get_desc(bits: u8) -> EffectDesc {
         nodes: nodes.iter().cloned().collect(),
         edges: edges.iter().cloned().collect(),
     };
-    let meta = EffectMeta::new(my_name, None, Vec::new().into_iter());
+    let meta = get_meta(bits);
     EffectDesc::new(meta, list)
 }
 
+pub fn get_meta(bits: u8) -> EffectMeta {
+    // Integrating beyond 2^64 samples is ridiculous.
+    // Sample indexes are generally limited to u64 anyway.
+    assert!(bits <= 64 && bits != 0);
+    let length = 1u64 << bits;
+    let my_name = format!("Integrate{}", length);
+    EffectMeta::new(my_name, None, Vec::new().into_iter())
+}

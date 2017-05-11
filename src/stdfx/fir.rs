@@ -4,6 +4,8 @@ use routing::{adjlist, NodeHandle, DagHandle, Edge, EdgeWeight, EffectMeta, Effe
 use routing::AdjList;
 use util::pack_f32;
 
+use super::{delay, f32constant, multiply};
+
 /// Get the EffectDesc for the FIR effect.
 /// FIR is constructed such that at any given time,
 /// y[t] = \sum_{n=0}^{LEN-1} x[t-n] * SLOT_{n+1}[t]
@@ -15,27 +17,20 @@ pub fn get_desc(bits: u8) -> EffectDesc {
     // maximum length = 2^32-2 because of slot numbering
     assert!(bits < 32 && bits != 0);
     let half_length = 1 << ((bits-1) as u64);
-    let subnode_name = if bits == 1 {
-        "Multiply".to_string()
+    let subnode_meta = if bits == 1 {
+        multiply::get_meta()
     } else {
-        format!("FIR{}", half_length)
+        get_meta(bits-1)
     };
-    let my_name = format!("FIR{}", 2*half_length);
 
     let delay_hnd = NodeHandle::new_node(DagHandle::toplevel(), 1);
     let delayamt_hnd = NodeHandle::new_node(DagHandle::toplevel(), 2);
     let sub1_hnd = NodeHandle::new_node(DagHandle::toplevel(), 3);
     let sub2_hnd = NodeHandle::new_node(DagHandle::toplevel(), 4);
 
-    let delay_data = adjlist::NodeData::Effect(
-        EffectMeta::new("Delay".to_string(), None, [Url::parse("primitive:///Delay").unwrap()].iter().cloned())
-    );
-    let delayamt_data = adjlist::NodeData::Effect(
-        EffectMeta::new("F32Constant".to_string(), None, [Url::parse("primitive:///F32Constant").unwrap()].iter().cloned())
-    );
-    let sub1_data = adjlist::NodeData::Effect(
-        EffectMeta::new(subnode_name, None, Vec::new().into_iter())
-    );
+    let delay_data = adjlist::NodeData::Effect(delay::get_meta());
+    let delayamt_data = adjlist::NodeData::Effect(f32constant::get_meta());
+    let sub1_data = adjlist::NodeData::Effect(subnode_meta);
     let sub2_data = sub1_data.clone();
     
     // NOTE: half_length guaranteed to fit in f32 because it's a power of two in the range of f32.
@@ -66,6 +61,14 @@ pub fn get_desc(bits: u8) -> EffectDesc {
         (sub1_hnd, sub1_data), (sub2_hnd, sub2_data)].iter().cloned().collect();
 
     let list = AdjList { nodes, edges };
-    let meta = EffectMeta::new(my_name, None, Vec::new().into_iter());
+    let meta = get_meta(bits);
     EffectDesc::new(meta, list)
+}
+
+pub fn get_meta(bits: u8) -> EffectMeta {
+    // maximum length = 2^32-2 because of slot numbering
+    assert!(bits < 32 && bits != 0);
+    let length = 1u64 << bits;
+    let my_name = format!("FIR{}", length);
+    EffectMeta::new(my_name, None, Vec::new().into_iter())
 }

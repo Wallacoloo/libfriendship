@@ -2,9 +2,15 @@
 
 use routing::EffectDesc;
 
-mod fir;
+mod delay;
+mod divide;
 mod integrate;
+mod f32constant;
+mod fir;
 mod hamming;
+mod minimum;
+mod modulo;
+mod multiply;
 mod passthrough;
 
 /// Iterate over ALL the EffectDescs in the library.

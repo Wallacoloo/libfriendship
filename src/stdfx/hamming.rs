@@ -6,6 +6,8 @@ use routing::{adjlist, NodeHandle, DagHandle, Edge, EdgeWeight, EffectMeta, Effe
 use routing::AdjList;
 use util::pack_f32;
 
+use super::f32constant;
+
 /// Get the EffectDesc for a Hamming window of size N.
 /// Each output is simply the weights for the corresponding index into the
 /// window.
@@ -13,7 +15,6 @@ use util::pack_f32;
 /// alpha = 0.53836, beta = 0.46164.
 pub fn get_desc(n: u32) -> EffectDesc {
     assert!(n > 1);
-    let my_name = format!("Hamming{}", n);
     const TWO_PI: f64 = std::f64::consts::PI * 2.0f64;
     let alpha = 0.53836f64;
     let beta = 0.46164f64;
@@ -26,9 +27,7 @@ pub fn get_desc(n: u32) -> EffectDesc {
         NodeHandle::new_node(DagHandle::toplevel(), 1+i)
     });
     let node_data = (0..n).map(|_| {
-        adjlist::NodeData::Effect(
-            EffectMeta::new("F32Constant".to_string(), None, Url::parse("primitive:///F32Constant").into_iter())
-        )
+        adjlist::NodeData::Effect(f32constant::get_meta())
     });
     let edges = weights.zip(handles()).enumerate().map(|(i, (weight, hnd))| {
         Edge::new_to_null(hnd, EdgeWeight::new(pack_f32(weight as f32), 0, i as u32, 0))
@@ -36,6 +35,11 @@ pub fn get_desc(n: u32) -> EffectDesc {
     let nodes = handles().zip(node_data).collect();
 
     let list = AdjList { nodes, edges };
-    let meta = EffectMeta::new(my_name, None, Vec::new().into_iter());
+    let meta = get_meta(n);
     EffectDesc::new(meta, list)
+}
+
+pub fn get_meta(n: u32) -> EffectMeta {
+    let my_name = format!("Hamming{}", n);
+    EffectMeta::new(my_name, None, Vec::new().into_iter())
 }
