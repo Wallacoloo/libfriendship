@@ -39,5 +39,5 @@ pub fn get_desc(n: u32) -> EffectDesc {
 
 pub fn get_meta(n: u32) -> EffectMeta {
     let my_name = format!("Hamming{}", n);
-    EffectMeta::new(my_name, None, Vec::new().into_iter())
+    EffectMeta::new(my_name, None, None)
 }

@@ -68,5 +68,5 @@ pub fn get_meta(bits: u8) -> EffectMeta {
     assert!(bits < 32 && bits != 0);
     let length = 1u64 << bits;
     let my_name = format!("FIR{}", length);
-    EffectMeta::new(my_name, None, Vec::new().into_iter())
+    EffectMeta::new(my_name, None, None)
 }

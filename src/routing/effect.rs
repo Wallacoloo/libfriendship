@@ -104,12 +104,12 @@ impl Effect {
 
 impl EffectMeta {
     pub fn new<U>(name: String, sha256: Option<[u8; 32]>, urls: U) -> Self 
-        where U: Iterator<Item=Url>
+        where U: IntoIterator<Item=Url>
     {
         Self {
             name,
             sha256,
-            urls: urls.map(|url| url_serde::Serde(url)).collect(),
+            urls: urls.into_iter().map(|url| url_serde::Serde(url)).collect(),
         }
     }
     pub fn sha256(&self) -> &Option<[u8; 32]> {

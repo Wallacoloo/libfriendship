@@ -10,7 +10,7 @@ use url::Url;
 use libfriendship::{Dispatch, Client};
 use libfriendship::dispatch::{OscRouteGraph, OscRenderer};
 use libfriendship::render::RefRenderer;
-use libfriendship::routing::{adjlist, DagHandle, Edge, EdgeWeight, EffectMeta, NodeHandle};
+use libfriendship::routing::{adjlist, Edge, EdgeWeight, EffectMeta, NodeHandle};
 use libfriendship::util::pack_f32;
 
 
@@ -34,32 +34,32 @@ fn test_setup() -> (Dispatch<RefRenderer>, Receiver<Vec<f32>>) {
 
 /// Return the EffectMeta that universally represents Delay nodes.
 fn delay_meta() -> EffectMeta {
-    EffectMeta::new("Delay".to_string(), None, [Url::parse("primitive:///Delay").unwrap()].iter().cloned())
+    EffectMeta::new("Delay".into(), None, vec![Url::parse("primitive:///Delay").unwrap()])
 }
 
 /// Return the EffectMeta that universally represents F32Constant nodes.
 fn const_meta() -> EffectMeta {
-    EffectMeta::new("F32Constant".to_string(), None, [Url::parse("primitive:///F32Constant").unwrap()].iter().cloned())
+    EffectMeta::new("F32Constant".into(), None, vec![Url::parse("primitive:///F32Constant").unwrap()])
 }
 
 /// Return the EffectMeta that universally represents Multiply nodes.
 fn mult_meta() -> EffectMeta {
-    EffectMeta::new("Multiply".to_string(), None, [Url::parse("primitive:///Multiply").unwrap()].iter().cloned())
+    EffectMeta::new("Multiply".into(), None, vec![Url::parse("primitive:///Multiply").unwrap()])
 }
 
 /// Return the EffectMeta that universally represents Divide nodes.
 fn div_meta() -> EffectMeta {
-    EffectMeta::new("Divide".to_string(), None, [Url::parse("primitive:///Divide").unwrap()].iter().cloned())
+    EffectMeta::new("Divide".into(), None, vec![Url::parse("primitive:///Divide").unwrap()])
 }
 
 /// Return the EffectMeta that universally represents Modulo nodes.
 fn mod_meta() -> EffectMeta {
-    EffectMeta::new("Modulo".to_string(), None, [Url::parse("primitive:///Modulo").unwrap()].iter().cloned())
+    EffectMeta::new("Modulo".into(), None, vec![Url::parse("primitive:///Modulo").unwrap()])
 }
 
 /// Return the EffectMeta that universally represents Min nodes.
 fn min_meta() -> EffectMeta {
-    EffectMeta::new("Minimum".to_string(), None, [Url::parse("primitive:///Minimum").unwrap()].iter().cloned())
+    EffectMeta::new("Minimum".into(), None, vec![Url::parse("primitive:///Minimum").unwrap()])
 }
 
 #[test]
@@ -80,7 +80,7 @@ fn render_const() {
     let (mut dispatch, rx) = test_setup();
 
     // Route a constant into ch=0.
-    let handle = NodeHandle::new_node(DagHandle::toplevel(), 1);
+    let handle = NodeHandle::new_node_toplevel(1);
     dispatch.dispatch(OscRouteGraph::AddNode((), (handle, adjlist::NodeData::Effect(
         const_meta()
     ))).into()).unwrap();
@@ -100,7 +100,7 @@ fn render_delay() {
     let (mut dispatch, rx) = test_setup();
 
     // Create delay node (id=1)
-    let delay_hnd = NodeHandle::new_node(DagHandle::toplevel(), 1);
+    let delay_hnd = NodeHandle::new_node_toplevel(1);
     dispatch.dispatch(OscRouteGraph::AddNode((), (delay_hnd, adjlist::NodeData::Effect(
         delay_meta()
     ))).into()).unwrap();
@@ -108,7 +108,7 @@ fn render_delay() {
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(delay_hnd, EdgeWeight::new(0, 0, 0, 0)),)).into()).unwrap();
 
     // Create Constant node (id=2)
-    let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 2);
+    let const_hnd = NodeHandle::new_node_toplevel(2);
     dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
         const_meta()
     ))).into()).unwrap();
@@ -116,7 +116,7 @@ fn render_delay() {
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, delay_hnd, EdgeWeight::new(pack_f32(0.5f32), 0, 0, 0)).unwrap(),)).into()).unwrap();
     
     // Create Constant node (id=3)
-    let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 3);
+    let const_hnd = NodeHandle::new_node_toplevel(3);
     dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
         const_meta()
     ))).into()).unwrap();
@@ -137,7 +137,7 @@ fn render_mult() {
     let (mut dispatch, rx) = test_setup();
 
     // Create Multiply node (id=1)
-    let mult_hnd = NodeHandle::new_node(DagHandle::toplevel(), 1);
+    let mult_hnd = NodeHandle::new_node_toplevel(1);
     dispatch.dispatch(OscRouteGraph::AddNode((), (mult_hnd, adjlist::NodeData::Effect(
         mult_meta()
     ))).into()).unwrap();
@@ -145,7 +145,7 @@ fn render_mult() {
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(mult_hnd, EdgeWeight::new(0, 0, 0, 0)),)).into()).unwrap();
     
     // Create Constant node (id=2)
-    let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 2);
+    let const_hnd = NodeHandle::new_node_toplevel(2);
     dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
         const_meta()
     ))).into()).unwrap();
@@ -153,7 +153,7 @@ fn render_mult() {
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mult_hnd, EdgeWeight::new(pack_f32(0.5f32), 0, 0, 0)).unwrap(),)).into()).unwrap();
     
     // Create Constant node (id=3)
-    let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 3);
+    let const_hnd = NodeHandle::new_node_toplevel(3);
     dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
         const_meta()
     ))).into()).unwrap();
@@ -174,7 +174,7 @@ fn render_div() {
     let (mut dispatch, rx) = test_setup();
 
     // Create Divide node (id=1)
-    let div_hnd = NodeHandle::new_node(DagHandle::toplevel(), 1);
+    let div_hnd = NodeHandle::new_node_toplevel(1);
     dispatch.dispatch(OscRouteGraph::AddNode((), (div_hnd, adjlist::NodeData::Effect(
         div_meta()
     ))).into()).unwrap();
@@ -182,7 +182,7 @@ fn render_div() {
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(div_hnd, EdgeWeight::new(0, 0, 0, 0)),)).into()).unwrap();
     
     // Create Constant node (id=2)
-    let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 2);
+    let const_hnd = NodeHandle::new_node_toplevel(2);
     dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
         const_meta()
     ))).into()).unwrap();
@@ -190,7 +190,7 @@ fn render_div() {
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, div_hnd, EdgeWeight::new(pack_f32(0.5f32), 0, 0, 0)).unwrap(),)).into()).unwrap();
     
     // Create Constant node (id=3)
-    let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 3);
+    let const_hnd = NodeHandle::new_node_toplevel(3);
     dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
         const_meta()
     ))).into()).unwrap();
@@ -212,7 +212,7 @@ fn render_mod() {
     let (mut dispatch, rx) = test_setup();
 
     // Create Modulo node (id=1)
-    let mod_hnd = NodeHandle::new_node(DagHandle::toplevel(), 1);
+    let mod_hnd = NodeHandle::new_node_toplevel(1);
     dispatch.dispatch(OscRouteGraph::AddNode((), (mod_hnd, adjlist::NodeData::Effect(
         mod_meta()
     ))).into()).unwrap();
@@ -220,7 +220,7 @@ fn render_mod() {
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(mod_hnd, EdgeWeight::new(0, 0, 0, 0)),)).into()).unwrap();
     
     // Create Constant node (id=2)
-    let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 2);
+    let const_hnd = NodeHandle::new_node_toplevel(2);
     dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
         const_meta()
     ))).into()).unwrap();
@@ -228,7 +228,7 @@ fn render_mod() {
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mod_hnd, EdgeWeight::new(pack_f32(-3.5f32), 0, 0, 0)).unwrap(),)).into()).unwrap();
     
     // Create Constant node (id=3)
-    let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 3);
+    let const_hnd = NodeHandle::new_node_toplevel(3);
     dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
         const_meta()
     ))).into()).unwrap();
@@ -250,7 +250,7 @@ fn render_min() {
     let (mut dispatch, rx) = test_setup();
 
     // Create Modulo node (id=1)
-    let min_hnd = NodeHandle::new_node(DagHandle::toplevel(), 1);
+    let min_hnd = NodeHandle::new_node_toplevel(1);
     dispatch.dispatch(OscRouteGraph::AddNode((), (min_hnd, adjlist::NodeData::Effect(
         min_meta()
     ))).into()).unwrap();
@@ -258,7 +258,7 @@ fn render_min() {
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(min_hnd, EdgeWeight::new(0, 0, 0, 0)),)).into()).unwrap();
     
     // Create Constant node (id=2)
-    let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 2);
+    let const_hnd = NodeHandle::new_node_toplevel(2);
     dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
         const_meta()
     ))).into()).unwrap();
@@ -266,7 +266,7 @@ fn render_min() {
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, min_hnd, EdgeWeight::new(pack_f32(-3.5f32), 0, 0, 0)).unwrap(),)).into()).unwrap();
     
     // Create Constant node (id=3)
-    let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 3);
+    let const_hnd = NodeHandle::new_node_toplevel(3);
     dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
         const_meta()
     ))).into()).unwrap();

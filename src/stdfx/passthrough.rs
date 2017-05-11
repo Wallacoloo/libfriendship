@@ -18,5 +18,5 @@ pub fn get_desc() -> EffectDesc {
 }
 
 pub fn get_meta() -> EffectMeta {
-    EffectMeta::new("Passthrough".to_string(), None, Vec::new().into_iter())
+    EffectMeta::new("Passthrough".into(), None, None)
 }

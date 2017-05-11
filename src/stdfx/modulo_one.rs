@@ -29,5 +29,5 @@ pub fn get_desc() -> EffectDesc {
 }
 
 pub fn get_meta() -> EffectMeta {
-    EffectMeta::new("ModuloOne".into(), None, Vec::new().into_iter())
+    EffectMeta::new("ModuloOne".into(), None, None)
 }

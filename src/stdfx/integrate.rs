@@ -64,5 +64,5 @@ pub fn get_meta(bits: u8) -> EffectMeta {
     assert!(bits <= 64 && bits != 0);
     let length = 1u64 << bits;
     let my_name = format!("Integrate{}", length);
-    EffectMeta::new(my_name, None, Vec::new().into_iter())
+    EffectMeta::new(my_name, None, None)
 }
