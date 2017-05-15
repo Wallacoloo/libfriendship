@@ -1,8 +1,11 @@
 use std::collections::HashSet;
+use std::io::Cursor;
 use std::ops::Deref;
 use std::rc::Rc;
 
+use digest::digest_reader;
 use serde_json;
+use sha2::Sha256;
 use url::Url;
 use url_serde;
 
@@ -43,6 +46,7 @@ pub struct EffectDesc {
 
 /// Validated version of EffectDesc. Guaranteed to be synthesizable.
 pub struct Effect {
+    id: EffectId,
     meta: EffectMeta,
     // TODO: Effects are immutable, so we can make this an AdjList and store
     // the connectivity information separately.
@@ -82,9 +86,10 @@ impl Effect {
         if id.is_primitive() {
             let me = Self {
                 meta: EffectMeta {
-                    name: id.name,
-                    urls: id.urls,
+                    name: id.name.clone(),
+                    urls: id.urls.clone(),
                 },
+                id: id,
                 graph: None,
             };
             return Ok(Rc::new(me));
@@ -94,17 +99,23 @@ impl Effect {
             // Try to deserialize to an effect description
             let desc: Result<EffectDesc, serde_json::Error> = serde_json::from_reader(reader);
             match desc {
-                Ok(desc) => match RouteGraph::from_adjlist(desc.adjlist, resman) {
-                    Ok(graph) => {
-                        let me = Self {
-                            meta: desc.meta,
-                            graph: Some(graph),
-                        };
-                        // TODO: implement some form of caching
-                        return Ok(Rc::new(me));
-                    },
-                    Err(error) => {
-                        println!("Warning: RouteGraph::from_adjlist failed: {:?}", error)
+                Ok(desc) => {
+                    // TODO: since we've matched the effect, we only need to recalculate
+                    // the id if the original search had missing hashes.
+                    let id = desc.id();
+                    match RouteGraph::from_adjlist(desc.adjlist, resman) {
+                        Ok(graph) => {
+                            let me = Self {
+                                id,
+                                meta: desc.meta,
+                                graph: Some(graph),
+                            };
+                            // TODO: implement some form of caching
+                            return Ok(Rc::new(me));
+                        },
+                        Err(error) => {
+                            println!("Warning: RouteGraph::from_adjlist failed: {:?}", error)
+                        }
                     }
                 },
                 Err(error) => println!("Warning: unable to deserialize EffectDesc: {:?}", error)
@@ -152,10 +163,14 @@ impl EffectDesc {
         Self{ meta, adjlist }
     }
     pub fn id(&self) -> EffectId {
-        // TODO: need to calculate sha
+        // TODO: calcular sha using a smaller buffer
+        let as_vec = serde_json::to_vec(self).unwrap();
+        let result = digest_reader::<Sha256>(&mut Cursor::new(as_vec)).unwrap();
+        let mut hash: [u8; 32] = Default::default();
+        hash.copy_from_slice(result.as_slice());
         EffectId {
             name: self.meta.name.clone(),
-            sha256: None,
+            sha256: Some(hash),
             urls: self.meta.urls.clone(),
         }
     }
