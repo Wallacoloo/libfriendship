@@ -1,4 +1,4 @@
-use routing::{adjlist, NodeHandle, Edge, EdgeWeight, EffectMeta, EffectDesc};
+use routing::{adjlist, NodeHandle, Edge, EdgeWeight, EffectId, EffectDesc, EffectMeta};
 use routing::AdjList;
 use util::pack_f32;
 
@@ -14,11 +14,12 @@ use super::{delay, f32constant, multiply};
 pub fn get_desc(bits: u8) -> EffectDesc {
     // maximum length = 2^32-2 because of slot numbering
     assert!(bits < 32 && bits != 0);
-    let half_length = 1 << ((bits-1) as u64);
+    let length = 1 << (bits as u64);
+    let half_length = length >> 1;
     let subnode_meta = if bits == 1 {
-        multiply::get_meta()
+        multiply::get_id()
     } else {
-        get_meta(bits-1)
+        get_id(bits-1)
     };
 
     let delay_hnd = NodeHandle::new_node_toplevel(1);
@@ -26,8 +27,8 @@ pub fn get_desc(bits: u8) -> EffectDesc {
     let sub1_hnd = NodeHandle::new_node_toplevel(3);
     let sub2_hnd = NodeHandle::new_node_toplevel(4);
 
-    let delay_data = adjlist::NodeData::Effect(delay::get_meta());
-    let delayamt_data = adjlist::NodeData::Effect(f32constant::get_meta());
+    let delay_data = adjlist::NodeData::Effect(delay::get_id());
+    let delayamt_data = adjlist::NodeData::Effect(f32constant::get_id());
     let sub1_data = adjlist::NodeData::Effect(subnode_meta);
     let sub2_data = sub1_data.clone();
     
@@ -59,14 +60,10 @@ pub fn get_desc(bits: u8) -> EffectDesc {
         (sub1_hnd, sub1_data), (sub2_hnd, sub2_data)].iter().cloned().collect();
 
     let list = AdjList { nodes, edges };
-    let meta = get_meta(bits);
-    EffectDesc::new(meta, list)
+    let my_name = format!("FIR{}", length);
+    EffectDesc::new(EffectMeta::new(my_name, None), list)
 }
 
-pub fn get_meta(bits: u8) -> EffectMeta {
-    // maximum length = 2^32-2 because of slot numbering
-    assert!(bits < 32 && bits != 0);
-    let length = 1u64 << bits;
-    let my_name = format!("FIR{}", length);
-    EffectMeta::new(my_name, None, None)
+pub fn get_id(bits: u8) -> EffectId {
+    get_desc(bits).id()
 }

@@ -6,7 +6,7 @@ use std::fs::File;
 use digest::digest_reader;
 use sha2::Sha256;
 
-use routing::EffectMeta;
+use routing::EffectId;
 
 
 /// Resource manager. Where to search for various file types (e.g. Effects).
@@ -27,14 +27,14 @@ impl ResMan {
     }
     /// Returns all definitions of the given effect in the form of an iterator
     ///   over boxed objects implementing io::Read.
-    pub fn find_effect<'a>(&'a self, meta: &'a EffectMeta) -> impl Iterator<Item=Box<Read>> + 'a {
-        self.iter_effect_files(meta).map(|path| {
+    pub fn find_effect<'a>(&'a self, id: &'a EffectId) -> impl Iterator<Item=Box<Read>> + 'a {
+        self.iter_effect_files(id).map(|path| {
             Box::new(File::open(path).unwrap()) as Box<Read>
         })
     }
-    fn iter_effect_files<'a>(&'a self, meta: &'a EffectMeta) -> impl Iterator<Item=PathBuf> + 'a{
+    fn iter_effect_files<'a>(&'a self, id: &'a EffectId) -> impl Iterator<Item=PathBuf> + 'a{
         self.iter_all_files().filter(move |f| {
-            match meta.sha256() {
+            match id.sha256() {
                 &None => true,
                 &Some(hash) => {
                     let mut file = File::open(f).unwrap();

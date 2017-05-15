@@ -13,7 +13,7 @@ use super::adjlist::AdjList;
 #[derive(Debug)]
 pub enum Error {
     /// No effect matches the metadata requested.
-    NoMatchingEffect(EffectMeta),
+    NoMatchingEffect(EffectId),
 }
 
 /// Alias for a `Result` with our error type.
@@ -22,7 +22,7 @@ pub type ResultE<T> = Result<T, Error>;
 /// Serializable info needed to look up an effect.
 #[derive(Clone, Debug)]
 #[derive(Serialize, Deserialize)]
-pub struct EffectMeta {
+pub struct EffectId {
     /// Canonical name of the effect
     name: String,
     /// Hash of the effect's definition file, or None if the effect is primitive
@@ -37,7 +37,6 @@ pub struct EffectMeta {
 /// synthesize the Effect.
 #[derive(Serialize, Deserialize)]
 pub struct EffectDesc {
-    // TODO: when de/serializing, the hashes should be removed from EffectMeta
     meta: EffectMeta,
     adjlist: AdjList,
 }
@@ -51,6 +50,16 @@ pub struct Effect {
     graph: Option<RouteGraph>,
 }
 
+#[derive(Clone, Debug)]
+#[derive(Serialize, Deserialize)]
+pub struct EffectMeta {
+    /// Canonical name of the effect
+    name: String,
+    /// List of URLs where the Effect can be obtained
+    urls: HashSet<url_serde::Serde<Url>>,
+}
+
+
 impl Effect {
     pub fn are_slots_connected(&self, from_slot: u32, from_ch: u8, to_slot: u32, to_ch: u8) -> bool {
         match self.graph {
@@ -59,22 +68,29 @@ impl Effect {
             None => true,
         }
     }
-    pub fn meta(&self) -> &EffectMeta {
-        &self.meta
+    pub fn id(&self) -> EffectId {
+        EffectId {
+            name: self.meta.name.clone(),
+            sha256: None,
+            urls: self.meta.urls.clone(),
+        }
     }
     /// Given the effect's information, and an interface by which to load
     /// resources, return an actual Effect.
-    pub fn from_meta(meta: EffectMeta, resman: &ResMan) -> ResultE<Rc<Self>> {
+    pub fn from_id(id: EffectId, resman: &ResMan) -> ResultE<Rc<Self>> {
         // For primitive effects, don't attempt to locate their descriptions (they don't exist)
-        if meta.is_primitive() {
+        if id.is_primitive() {
             let me = Self {
-                meta: meta,
+                meta: EffectMeta {
+                    name: id.name,
+                    urls: id.urls,
+                },
                 graph: None,
             };
             return Ok(Rc::new(me));
         }
         // Locate descriptions for non-primitive effects
-        for reader in resman.find_effect(&meta) {
+        for reader in resman.find_effect(&id) {
             // Try to deserialize to an effect description
             let desc: Result<EffectDesc, serde_json::Error> = serde_json::from_reader(reader);
             match desc {
@@ -95,14 +111,14 @@ impl Effect {
             }
         }
         // No matching effects
-        Err(Error::NoMatchingEffect(meta))
+        Err(Error::NoMatchingEffect(id))
     }
     pub fn routegraph(&self) -> &Option<RouteGraph> {
         &self.graph
     }
 }
 
-impl EffectMeta {
+impl EffectId {
     pub fn new<U>(name: String, sha256: Option<[u8; 32]>, urls: U) -> Self 
         where U: IntoIterator<Item=Url>
     {
@@ -135,6 +151,25 @@ impl EffectDesc {
     pub fn new(meta: EffectMeta, adjlist: AdjList) -> Self {
         Self{ meta, adjlist }
     }
+    pub fn id(&self) -> EffectId {
+        // TODO: need to calculate sha
+        EffectId {
+            name: self.meta.name.clone(),
+            sha256: None,
+            urls: self.meta.urls.clone(),
+        }
+    }
+}
+
+impl EffectMeta {
+    pub fn new<U>(name: String, urls: U) -> Self 
+        where U: IntoIterator<Item=Url>
+    {
+        Self {
+            name,
+            urls: urls.into_iter().map(|url| url_serde::Serde(url)).collect(),
+        }
+    }
 }
 
 impl PartialEq for EffectMeta {
@@ -142,11 +177,11 @@ impl PartialEq for EffectMeta {
     //   "Is this the same primitive Delay effect this renderer knows how to implement?"
     fn eq(&self, other: &EffectMeta) -> bool {
         self.name == other.name &&
-            self.sha256 == other.sha256 &&
             self.urls == other.urls
     }
 }
 impl Eq for EffectMeta {}
+
 
 impl PartialEq for Effect {
     fn eq(&self, other: &Effect) -> bool {

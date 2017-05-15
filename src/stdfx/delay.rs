@@ -1,8 +1,8 @@
 use url::Url;
 
-use routing::{EffectMeta};
+use routing::EffectId;
 
 /// Metadata to invoke the primitive Delay effect.
-pub fn get_meta() -> EffectMeta {
-    EffectMeta::new("Delay".into(), None, [Url::parse("primitive:///Delay").unwrap()].iter().cloned())
+pub fn get_id() -> EffectId {
+    EffectId::new("Delay".into(), None, [Url::parse("primitive:///Delay").unwrap()].iter().cloned())
 }

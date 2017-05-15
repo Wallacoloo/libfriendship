@@ -1,4 +1,4 @@
-use routing::{adjlist, NodeHandle, Edge, EdgeWeight, EffectMeta, EffectDesc};
+use routing::{adjlist, NodeHandle, Edge, EdgeWeight, EffectId, EffectDesc, EffectMeta};
 use routing::AdjList;
 use util::pack_f32;
 
@@ -17,11 +17,12 @@ use super::{delay, f32constant, passthrough};
 /// This is done as an attempt to minimize rounding errors by ensuring each
 /// addition operand is approximately the same magnitude given a regular input.
 pub fn get_desc(bits: u8) -> EffectDesc {
-    let half_length = 1 << ((bits-1) as u64);
+    let length = 1 << (bits as u64);
+    let half_length = length >> 1;
     let subnode_meta = if bits == 1 {
-        passthrough::get_meta()
+        passthrough::get_id()
     } else {
-        get_meta(bits-1)
+        get_id(bits-1)
     };
 
     let delay_hnd = NodeHandle::new_node_toplevel(1);
@@ -29,8 +30,8 @@ pub fn get_desc(bits: u8) -> EffectDesc {
     let sub1_hnd = NodeHandle::new_node_toplevel(3);
     let sub2_hnd = NodeHandle::new_node_toplevel(4);
 
-    let delay_data = adjlist::NodeData::Effect(delay::get_meta());
-    let delayamt_data = adjlist::NodeData::Effect(f32constant::get_meta());
+    let delay_data = adjlist::NodeData::Effect(delay::get_id());
+    let delayamt_data = adjlist::NodeData::Effect(f32constant::get_id());
     let sub1_data = adjlist::NodeData::Effect(subnode_meta);
     let sub2_data = sub1_data.clone();
     
@@ -54,15 +55,10 @@ pub fn get_desc(bits: u8) -> EffectDesc {
         nodes: nodes.iter().cloned().collect(),
         edges: edges.iter().cloned().collect(),
     };
-    let meta = get_meta(bits);
-    EffectDesc::new(meta, list)
+    let my_name = format!("Integrate{}", length);
+    EffectDesc::new(EffectMeta::new(my_name, None), list)
 }
 
-pub fn get_meta(bits: u8) -> EffectMeta {
-    // Integrating beyond 2^64 samples is ridiculous.
-    // Sample indexes are generally limited to u64 anyway.
-    assert!(bits <= 64 && bits != 0);
-    let length = 1u64 << bits;
-    let my_name = format!("Integrate{}", length);
-    EffectMeta::new(my_name, None, None)
+pub fn get_id(bits: u8) -> EffectId {
+    get_desc(bits).id()
 }

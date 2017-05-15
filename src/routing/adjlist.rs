@@ -4,12 +4,12 @@
 
 
 use super::routegraph::{NodeHandle, DagHandle, Edge};
-use super::effect::EffectMeta;
+use super::effect::EffectId;
 
 #[derive(Clone)]
 #[derive(Serialize, Deserialize)]
 pub enum NodeData {
-    Effect(EffectMeta),
+    Effect(EffectId),
     Graph(DagHandle),
 }
 

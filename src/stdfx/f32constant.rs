@@ -1,8 +1,8 @@
 use url::Url;
 
-use routing::{EffectMeta};
+use routing::EffectId;
 
 /// Metadata to invoke the primitive F32Constant effect.
-pub fn get_meta() -> EffectMeta {
-    EffectMeta::new("F32Constant".into(), None, [Url::parse("primitive:///F32Constant").unwrap()].iter().cloned())
+pub fn get_id() -> EffectId {
+    EffectId::new("F32Constant".into(), None, [Url::parse("primitive:///F32Constant").unwrap()].iter().cloned())
 }

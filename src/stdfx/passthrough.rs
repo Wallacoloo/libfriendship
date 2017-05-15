@@ -1,4 +1,4 @@
-use routing::{NodeHandle, Edge, EdgeWeight, EffectMeta, EffectDesc};
+use routing::{NodeHandle, Edge, EdgeWeight, EffectId, EffectDesc, EffectMeta};
 use routing::AdjList;
 
 /// Get the EffectDesc for the Passthrough effect.
@@ -13,10 +13,9 @@ pub fn get_desc() -> EffectDesc {
         nodes: nodes.iter().cloned().collect(),
         edges: edges.iter().cloned().collect(),
     };
-    let meta = get_meta();
-    EffectDesc::new(meta, list)
+    EffectDesc::new(EffectMeta::new("Passthrough".into(), None), list)
 }
 
-pub fn get_meta() -> EffectMeta {
-    EffectMeta::new("Passthrough".into(), None, None)
+pub fn get_id() -> EffectId {
+    get_desc().id()
 }

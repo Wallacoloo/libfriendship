@@ -101,8 +101,8 @@ impl<R: Renderer + Default> Dispatch<R> {
             OscToplevel::RouteGraph((), rg_msg) => match rg_msg {
                 OscRouteGraph::AddNode((), (handle, data)) => {
                     let node_data = match data {
-                        adjlist::NodeData::Effect(meta) =>
-                            routing::NodeData::Effect(Effect::from_meta(meta, &self.resman)?),
+                        adjlist::NodeData::Effect(id) =>
+                            routing::NodeData::Effect(Effect::from_id(id, &self.resman)?),
                         adjlist::NodeData::Graph(dag_handle) =>
                             routing::NodeData::Graph(dag_handle),
                     };

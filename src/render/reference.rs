@@ -194,7 +194,7 @@ impl RefRenderer {
         match *data {
             NodeData::Graph(ref handle) => MyNodeData::Graph(handle.clone()),
             NodeData::Effect(ref effect) => {
-                match effect.meta().get_primitive_url() {
+                match effect.id().get_primitive_url() {
                     Some(ref url) => {
                         match url.path() {
                             "/F32Constant" => MyNodeData::F32Constant,

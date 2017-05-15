@@ -1,4 +1,4 @@
-use routing::{adjlist, NodeHandle, Edge, EdgeWeight, EffectMeta, EffectDesc};
+use routing::{adjlist, NodeHandle, Edge, EdgeWeight, EffectId, EffectDesc, EffectMeta};
 use routing::AdjList;
 use util::pack_f32;
 
@@ -10,8 +10,8 @@ pub fn get_desc() -> EffectDesc {
     let const_hnd = NodeHandle::new_node_toplevel(1);
     let mod_hnd = NodeHandle::new_node_toplevel(2);
 
-    let const_data = adjlist::NodeData::Effect(f32constant::get_meta());
-    let mod_data = adjlist::NodeData::Effect(modulo::get_meta());
+    let const_data = adjlist::NodeData::Effect(f32constant::get_id());
+    let mod_data = adjlist::NodeData::Effect(modulo::get_id());
 
     let edge_in = Edge::new_from_null(mod_hnd, EdgeWeight::new(0, 0, 0, 0));
     let edge_out = Edge::new_to_null(mod_hnd, EdgeWeight::new(0, 0, 0, 0));
@@ -24,10 +24,9 @@ pub fn get_desc() -> EffectDesc {
         nodes: nodes.iter().cloned().collect(),
         edges: edges.iter().cloned().collect(),
     };
-    let meta = get_meta();
-    EffectDesc::new(meta, list)
+    EffectDesc::new(EffectMeta::new("ModuloOne".into(), None), list)
 }
 
-pub fn get_meta() -> EffectMeta {
-    EffectMeta::new("ModuloOne".into(), None, None)
+pub fn get_id() -> EffectId {
+    get_desc().id()
 }

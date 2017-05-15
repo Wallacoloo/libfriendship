@@ -270,7 +270,7 @@ impl RouteGraph {
     }
 
     pub fn to_adjlist(&self) -> AdjList {
-        // Map Effect -> EffectMeta
+        // Map Effect -> EffectId
         let nodes = self.node_data.iter().map(|(handle, data)| {
             (handle.clone(), data.to_adjlist_data())
         }).collect();
@@ -288,11 +288,11 @@ impl RouteGraph {
         // Unwrap struct fields to local variables
         let (nodes, edges) = (adj.nodes, adj.edges);
 
-        // Map EffectMeta -> Effect
+        // Map EffectId -> Effect
         let nodes: ResultE<HashMap<NodeHandle, NodeData>> = nodes.into_iter().map(|(handle, data)| {
             let decoded_data = match data {
-                adjlist::NodeData::Effect(meta) =>
-                    NodeData::Effect(Effect::from_meta(meta, res)?),
+                adjlist::NodeData::Effect(id) =>
+                    NodeData::Effect(Effect::from_id(id, res)?),
                 adjlist::NodeData::Graph(dag_handle) =>
                     NodeData::Graph(dag_handle),
             };
@@ -415,7 +415,7 @@ impl NodeData {
     /// metadata explaining how to locate the correct effect implementation.
     fn to_adjlist_data(&self) -> adjlist::NodeData {
         match *self {
-            NodeData::Effect(ref effect) => adjlist::NodeData::Effect(effect.meta().clone()),
+            NodeData::Effect(ref effect) => adjlist::NodeData::Effect(effect.id()),
             NodeData::Graph(ref dag) => adjlist::NodeData::Graph(dag.clone()),
         }
     }

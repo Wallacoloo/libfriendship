@@ -3,7 +3,7 @@
 use routing::EffectDesc;
 
 // Thin wrappers around primitive types;
-// they have no actual EffectDescs - just EffectMetas
+// they have no actual EffectDescs - just EffectIds
 mod delay;
 mod divide;
 mod f32constant;

@@ -1,8 +1,8 @@
 use url::Url;
 
-use routing::{EffectMeta};
+use routing::EffectId;
 
 /// Metadata to invoke the primitive Modulo effect.
-pub fn get_meta() -> EffectMeta {
-    EffectMeta::new("Modulo".into(), None, [Url::parse("primitive:///Modulo").unwrap()].iter().cloned())
+pub fn get_id() -> EffectId {
+    EffectId::new("Modulo".into(), None, [Url::parse("primitive:///Modulo").unwrap()].iter().cloned())
 }
