@@ -71,8 +71,8 @@ pub struct EffectIO {
     name: String,
     channel: u8,
 }
-type EffectInput = EffectIO;
-type EffectOutput = EffectIO;
+pub type EffectInput = EffectIO;
+pub type EffectOutput = EffectIO;
 
 
 impl Effect {
@@ -177,7 +177,7 @@ impl EffectDesc {
         Self{ meta, adjlist }
     }
     pub fn id(&self) -> EffectId {
-        // TODO: calcular sha using a smaller buffer
+        // TODO: calculate sha using a smaller buffer
         let as_vec = serde_json::to_vec(self).unwrap();
         let result = digest_reader::<Sha256>(&mut Cursor::new(as_vec)).unwrap();
         let mut hash: [u8; 32] = Default::default();

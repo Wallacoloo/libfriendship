@@ -1,4 +1,4 @@
-use routing::{adjlist, NodeHandle, Edge, EdgeWeight, EffectId, EffectDesc, EffectMeta};
+use routing::{adjlist, NodeHandle, Edge, EdgeWeight, EffectId, EffectDesc, EffectMeta, EffectInput, EffectOutput};
 use routing::AdjList;
 use util::pack_f32;
 
@@ -59,12 +59,17 @@ pub fn get_desc(bits: u8) -> EffectDesc {
     let nodes = [(delay_hnd, delay_data), (delayamt_hnd, delayamt_data),
         (sub1_hnd, sub1_data), (sub2_hnd, sub2_data)].iter().cloned().collect();
 
+    let inputs = Some((0, EffectInput::new("source".into(), 0))).into_iter()
+        .chain( (0..length).map(|i| {
+            (1+i, EffectInput::new(format!("weight[{}]", i), 0))
+        })
+    );
+
     let list = AdjList { nodes, edges };
     let my_name = format!("FIR{}", length);
     EffectDesc::new(EffectMeta::new(my_name, None,
-        // TODO: annotate I/O
-        collect_arr!{[]},
-        collect_arr!{[]},
+        inputs.collect(),
+        collect_arr!{[ (0, EffectOutput::new("result".into(), 0)) ]},
     ), list)
 }
 

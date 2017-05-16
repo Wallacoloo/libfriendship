@@ -1,4 +1,4 @@
-use routing::{NodeHandle, Edge, EdgeWeight, EffectId, EffectDesc, EffectMeta};
+use routing::{NodeHandle, Edge, EdgeWeight, EffectId, EffectDesc, EffectMeta, EffectInput, EffectOutput};
 use routing::AdjList;
 
 /// Get the EffectDesc for the Passthrough effect.
@@ -14,9 +14,8 @@ pub fn get_desc() -> EffectDesc {
         edges: edges.iter().cloned().collect(),
     };
     EffectDesc::new(EffectMeta::new("Passthrough".into(), None,
-        // TODO: annotate I/O
-        collect_arr!{[]},
-        collect_arr!{[]},
+        collect_arr!{[ (0, EffectInput::new("source".into(), 0)) ]},
+        collect_arr!{[ (0, EffectOutput::new("result".into(), 0)) ]},
     ), list)
 }
 

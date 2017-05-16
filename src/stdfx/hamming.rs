@@ -1,6 +1,6 @@
 use std;
 
-use routing::{adjlist, NodeHandle, Edge, EdgeWeight, EffectId, EffectDesc, EffectMeta};
+use routing::{adjlist, NodeHandle, Edge, EdgeWeight, EffectId, EffectDesc, EffectMeta, EffectOutput};
 use routing::AdjList;
 use util::pack_f32;
 
@@ -32,12 +32,15 @@ pub fn get_desc(n: u32) -> EffectDesc {
     }).collect();
     let nodes = handles().zip(node_data).collect();
 
+    let outputs = (0..n).map(|i| {
+        (1+i, EffectOutput::new(format!("weight[{}]", 1+i), 0))
+    });
+
     let list = AdjList { nodes, edges };
     let my_name = format!("Hamming{}", n);
     EffectDesc::new(EffectMeta::new(my_name, None,
-        // TODO: annotate I/O
         collect_arr!{[]},
-        collect_arr!{[]},
+        outputs.collect(),
     ), list)
 }
 
