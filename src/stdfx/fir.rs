@@ -33,23 +33,23 @@ pub fn get_desc(bits: u8) -> EffectDesc {
     let sub2_data = sub1_data.clone();
     
     // NOTE: half_length guaranteed to fit in f32 because it's a power of two in the range of f32.
-    let edge_delayamt = Edge::new(delayamt_hnd, delay_hnd, EdgeWeight::new(pack_f32(half_length as f32), 0, 1, 0)).unwrap();
-    let edge_delay_to_sub = Edge::new(delay_hnd, sub2_hnd, EdgeWeight::new(0, 0, 0, 0)).unwrap();
+    let edge_delayamt = Edge::new(delayamt_hnd, delay_hnd, EdgeWeight::new(pack_f32(half_length as f32), 1)).unwrap();
+    let edge_delay_to_sub = Edge::new(delay_hnd, sub2_hnd, EdgeWeight::new(0, 0)).unwrap();
     // Input to sub1
-    let edge_in1 = Edge::new_from_null(sub1_hnd, EdgeWeight::new(0, 0, 0, 0));
+    let edge_in1 = Edge::new_from_null(sub1_hnd, EdgeWeight::new(0, 0));
     // Input to delay -> sub2
-    let edge_in2 = Edge::new_from_null(delay_hnd, EdgeWeight::new(0, 0, 0, 0));
+    let edge_in2 = Edge::new_from_null(delay_hnd, EdgeWeight::new(0, 0));
     // Output from sub1
-    let edge_out1 = Edge::new_to_null(sub1_hnd, EdgeWeight::new(0, 0, 0, 0));
+    let edge_out1 = Edge::new_to_null(sub1_hnd, EdgeWeight::new(0, 0));
     // Output from sub2
-    let edge_out2 = Edge::new_to_null(sub2_hnd, EdgeWeight::new(0, 0, 0, 0));
+    let edge_out2 = Edge::new_to_null(sub2_hnd, EdgeWeight::new(0, 0));
 
     // Lower half of kernel parameters
     let edges_to_sub1 = (0..half_length).map(|i| {
-        Edge::new_from_null(sub1_hnd, EdgeWeight::new(1+i, 0, 1+i, 0))
+        Edge::new_from_null(sub1_hnd, EdgeWeight::new(1+i, 1+i))
     });
     let edges_to_sub2 = (0..half_length).map(|i| {
-        Edge::new_from_null(sub2_hnd, EdgeWeight::new(1+half_length+i, 0, 1+i, 0))
+        Edge::new_from_null(sub2_hnd, EdgeWeight::new(1+half_length+i, 1+i))
     });
 
     let edges = [edge_delayamt, edge_delay_to_sub, edge_in1, edge_in2, edge_out1, edge_out2].iter().cloned()

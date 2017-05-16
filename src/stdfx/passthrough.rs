@@ -5,7 +5,7 @@ use routing::AdjList;
 /// The passthrough effect takes all data input to slot 0 and sends it to
 /// output slot 0.
 pub fn get_desc() -> EffectDesc {
-    let edge = Edge::new_from_null(NodeHandle::toplevel(), EdgeWeight::new(0, 0, 0, 0));
+    let edge = Edge::new_from_null(NodeHandle::toplevel(), EdgeWeight::new(0, 0));
     let nodes = [];
     let edges = [edge];
 

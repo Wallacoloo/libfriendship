@@ -13,10 +13,10 @@ pub fn get_desc() -> EffectDesc {
     let const_data = adjlist::NodeData::Effect(f32constant::get_id());
     let mod_data = adjlist::NodeData::Effect(modulo::get_id());
 
-    let edge_in = Edge::new_from_null(mod_hnd, EdgeWeight::new(0, 0, 0, 0));
-    let edge_out = Edge::new_to_null(mod_hnd, EdgeWeight::new(0, 0, 0, 0));
+    let edge_in = Edge::new_from_null(mod_hnd, EdgeWeight::new(0, 0));
+    let edge_out = Edge::new_to_null(mod_hnd, EdgeWeight::new(0, 0));
     // edge to tell Modulo to modulo by 1.0.
-    let edge_const = Edge::new(const_hnd, mod_hnd, EdgeWeight::new(pack_f32(1.0f32), 0, 1, 0)).unwrap();
+    let edge_const = Edge::new(const_hnd, mod_hnd, EdgeWeight::new(pack_f32(1.0f32), 1)).unwrap();
 
     let nodes = [(const_hnd, const_data), (mod_hnd, mod_data)];
     let edges = [edge_in, edge_out, edge_const];

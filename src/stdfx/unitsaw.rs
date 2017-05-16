@@ -18,14 +18,14 @@ pub fn get_desc() -> EffectDesc {
     let mult_data = adjlist::NodeData::Effect(multiply::get_id());
 
     // x mod 1
-    let edge_in = Edge::new_from_null(mod_hnd, EdgeWeight::new(0, 0, 0, 0));
+    let edge_in = Edge::new_from_null(mod_hnd, EdgeWeight::new(0, 0));
     // 2*[x mod 1]
-    let edge_double = Edge::new(mod_hnd, mult_hnd, EdgeWeight::new(0, 0, 0, 0)).unwrap();
-    let edge_double_const = Edge::new(const_hnd, mult_hnd, EdgeWeight::new(pack_f32(2.0f32), 0, 1, 0)).unwrap();
+    let edge_double = Edge::new(mod_hnd, mult_hnd, EdgeWeight::new(0, 0)).unwrap();
+    let edge_double_const = Edge::new(const_hnd, mult_hnd, EdgeWeight::new(pack_f32(2.0f32), 1)).unwrap();
     // [2*(x mod 1)] -> output
-    let edge_mul_out = Edge::new_to_null(mult_hnd, EdgeWeight::new(0, 0, 0, 0));
+    let edge_mul_out = Edge::new_to_null(mult_hnd, EdgeWeight::new(0, 0));
     // -1 -> output
-    let edge_const_out = Edge::new_to_null(const_hnd, EdgeWeight::new(pack_f32(-1.0f32), 0, 0, 0));
+    let edge_const_out = Edge::new_to_null(const_hnd, EdgeWeight::new(pack_f32(-1.0f32), 0));
     
     let nodes = [(const_hnd, const_data), (mod_hnd, mod_data), (mult_hnd, mult_data)];
     let edges = [edge_in, edge_double, edge_double_const, edge_mul_out, edge_const_out];
