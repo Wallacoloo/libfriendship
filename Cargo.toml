@@ -18,9 +18,5 @@ sha2 = "0.5"
 url = "1.4"
 url_serde = "0.2"
 
-[dependencies.pwline]
-git = "https://github.com/wallacoloo/rust-pwline.git"
-
-
 [dev-dependencies]
 tempdir = "0.3"
