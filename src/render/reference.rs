@@ -49,12 +49,13 @@ enum MyNodeData {
 
 impl Renderer for RefRenderer {
     fn get_sample(&mut self, time: u64, ch: u8) -> f32 {
-        // Try to find the edge that goes to -> (Null, slot=0, ch=ch)
+        let slot = ch as u32;
+        // Try to find the edge that goes to -> (Null, slot==slot)
         let root_handle = NodeHandle::toplevel();
         // empty graph is 0 = silence
         self.nodes.get(&root_handle).map_or(0f32, |node| {
-            // find all edges to ([Null], slot=0, ch=ch)
-            self.sum_input_to_slot(&self.nodes, node, time, 0, ch, &Vec::new()) as f32
+            // find all edges to ([Null], slot=slot)
+            self.sum_input_to_slot(&self.nodes, node, time, slot, &Vec::new()) as f32
         })
     }
 }
@@ -69,8 +70,8 @@ impl RefRenderer {
             // TODO: we can avoid cloning by reversing the pop after recursing.
             let mut new_context = context.clone();
             let (new_nodes, head) = new_context.pop().unwrap();
-            // Sum the inputs to the matching slot/ch
-            self.sum_input_to_slot(new_nodes, &new_nodes[&head], time, edge.from_slot(), edge.from_ch(), &new_context)
+            // Sum the inputs to the matching slot
+            self.sum_input_to_slot(new_nodes, &new_nodes[&head], time, edge.from_slot(), &new_context)
         } else {
             // Reading from another node within the DAG
             let node = &nodes[&from];
@@ -80,25 +81,25 @@ impl RefRenderer {
                     new_context.push((nodes, from));
                     // Now find the *output* of the sub dag (or 0 if the sub dag has no outputs)
                     new_nodes.get(&NodeHandle::toplevel()).map_or(0f64, |root_node| {
-                        self.sum_input_to_slot(&new_nodes, root_node, time, edge.from_slot(), edge.from_ch(), &new_context)
+                        self.sum_input_to_slot(&new_nodes, root_node, time, edge.from_slot(), &new_context)
                     })
                 },
-                // Output = sum of all edges to Null of the same slot & ch, within the given DAG.
+                // Output = sum of all edges to Null of the same slot, within the given DAG.
                 MyNodeData::Graph(ref dag_handle) => {
                     // TODO: we can avoid cloning by reversing the push after recursing.
                     let mut new_context = context.clone();
                     new_context.push((nodes, from));
                     let subdag = &nodes[&NodeHandle::new_dag(dag_handle.clone())];
-                    self.sum_input_to_slot(nodes, &subdag, time, edge.from_slot(), edge.from_ch(), &new_context)
+                    self.sum_input_to_slot(nodes, &subdag, time, edge.from_slot(), &new_context)
                 }
-                // Output = sum of all inputs to slot 0 of the same ch.
+                // Output = sum of all inputs to slot 0.
                 MyNodeData::Delay => {
                     // The only nonzero output is slot=0.
                     if edge.from_slot() != 0 {
                         println!("Warning: attempt to read from Delay slot != 0");
                         0f64
                     } else {
-                        let delay_frames = self.sum_input_to_slot(nodes, node, time, 1, edge.from_ch(), context);
+                        let delay_frames = self.sum_input_to_slot(nodes, node, time, 1, context);
                         // Clamp delay value to [0, u64::max]
                         let delay_int = if delay_frames < 0f64 {
                             0u64
@@ -112,7 +113,7 @@ impl RefRenderer {
                         };
                         // t<0 -> value is 0.
                         time.checked_sub(delay_int).map_or(0f64, |origin_time| {
-                            self.sum_input_to_slot(nodes, node, origin_time, 0, edge.from_ch(), context)
+                            self.sum_input_to_slot(nodes, node, origin_time, 0, context)
                         })
                     }
                 },
@@ -129,8 +130,8 @@ impl RefRenderer {
                     } else {
                         // Sum all inputs from slot=0 and slot=2 into two separate
                         // variables, then multiply them.
-                        let val_a = self.sum_input_to_slot(nodes, node, time, 0, edge.from_ch(), context);
-                        let val_b = self.sum_input_to_slot(nodes, node, time, 1, edge.from_ch(), context);
+                        let val_a = self.sum_input_to_slot(nodes, node, time, 0, context);
+                        let val_b = self.sum_input_to_slot(nodes, node, time, 1, context);
                         val_a * val_b
                     }
                 },
@@ -141,8 +142,8 @@ impl RefRenderer {
                         0f64
                     } else {
                         // Sum all inputs
-                        let dividend = self.sum_input_to_slot(nodes, node, time, 0, edge.from_ch(), context);
-                        let divisor = self.sum_input_to_slot(nodes, node, time, 1, edge.from_ch(), context);
+                        let dividend = self.sum_input_to_slot(nodes, node, time, 0, context);
+                        let divisor = self.sum_input_to_slot(nodes, node, time, 1, context);
                         dividend / divisor
                     }
                 },
@@ -152,8 +153,8 @@ impl RefRenderer {
                         println!("Warning: attempt to read from Modulo slot != 0");
                         0f64
                     } else {
-                        let input_a = self.sum_input_to_slot(nodes, node, time, 0, edge.from_ch(), context);
-                        let input_b = self.sum_input_to_slot(nodes, node, time, 1, edge.from_ch(), context);
+                        let input_a = self.sum_input_to_slot(nodes, node, time, 0, context);
+                        let input_b = self.sum_input_to_slot(nodes, node, time, 1, context);
                         input_a.min(input_b)
                     }
                 }
@@ -164,9 +165,9 @@ impl RefRenderer {
                         0f64
                     } else {
                         // Sum all dividends
-                        let dividend = self.sum_input_to_slot(nodes, node, time, 0, edge.from_ch(), context);
+                        let dividend = self.sum_input_to_slot(nodes, node, time, 0, context);
                         // Sum all divisors
-                        let divisor = self.sum_input_to_slot(nodes, node, time, 1, edge.from_ch(), context);
+                        let divisor = self.sum_input_to_slot(nodes, node, time, 1, context);
                         let rem = dividend % divisor;
                         if rem < 0f64 {
                             // TODO: We may be losing precision here, if rem is small.
@@ -181,11 +182,11 @@ impl RefRenderer {
             }
         }
     }
-    /// Return the sum of all inputs into a specific slot/channel of the given
+    /// Return the sum of all inputs into a specific slot of the given
     /// node at the given time.
-    fn sum_input_to_slot(&self, nodes: &NodeMap, node: &Node, time: u64, slot: u32, ch: u8, context: &Vec<(&NodeMap, NodeHandle)>) -> f64 {
+    fn sum_input_to_slot(&self, nodes: &NodeMap, node: &Node, time: u64, slot: u32, context: &Vec<(&NodeMap, NodeHandle)>) -> f64 {
         let edges_in = node.inbound.iter().filter(|in_edge| {
-            in_edge.to_slot() == slot && in_edge.to_ch() == ch
+            in_edge.to_slot() == slot
         });
         edges_in.map(|edge| self.get_value(nodes, edge, time, context)).sum()
     }

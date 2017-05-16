@@ -20,9 +20,7 @@ use super::nullable_int::NullableInt;
 #[derive(Serialize, Deserialize)]
 pub struct EdgeWeight {
     from_slot: u32,
-    from_ch: u8,
     to_slot: u32,
-    to_ch: u8,
 }
 
 #[derive(Clone, Eq, PartialEq)]
@@ -155,15 +153,13 @@ impl RouteGraph {
                 for aliased_node in self.node_data_to_handles(&search) {
                     for edge_out in self.edges[&aliased_node].outbound.iter() {
                         // Consider all edges leaving this node that are reachable
-                        if edge_out.weight.from_slot == from.weight.to_slot &&
-                            edge_out.weight.from_ch == from.weight.to_ch {
+                        if edge_out.weight.from_slot == from.weight.to_slot {
                             // iter the edges back into this DAG.
                             for edge_in in self.paths_from_edge_to_node(edge_out, &aliased_node) {
                                 // Translate from edges INTO the dag to edges inside the DAG coming
                                 // from null.
                                 for edge in self.edges[&dagnode_handle].outbound.iter() {
-                                    if edge_in.weight.to_slot == edge.weight.from_slot &&
-                                        edge_in.weight.to_ch == edge.weight.from_ch {
+                                    if edge_in.weight.to_slot == edge.weight.from_slot {
                                         // Now we're back in the DAG; continue the search
                                         if self.is_edge_reachable(&edge, target) {
                                             return true
@@ -189,21 +185,18 @@ impl RouteGraph {
     fn are_edges_internally_connected(&self, from: &Edge, to: &Edge) -> bool {
         match self.node_data[&from.to_full()] {
             NodeData::Effect(ref effect) => effect.are_slots_connected(
-                from.weight.to_slot, from.weight.to_ch,
-                to.weight.from_slot, to.weight.from_ch),
+                from.weight.to_slot, to.weight.from_slot),
             // See if there's a path from (None->from.to) to (to.from->None) within the dag
             NodeData::Graph(ref dag_handle) => {
                 let dagnode_handle = NodeHandle::new_dag(dag_handle.clone());
                 // Consider all edges from (None->from.to)
                 self.edges[&dagnode_handle].outbound.iter().filter(|new_from| {
-                    new_from.weight.from_slot == from.weight.to_slot &&
-                        new_from.weight.from_ch == from.weight.to_ch
+                    new_from.weight.from_slot == from.weight.to_slot
                 })
                 // Check if there's a path to (None) and that the edge to (None) is (to.from->None)
                 .any(|new_from| {
                     self.paths_from_edge_to_node(new_from, &dagnode_handle).any(|new_to| {
-                        new_to.weight.to_slot == to.weight.from_slot &&
-                            new_to.weight.to_ch == to.weight.from_ch
+                        new_to.weight.to_slot == to.weight.from_slot
                     })
                 })
             }
@@ -221,15 +214,15 @@ impl RouteGraph {
         })
     }
     /// Returns true if there's a path from `in` to `out` at the toplevel DAG.
-    pub fn are_slots_connected(&self, in_slot: u32, in_ch: u8, out_slot: u32, out_ch: u8) -> bool {
+    pub fn are_slots_connected(&self, in_slot: u32, out_slot: u32) -> bool {
         // Consider all edges from None paired with all edges to None:
         let root_dag = NodeHandle::new_dag(DagHandle::toplevel());
         let edges_from = self.edges[&root_dag].outbound.iter().filter(|&edge| {
-            edge.weight.from_slot == in_slot && edge.weight.from_ch == in_ch
+            edge.weight.from_slot == in_slot
         });
         for edge_from in edges_from {
             let edges_to = self.edges[&root_dag].inbound.iter().filter(|&edge| {
-                edge.weight.to_slot == out_slot && edge.weight.to_ch == out_ch
+                edge.weight.to_slot == out_slot
             });
             for edge_to in edges_to {
                 if self.is_edge_reachable(edge_from, edge_to) {
@@ -391,20 +384,14 @@ impl Edge {
     pub fn to_slot(&self) -> u32 {
         self.weight.to_slot
     }
-    pub fn to_ch(&self) -> u8 {
-        self.weight.to_ch
-    }
     pub fn from_slot(&self) -> u32 {
         self.weight.from_slot
-    }
-    pub fn from_ch(&self) -> u8 {
-        self.weight.from_ch
     }
 }
 
 impl EdgeWeight {
-    pub fn new(from_slot: u32, from_ch: u8, to_slot: u32, to_ch: u8) -> Self {
-        Self{ from_slot, from_ch, to_slot, to_ch }
+    pub fn new(from_slot: u32, to_slot: u32) -> Self {
+        Self{ from_slot, to_slot }
     }
 }
 

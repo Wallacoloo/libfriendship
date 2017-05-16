@@ -65,9 +65,9 @@ pub struct EffectMeta {
 
 
 impl Effect {
-    pub fn are_slots_connected(&self, from_slot: u32, from_ch: u8, to_slot: u32, to_ch: u8) -> bool {
+    pub fn are_slots_connected(&self, from_slot: u32, to_slot: u32) -> bool {
         match self.graph {
-            Some(ref g) => g.are_slots_connected(from_slot, from_ch, to_slot, to_ch),
+            Some(ref g) => g.are_slots_connected(from_slot, to_slot),
             // For primitive effects, we assume ALL slots are connected.
             None => true,
         }
