@@ -18,7 +18,7 @@ use url::Url;
 use libfriendship::{Dispatch, Client};
 use libfriendship::dispatch::{OscRouteGraph, OscRenderer, OscResMan};
 use libfriendship::render::RefRenderer;
-use libfriendship::routing::{adjlist, NodeHandle, DagHandle, Edge, EdgeWeight, EffectId, EffectDesc, EffectMeta};
+use libfriendship::routing::{adjlist, NodeHandle, DagHandle, Edge, EdgeWeight, EffectId, EffectDesc, EffectMeta, EffectInput, EffectOutput};
 use libfriendship::routing::AdjList;
 use libfriendship::util::pack_f32;
 
@@ -65,7 +65,10 @@ fn create_multby2() -> EffectDesc {
         nodes: nodes.iter().cloned().collect(),
         edges: edges.iter().cloned().collect(),
     };
-    let meta = EffectMeta::new("MulBy2".into(), None);
+    let meta = EffectMeta::new("MulBy2".into(), None,
+        [(0, EffectInput::new("source".into(), 0))].iter().cloned().collect(),
+        [(0, EffectOutput::new("result".into(), 0))].iter().cloned().collect(),
+    );
     EffectDesc::new(meta, list)
 }
 
