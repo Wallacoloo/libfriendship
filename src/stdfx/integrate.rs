@@ -17,6 +17,7 @@ use super::{delay, f32constant, passthrough};
 /// This is done as an attempt to minimize rounding errors by ensuring each
 /// addition operand is approximately the same magnitude given a regular input.
 pub fn get_desc(bits: u8) -> EffectDesc {
+    assert!(bits >= 1); // Minimum size is length=2
     let length = 1 << (bits as u64);
     let half_length = length >> 1;
     let subnode_meta = if bits == 1 {
