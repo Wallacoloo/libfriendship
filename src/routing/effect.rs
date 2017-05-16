@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::Cursor;
 use std::ops::Deref;
 use std::rc::Rc;
@@ -61,7 +61,18 @@ pub struct EffectMeta {
     name: String,
     /// List of URLs where the Effect can be obtained
     urls: HashSet<url_serde::Serde<Url>>,
+    inputs: HashMap<u32, EffectInput>,
+    outputs: HashMap<u32, EffectInput>,
 }
+
+#[derive(Clone, Debug)]
+#[derive(Serialize, Deserialize)]
+pub struct EffectIO {
+    name: String,
+    channel: u8,
+}
+type EffectInput = EffectIO;
+type EffectOutput = EffectIO;
 
 
 impl Effect {
@@ -88,6 +99,9 @@ impl Effect {
                 meta: EffectMeta {
                     name: id.name.clone(),
                     urls: id.urls.clone(),
+                    // Primitive effects have undocumented I/O;
+                    inputs: Default::default(),
+                    outputs: Default::default(),
                 },
                 id: id,
                 graph: None,
@@ -177,13 +191,21 @@ impl EffectDesc {
 }
 
 impl EffectMeta {
-    pub fn new<U>(name: String, urls: U) -> Self 
+    pub fn new<U>(name: String, urls: U, inputs: HashMap<u32, EffectInput>, outputs: HashMap<u32, EffectOutput>) -> Self 
         where U: IntoIterator<Item=Url>
     {
         Self {
             name,
             urls: urls.into_iter().map(|url| url_serde::Serde(url)).collect(),
+            inputs,
+            outputs,
         }
+    }
+}
+
+impl EffectIO {
+    pub fn new(name: String, channel: u8) -> Self {
+        Self{ name, channel }
     }
 }
 

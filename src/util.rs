@@ -20,3 +20,11 @@ pub fn pack_f32(value: f32) -> u32 {
 pub fn unpack_f32(value: u32) -> f32 {
     unsafe { mem::transmute(value) }
 }
+
+/// Macro to create a GC collection from an array.
+/// Examples:
+/// ```
+/// let v: HashMap<u8, u8> = collect_arr![(0, 4), (1, 8)];
+/// ```
+#[macro_export]
+defmac!(collect_arr array => array.iter().cloned().collect());

@@ -33,7 +33,11 @@ pub fn get_desc() -> EffectDesc {
         nodes: nodes.iter().cloned().collect(),
         edges: edges.iter().cloned().collect(),
     };
-    EffectDesc::new(EffectMeta::new("UnitSaw".into(), None), list)
+    EffectDesc::new(EffectMeta::new("UnitSaw".into(), None,
+        // TODO: annotate I/O
+        collect_arr!{[]},
+        collect_arr!{[]},
+    ), list)
 }
 
 pub fn get_id() -> EffectId {

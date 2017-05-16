@@ -61,7 +61,11 @@ pub fn get_desc(bits: u8) -> EffectDesc {
 
     let list = AdjList { nodes, edges };
     let my_name = format!("FIR{}", length);
-    EffectDesc::new(EffectMeta::new(my_name, None), list)
+    EffectDesc::new(EffectMeta::new(my_name, None,
+        // TODO: annotate I/O
+        collect_arr!{[]},
+        collect_arr!{[]},
+    ), list)
 }
 
 pub fn get_id(bits: u8) -> EffectId {

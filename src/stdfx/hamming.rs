@@ -34,7 +34,11 @@ pub fn get_desc(n: u32) -> EffectDesc {
 
     let list = AdjList { nodes, edges };
     let my_name = format!("Hamming{}", n);
-    EffectDesc::new(EffectMeta::new(my_name, None), list)
+    EffectDesc::new(EffectMeta::new(my_name, None,
+        // TODO: annotate I/O
+        collect_arr!{[]},
+        collect_arr!{[]},
+    ), list)
 }
 
 pub fn get_id(n: u32) -> EffectId {
