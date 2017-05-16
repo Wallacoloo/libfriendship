@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use render::Renderer;
 use routing::{DagHandle, Edge, GraphWatcher, NodeData, NodeHandle};
+use routing::effect::{PrimitiveEffect, EffectData};
 use util::unpack_f32;
 
 type NodeMap = HashMap<NodeHandle, Node>;
@@ -21,28 +22,8 @@ enum MyNodeData {
     UserNode(NodeMap),
     /// This node is an instance of another DAG.
     Graph(DagHandle),
-    /// Primitive Delay effect
-    Delay,
-    /// Primitive Constant effect.
-    /// Also serves as a unit step;
-    /// Returns the float value for t >= 0, else 0.
-    F32Constant,
-    /// Primitive effect to multiply TWO input streams sample-wise.
-    Multiply,
-    /// Primitive effect to calculate A/B.
-    /// Note: because not all floating point numbers have inverses,
-    /// A * (1/B) != A/B. Hence, we need division (not inversion) for proper
-    /// precision.
-    Divide,
-    /// Primitive effect to calculate A%B (true modulo; not remainder.
-    /// Result, y,  is always positive: y is bounded by [0, B).
-    Modulo,
-    /// Primitive effect to return the sample-wise minimum of two input streams.
-    /// Max(A, B) can be implemented as -Min(-A, -B).
-    /// The choice to define Min instead of Max was mostly arbitrary,
-    /// and chosen because Min is more common in linear programming to avoid dealing
-    /// with Inf.
-    Minimum,
+    /// Primitive effect (delay, constant, etc).
+    Primitive(PrimitiveEffect),
     /// This node is a DAG definition. i.e. it holds the output edges of a DAG.
     DagIO,
 }
@@ -91,91 +72,93 @@ impl RefRenderer {
                     let subdag = &nodes[&NodeHandle::new_dag(dag_handle.clone())];
                     self.sum_input_to_slot(nodes, &subdag, time, edge.from_slot(), &new_context)
                 }
-                // Output = sum of all inputs to slot 0.
-                MyNodeData::Delay => {
-                    // The only nonzero output is slot=0.
-                    if edge.from_slot() != 0 {
-                        println!("Warning: attempt to read from Delay slot != 0");
-                        0f64
-                    } else {
-                        let delay_frames = self.sum_input_to_slot(nodes, node, time, 1, context);
-                        // Clamp delay value to [0, u64::max]
-                        let delay_int = if delay_frames < 0f64 {
-                            0u64
-                        } else if delay_frames > u64::max_value() as f64 {
-                            // TODO: u64::max isn't precisely representable in f64;
-                            // will this cause issues?
-                            u64::max_value()
+                MyNodeData::Primitive(prim) => match prim {
+                    // Output = sum of all inputs to slot 0.
+                    PrimitiveEffect::Delay => {
+                        // The only nonzero output is slot=0.
+                        if edge.from_slot() != 0 {
+                            println!("Warning: attempt to read from Delay slot != 0");
+                            0f64
                         } else {
-                            // Note: this conversion is flooring.
-                            delay_frames as u64
-                        };
-                        // t<0 -> value is 0.
-                        time.checked_sub(delay_int).map_or(0f64, |origin_time| {
-                            self.sum_input_to_slot(nodes, node, origin_time, 0, context)
-                        })
-                    }
-                },
-                MyNodeData::F32Constant => {
-                    // Float value is encoded via the slot.
-                    let value = edge.from_slot();
-                    unpack_f32(value) as f64
-                },
-                MyNodeData::Multiply => {
-                    // The only nonzero output is slot=0.
-                    if edge.from_slot() != 0 {
-                        println!("Warning: attempt to read from Multiply slot != 0");
-                        0f64
-                    } else {
-                        // Sum all inputs from slot=0 and slot=2 into two separate
-                        // variables, then multiply them.
-                        let val_a = self.sum_input_to_slot(nodes, node, time, 0, context);
-                        let val_b = self.sum_input_to_slot(nodes, node, time, 1, context);
-                        val_a * val_b
-                    }
-                },
-                MyNodeData::Divide => {
-                    // The only nonzero output is slot=0.
-                    if edge.from_slot() != 0 {
-                        println!("Warning: attempt to read from MultInv slot != 0");
-                        0f64
-                    } else {
-                        // Sum all inputs
-                        let dividend = self.sum_input_to_slot(nodes, node, time, 0, context);
-                        let divisor = self.sum_input_to_slot(nodes, node, time, 1, context);
-                        dividend / divisor
-                    }
-                },
-                MyNodeData::Minimum => {
-                    // The only nonzero output is slot=0.
-                    if edge.from_slot() != 0 {
-                        println!("Warning: attempt to read from Modulo slot != 0");
-                        0f64
-                    } else {
-                        let input_a = self.sum_input_to_slot(nodes, node, time, 0, context);
-                        let input_b = self.sum_input_to_slot(nodes, node, time, 1, context);
-                        input_a.min(input_b)
-                    }
-                }
-                MyNodeData::Modulo => {
-                    // The only nonzero output is slot=0.
-                    if edge.from_slot() != 0 {
-                        println!("Warning: attempt to read from Modulo slot != 0");
-                        0f64
-                    } else {
-                        // Sum all dividends
-                        let dividend = self.sum_input_to_slot(nodes, node, time, 0, context);
-                        // Sum all divisors
-                        let divisor = self.sum_input_to_slot(nodes, node, time, 1, context);
-                        let rem = dividend % divisor;
-                        if rem < 0f64 {
-                            // TODO: We may be losing precision here, if rem is small.
-                            // We should find a way to do true modulus.
-                            rem + divisor
+                            let delay_frames = self.sum_input_to_slot(nodes, node, time, 1, context);
+                            // Clamp delay value to [0, u64::max]
+                            let delay_int = if delay_frames < 0f64 {
+                                0u64
+                            } else if delay_frames > u64::max_value() as f64 {
+                                // TODO: u64::max isn't precisely representable in f64;
+                                // will this cause issues?
+                                u64::max_value()
+                            } else {
+                                // Note: this conversion is flooring.
+                                delay_frames as u64
+                            };
+                            // t<0 -> value is 0.
+                            time.checked_sub(delay_int).map_or(0f64, |origin_time| {
+                                self.sum_input_to_slot(nodes, node, origin_time, 0, context)
+                            })
+                        }
+                    },
+                    PrimitiveEffect::F32Constant => {
+                        // Float value is encoded via the slot.
+                        let value = edge.from_slot();
+                        unpack_f32(value) as f64
+                    },
+                    PrimitiveEffect::Multiply => {
+                        // The only nonzero output is slot=0.
+                        if edge.from_slot() != 0 {
+                            println!("Warning: attempt to read from Multiply slot != 0");
+                            0f64
                         } else {
-                            rem
+                            // Sum all inputs from slot=0 and slot=2 into two separate
+                            // variables, then multiply them.
+                            let val_a = self.sum_input_to_slot(nodes, node, time, 0, context);
+                            let val_b = self.sum_input_to_slot(nodes, node, time, 1, context);
+                            val_a * val_b
+                        }
+                    },
+                    PrimitiveEffect::Divide => {
+                        // The only nonzero output is slot=0.
+                        if edge.from_slot() != 0 {
+                            println!("Warning: attempt to read from MultInv slot != 0");
+                            0f64
+                        } else {
+                            // Sum all inputs
+                            let dividend = self.sum_input_to_slot(nodes, node, time, 0, context);
+                            let divisor = self.sum_input_to_slot(nodes, node, time, 1, context);
+                            dividend / divisor
+                        }
+                    },
+                    PrimitiveEffect::Minimum => {
+                        // The only nonzero output is slot=0.
+                        if edge.from_slot() != 0 {
+                            println!("Warning: attempt to read from Modulo slot != 0");
+                            0f64
+                        } else {
+                            let input_a = self.sum_input_to_slot(nodes, node, time, 0, context);
+                            let input_b = self.sum_input_to_slot(nodes, node, time, 1, context);
+                            input_a.min(input_b)
                         }
                     }
+                    PrimitiveEffect::Modulo => {
+                        // The only nonzero output is slot=0.
+                        if edge.from_slot() != 0 {
+                            println!("Warning: attempt to read from Modulo slot != 0");
+                            0f64
+                        } else {
+                            // Sum all dividends
+                            let dividend = self.sum_input_to_slot(nodes, node, time, 0, context);
+                            // Sum all divisors
+                            let divisor = self.sum_input_to_slot(nodes, node, time, 1, context);
+                            let rem = dividend % divisor;
+                            if rem < 0f64 {
+                                // TODO: We may be losing precision here, if rem is small.
+                                // We should find a way to do true modulus.
+                                rem + divisor
+                            } else {
+                                rem
+                            }
+                        }
+                    },
                 },
                 _ => panic!("Internal RefRenderer error: illegal node type"),
             }
@@ -194,20 +177,9 @@ impl RefRenderer {
         match *data {
             NodeData::Graph(ref handle) => MyNodeData::Graph(handle.clone()),
             NodeData::Effect(ref effect) => {
-                match effect.id().get_primitive_url() {
-                    Some(ref url) => {
-                        match url.path() {
-                            "/F32Constant" => MyNodeData::F32Constant,
-                            "/Delay" => MyNodeData::Delay,
-                            "/Multiply" => MyNodeData::Multiply,
-                            "/Divide" => MyNodeData::Divide,
-                            "/Modulo" => MyNodeData::Modulo,
-                            "/Minimum" => MyNodeData::Minimum,
-                            _ => panic!("Unrecognized primitive effect: {} (full url: {})", url.path(), url),
-                        }
-                    }
-                    None => {
-                        let graph = effect.routegraph().as_ref().unwrap();
+                match *effect.data() {
+                    EffectData::Primitive(e) => MyNodeData::Primitive(e),
+                    EffectData::RouteGraph(ref graph) => {
                         let mut nodes = HashMap::new();
                         for (node, data) in graph.iter_nodes() {
                             nodes.insert(node.clone(), Node::new(self.make_node(data)));

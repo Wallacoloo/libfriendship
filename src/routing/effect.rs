@@ -51,7 +51,7 @@ pub struct Effect {
     // TODO: Effects are immutable, so we can make this an AdjList and store
     // the connectivity information separately.
     // option, because effect MAY be primitive.
-    graph: Option<RouteGraph>,
+    data: EffectData,
 }
 
 #[derive(Clone, Debug)]
@@ -74,13 +74,47 @@ pub struct EffectIO {
 pub type EffectInput = EffectIO;
 pub type EffectOutput = EffectIO;
 
+/// Implementation details of an Effect.
+/// Either its route graph, a primitive effect, etc.
+pub enum EffectData {
+    RouteGraph(RouteGraph),
+    Primitive(PrimitiveEffect),
+}
+
+/// Effects that cannot be decomposed; they have no implementation details and
+/// must be implemented directly by the renderer.
+#[derive(Debug, Copy, Clone)]
+pub enum PrimitiveEffect {
+    /// Primitive Delay effect
+    Delay,
+    /// Primitive Constant effect.
+    /// Also serves as a unit step;
+    /// Returns the float value for t >= 0, else 0.
+    F32Constant,
+    /// Primitive effect to multiply TWO input streams sample-wise.
+    Multiply,
+    /// Primitive effect to calculate A/B.
+    /// Note: because not all floating point numbers have inverses,
+    /// A * (1/B) != A/B. Hence, we need division (not inversion) for proper
+    /// precision.
+    Divide,
+    /// Primitive effect to calculate A%B (true modulo; not remainder.
+    /// Result, y,  is always positive: y is bounded by [0, B).
+    Modulo,
+    /// Primitive effect to return the sample-wise minimum of two input streams.
+    /// Max(A, B) can be implemented as -Min(-A, -B).
+    /// The choice to define Min instead of Max was mostly arbitrary,
+    /// and chosen because Min is more common in linear programming to avoid dealing
+    /// with Inf.
+    Minimum,
+}
 
 impl Effect {
     pub fn are_slots_connected(&self, from_slot: u32, to_slot: u32) -> bool {
-        match self.graph {
-            Some(ref g) => g.are_slots_connected(from_slot, to_slot),
+        match self.data {
+            EffectData::RouteGraph(ref g) => g.are_slots_connected(from_slot, to_slot),
             // For primitive effects, we assume ALL slots are connected.
-            None => true,
+            _ => true,
         }
     }
     pub fn id(&self) -> EffectId {
@@ -94,7 +128,16 @@ impl Effect {
     /// resources, return an actual Effect.
     pub fn from_id(id: EffectId, resman: &ResMan) -> ResultE<Rc<Self>> {
         // For primitive effects, don't attempt to locate their descriptions (they don't exist)
-        if id.is_primitive() {
+        let prim_effect = id.get_primitive_url().map(|url| match url.path() {
+            "/F32Constant" => PrimitiveEffect::F32Constant,
+            "/Delay" => PrimitiveEffect::Delay,
+            "/Multiply" => PrimitiveEffect::Multiply,
+            "/Divide" => PrimitiveEffect::Divide,
+            "/Modulo" => PrimitiveEffect::Modulo,
+            "/Minimum" => PrimitiveEffect::Minimum,
+            _ => panic!("Unrecognized primitive effect: {} (full url: {})", url.path(), url),
+        });
+        if let Some(prim_effect) = prim_effect {
             let me = Self {
                 meta: EffectMeta {
                     name: id.name.clone(),
@@ -104,7 +147,7 @@ impl Effect {
                     outputs: Default::default(),
                 },
                 id: id,
-                graph: None,
+                data: EffectData::Primitive(prim_effect),
             };
             return Ok(Rc::new(me));
         }
@@ -122,7 +165,7 @@ impl Effect {
                             let me = Self {
                                 id,
                                 meta: desc.meta,
-                                graph: Some(graph),
+                                data: EffectData::RouteGraph(graph),
                             };
                             // TODO: implement some form of caching
                             return Ok(Rc::new(me));
@@ -138,8 +181,8 @@ impl Effect {
         // No matching effects
         Err(Error::NoMatchingEffect(id))
     }
-    pub fn routegraph(&self) -> &Option<RouteGraph> {
-        &self.graph
+    pub fn data(&self) -> &EffectData {
+        &self.data
     }
 }
 
