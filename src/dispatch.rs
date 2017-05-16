@@ -123,13 +123,13 @@ impl<R: Renderer + Default> Dispatch<R> {
                 }
             },
             OscToplevel::Renderer((), rend_msg) => match rend_msg {
-                OscRenderer::RenderRange((), (start, stop, num_ch)) => {
+                OscRenderer::RenderRange((), (start, stop, num_slots)) => {
                     // Avoid underflows if the range isn't positive.
                     if stop < start { return Ok(()); }
-                    let size = (stop-start)*(num_ch as u64);
+                    let size = (stop-start)*(num_slots as u64);
                     let mut buff: Vec<f32> = (0..size).map(|_| { 0f32 }).collect();
-                    self.renderer.fill_buffer(&mut buff, start, num_ch);
-                    self.audio_rendered(&buff, start, num_ch);
+                    self.renderer.fill_buffer(&mut buff, start, num_slots);
+                    self.audio_rendered(&buff, start, num_slots);
                 }
             },
             OscToplevel::ResMan((), res_msg) => match res_msg {
@@ -181,9 +181,9 @@ impl From<OscResMan> for OscToplevel {
 /// Calling any Client method on Dispatch routes it to all the Dispatch's own
 /// clients.
 impl<R: Renderer + Default> Dispatch<R> {
-    fn audio_rendered(&mut self, buffer: &[f32], idx: u64, num_ch: u32) {
+    fn audio_rendered(&mut self, buffer: &[f32], idx: u64, num_slots: u32) {
         for c in self.clients.values_mut() {
-            c.audio_rendered(buffer, idx, num_ch);
+            c.audio_rendered(buffer, idx, num_slots);
         }
     }
 }

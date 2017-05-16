@@ -2,7 +2,7 @@ use routing::GraphWatcher;
 /// Trait that allows for rendering a RouteGraph
 pub trait Renderer: GraphWatcher {
     fn get_sample(&mut self, idx: u64, slot: u32) -> f32;
-    // TODO: use a multidimensional array type for buffer; remove num_ch param
+    // TODO: use a multidimensional array type for buffer; remove num_slots param
     /// Fill the provided buffer with samples.
     /// Samples are interleaved by slot, e.g.
     /// [t=0,s=0; t=0,s=1; t=1,s=0; t=1,s=1; t=2,s=0; ...]
