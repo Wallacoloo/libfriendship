@@ -48,8 +48,7 @@ enum MyNodeData {
 }
 
 impl Renderer for RefRenderer {
-    fn get_sample(&mut self, time: u64, ch: u8) -> f32 {
-        let slot = ch as u32;
+    fn get_sample(&mut self, time: u64, slot: u32) -> f32 {
         // Try to find the edge that goes to -> (Null, slot==slot)
         let root_handle = NodeHandle::toplevel();
         // empty graph is 0 = silence

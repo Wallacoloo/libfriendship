@@ -55,10 +55,10 @@ pub enum OscRouteGraph {
 #[derive(OscMessage)]
 pub enum OscRenderer {
     /// Render a range of samples from [a, b)
-    /// Last argument indicates the number of channels to render.
-    /// TODO: The channel count should become a property of the RouteGraph.
+    /// Last argument indicates the number of slots to render.
+    /// TODO: The slot count should become a property of the RouteGraph.
     #[osc_address(address="render")]
-    RenderRange((), (u64, u64, u8)),
+    RenderRange((), (u64, u64, u32)),
 }
 
 /// OOSC message to /resman/<...>
@@ -181,7 +181,7 @@ impl From<OscResMan> for OscToplevel {
 /// Calling any Client method on Dispatch routes it to all the Dispatch's own
 /// clients.
 impl<R: Renderer + Default> Dispatch<R> {
-    fn audio_rendered(&mut self, buffer: &[f32], idx: u64, num_ch: u8) {
+    fn audio_rendered(&mut self, buffer: &[f32], idx: u64, num_ch: u32) {
         for c in self.clients.values_mut() {
             c.audio_rendered(buffer, idx, num_ch);
         }
