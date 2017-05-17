@@ -1,8 +1,10 @@
 // needed for returning Iterator traits
 #![feature(conservative_impl_trait)]
 
+extern crate byteorder;
 #[macro_use] extern crate defmac;
 extern crate digest;
+extern crate filebuffer;
 extern crate num;
 #[macro_use] extern crate osc_address_derive;
 extern crate osc_address;

@@ -1,9 +1,14 @@
 use std::path::PathBuf;
-use std::io::Read;
+use std::io;
+use std::io::{Cursor, Read};
 use std::fs;
 use std::fs::File;
+use std::path::Path;
+use std::rc::Rc;
 
+use byteorder::{LittleEndian, ReadBytesExt};
 use digest::digest_reader;
+use filebuffer::FileBuffer;
 use sha2::Sha256;
 
 use routing::EffectId;
@@ -14,6 +19,12 @@ use routing::EffectId;
 /// ~/.friendship, etc). Instead, designed to be configured by the host.
 pub struct ResMan {
     dirs: Vec<PathBuf>,
+}
+
+/// Audio that may be on-disk.
+#[derive(Clone)]
+pub struct AudioBuffer {
+    buffer: Rc<FileBuffer>,
 }
 
 impl ResMan {
@@ -27,9 +38,9 @@ impl ResMan {
     }
     /// Returns all definitions of the given effect in the form of an iterator
     ///   over boxed objects implementing io::Read.
-    pub fn find_effect<'a>(&'a self, id: &'a EffectId) -> impl Iterator<Item=Box<Read>> + 'a {
+    pub fn find_effect<'a>(&'a self, id: &'a EffectId) -> impl Iterator<Item=(PathBuf, File)> + 'a {
         self.iter_effect_files(id).map(|path| {
-            Box::new(File::open(path).unwrap()) as Box<Read>
+            (path.clone(), File::open(path).unwrap())
         })
     }
     fn iter_effect_files<'a>(&'a self, id: &'a EffectId) -> impl Iterator<Item=PathBuf> + 'a{
@@ -69,5 +80,28 @@ impl ResMan {
         .map(|dir_entry| {
             dir_entry.path()
         })
+    }
+}
+
+
+impl AudioBuffer {
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, io::Error> {
+        if path.as_ref().extension().map(|e| e == "f32").unwrap_or(false) {
+            // TODO: don't abort on failure; instead, treat as zero stream
+            Ok(Self {
+                buffer: Rc::new(FileBuffer::open(path)?)
+            })
+        } else {
+            Err(io::Error::new(io::ErrorKind::Other, format!("Unknown audio format for file: {:?}", path.as_ref())))
+        }
+    }
+    /// Read data from the buffer.
+    pub fn get(&self, idx: u64, ch: u8) -> f32 {
+        assert!(ch == 0);
+        // TODO: this isn't very dependable for 32-bit OSes.
+        let view = &self.buffer[idx as usize..idx as usize + 4];
+        let mut reader = Cursor::new(view);
+        // Read float or 0f32 if error (e.g. end of file?)
+        reader.read_f32::<LittleEndian>().unwrap_or(0f32)
     }
 }

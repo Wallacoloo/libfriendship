@@ -6,8 +6,10 @@ authors = ["Colin Wallace <wallacoloo@gmail.com>"]
 license = "MIT"
 
 [dependencies]
+byteorder = "1.0"
 defmac = "0.1"
 digest = {version="0.5", features=["std"]}
+filebuffer = "0.1"
 num = "0.1"
 osc_address = "0.2"
 osc_address_derive = "0.2"

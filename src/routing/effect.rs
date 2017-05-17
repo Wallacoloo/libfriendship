@@ -9,7 +9,7 @@ use sha2::Sha256;
 use url::Url;
 use url_serde;
 
-use resman::ResMan;
+use resman::{AudioBuffer, ResMan};
 use super::routegraph::RouteGraph;
 use super::adjlist::AdjList;
 
@@ -79,6 +79,7 @@ pub type EffectOutput = EffectIO;
 pub enum EffectData {
     RouteGraph(RouteGraph),
     Primitive(PrimitiveEffect),
+    Buffer(AudioBuffer),
 }
 
 /// Effects that cannot be decomposed; they have no implementation details and
@@ -151,8 +152,9 @@ impl Effect {
             };
             return Ok(Rc::new(me));
         }
+
         // Locate descriptions for non-primitive effects
-        for reader in resman.find_effect(&id) {
+        for (path, reader) in resman.find_effect(&id) {
             // Try to deserialize to an effect description
             let desc: Result<EffectDesc, serde_json::Error> = serde_json::from_reader(reader);
             match desc {
@@ -170,12 +172,31 @@ impl Effect {
                             // TODO: implement some form of caching
                             return Ok(Rc::new(me));
                         },
-                        Err(error) => {
-                            println!("Warning: RouteGraph::from_adjlist failed: {:?}", error)
-                        }
+                        Err(error) => println!("Warning: RouteGraph::from_adjlist failed: {:?}", error)
                     }
                 },
-                Err(error) => println!("Warning: unable to deserialize EffectDesc: {:?}", error)
+                Err(error) => {
+                    // Try parsing the file as an audio stream.
+                    if let Ok(buffer) = AudioBuffer::from_path(path) {
+                        let me = Self {
+                            meta: EffectMeta {
+                                name: id.name.clone(),
+                                urls: id.urls.clone(),
+                                // TODO: should be able to extract the number of outputs from the
+                                // audio buffer
+                                inputs: Default::default(),
+                                outputs: Default::default(),
+                            },
+                            // TODO: refactor to avoid this clone.
+                            id: id.clone(),
+                            data: EffectData::Buffer(buffer),
+                        };
+                        // TODO: implement some form of caching
+                        return Ok(Rc::new(me));
+                    } else {
+                        println!("Warning: unable to deserialize EffectDesc: {:?}", error)
+                    }
+                }
             }
         }
         // No matching effects

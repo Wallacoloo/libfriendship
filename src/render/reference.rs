@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use render::Renderer;
+use resman::AudioBuffer;
 use routing::{DagHandle, Edge, GraphWatcher, NodeData, NodeHandle};
 use routing::effect::{PrimitiveEffect, EffectData};
 use util::unpack_f32;
@@ -24,6 +25,8 @@ enum MyNodeData {
     Graph(DagHandle),
     /// Primitive effect (delay, constant, etc).
     Primitive(PrimitiveEffect),
+    /// External audio.
+    Buffer(AudioBuffer),
     /// This node is a DAG definition. i.e. it holds the output edges of a DAG.
     DagIO,
 }
@@ -179,6 +182,7 @@ impl RefRenderer {
             NodeData::Effect(ref effect) => {
                 match *effect.data() {
                     EffectData::Primitive(e) => MyNodeData::Primitive(e),
+                    EffectData::Buffer(ref buff) => MyNodeData::Buffer(buff.clone()),
                     EffectData::RouteGraph(ref graph) => {
                         let mut nodes = HashMap::new();
                         for (node, data) in graph.iter_nodes() {
