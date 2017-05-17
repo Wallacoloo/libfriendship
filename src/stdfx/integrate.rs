@@ -58,8 +58,8 @@ pub fn get_desc(bits: u8) -> EffectDesc {
     };
     let my_name = format!("Integrate{}", length);
     EffectDesc::new(EffectMeta::new(my_name, None,
-        collect_arr!{[ (0, EffectInput::new("source".into(), 0)) ]},
-        collect_arr!{[ (0, EffectOutput::new("result".into(), 0)) ]},
+        collect_arr!{[ EffectInput::new("source".into(), 0) ]},
+        collect_arr!{[ EffectOutput::new("result".into(), 0) ]},
     ), list)
 }
 

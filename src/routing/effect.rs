@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::io::Cursor;
 use std::ops::Deref;
 use std::rc::Rc;
@@ -61,8 +61,8 @@ pub struct EffectMeta {
     name: String,
     /// List of URLs where the Effect can be obtained
     urls: HashSet<url_serde::Serde<Url>>,
-    inputs: HashMap<u32, EffectInput>,
-    outputs: HashMap<u32, EffectInput>,
+    inputs: Vec<EffectInput>,
+    outputs: Vec<EffectOutput>,
 }
 
 #[derive(Clone, Debug)]
@@ -258,7 +258,7 @@ impl EffectDesc {
 }
 
 impl EffectMeta {
-    pub fn new<U>(name: String, urls: U, inputs: HashMap<u32, EffectInput>, outputs: HashMap<u32, EffectOutput>) -> Self 
+    pub fn new<U>(name: String, urls: U, inputs: Vec<EffectInput>, outputs: Vec<EffectOutput>) -> Self 
         where U: IntoIterator<Item=Url>
     {
         Self {
@@ -268,10 +268,10 @@ impl EffectMeta {
             outputs,
         }
     }
-    pub fn inputs(&self) -> &HashMap<u32, EffectInput> {
+    pub fn inputs(&self) -> &Vec<EffectInput> {
         &self.inputs
     }
-    pub fn outputs(&self) -> &HashMap<u32, EffectOutput> {
+    pub fn outputs(&self) -> &Vec<EffectOutput> {
         &self.outputs
     }
 }

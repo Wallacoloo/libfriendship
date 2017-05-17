@@ -33,7 +33,7 @@ pub fn get_desc(n: u32) -> EffectDesc {
     let nodes = handles().zip(node_data).collect();
 
     let outputs = (0..n).map(|i| {
-        (1+i, EffectOutput::new(format!("weight[{}]", 1+i), 0))
+        EffectOutput::new(format!("weight[{}]", 1), 0)
     });
 
     let list = AdjList { nodes, edges };

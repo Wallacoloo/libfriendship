@@ -34,8 +34,8 @@ pub fn get_desc() -> EffectDesc {
         edges: edges.iter().cloned().collect(),
     };
     EffectDesc::new(EffectMeta::new("UnitSaw".into(), None,
-        collect_arr!{[ (0, EffectInput::new("source".into(), 0)) ]},
-        collect_arr!{[ (0, EffectOutput::new("result".into(), 0)) ]},
+        collect_arr!{[ EffectInput::new("source".into(), 0) ]},
+        collect_arr!{[ EffectOutput::new("result".into(), 0) ]},
     ), list)
 }
 
