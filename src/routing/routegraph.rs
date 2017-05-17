@@ -89,6 +89,9 @@ impl RouteGraph {
     pub fn iter_edges<'a>(&'a self) -> impl Iterator<Item=&Edge> + 'a {
         self.edges.values().flat_map(|v_set| v_set.outbound.iter())
     }
+    pub fn get_data(&self, handle: &NodeHandle) -> Option<&NodeData> {
+        self.node_data.get(handle)
+    }
     /// Try to create a node with the given handle/data.
     /// Will error if the handle is already in use.
     pub fn add_node(&mut self, handle: NodeHandle, node_data: NodeData) -> ResultE<()> {

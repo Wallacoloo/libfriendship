@@ -32,11 +32,9 @@ impl Client for MyClient {
     }
 }
 
-fn test_setup() -> (Dispatch<RefRenderer>, Receiver<Vec<f32>>) {
+fn test_setup() -> (Dispatch<RefRenderer, MyClient>, Receiver<Vec<f32>>) {
     let (tx, rx) = channel();
-    let client = Box::new(MyClient{ tx });
-    let mut dispatch: Dispatch<RefRenderer> = Dispatch::new();
-    dispatch.register_client(client);
+    let dispatch = Dispatch::new(RefRenderer::default(), MyClient{ tx });
     (dispatch, rx)
 }
 

@@ -125,6 +125,9 @@ impl Effect {
             urls: self.meta.urls.clone(),
         }
     }
+    pub fn meta(&self) -> &EffectMeta {
+        &self.meta
+    }
     /// Given the effect's information, and an interface by which to load
     /// resources, return an actual Effect.
     pub fn from_id(id: EffectId, resman: &ResMan) -> ResultE<Rc<Self>> {

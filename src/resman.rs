@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 use std::io;
-use std::io::{Cursor, Read};
+use std::io::Cursor;
 use std::fs;
 use std::fs::File;
 use std::path::Path;
