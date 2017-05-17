@@ -67,6 +67,7 @@ pub enum Error {
 pub type ResultE<T> = Result<T, Error>;
 
 
+#[derive(Default)]
 pub struct RouteGraph {
     edges: HashMap<NodeHandle, EdgeSet>,
     node_data: HashMap<NodeHandle, NodeData>,
@@ -80,10 +81,7 @@ struct EdgeSet {
 
 impl RouteGraph {
     pub fn new() -> Self {
-        RouteGraph {
-            edges: HashMap::new(),
-            node_data: HashMap::new(),
-        }
+        Default::default()
     }
     pub fn iter_nodes<'a>(&'a self) -> impl Iterator<Item=(&NodeHandle, &NodeData)> + 'a {
         self.node_data.iter()

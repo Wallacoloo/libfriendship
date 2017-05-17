@@ -12,6 +12,7 @@ use routing;
 use routing::{Edge, Effect, NodeData, NodeHandle, RouteGraph};
 use routing::{adjlist, effect, routegraph};
 
+#[derive(Default)]
 pub struct Dispatch<R> {
     /// Contains the toplevel description of the audio being generated.
     routegraph: RouteGraph,
@@ -81,13 +82,11 @@ type ResultE<T> = Result<T, Error>;
 
 impl<R: Renderer + Default> Dispatch<R> {
     pub fn new() -> Dispatch<R> {
-        Dispatch {
-            routegraph: RouteGraph::new(),
-            renderer: Default::default(),
-            resman: ResMan::new(),
-            clients: HashMap::new(),
-        }
+        Default::default()
     }
+}
+
+impl<R: Renderer> Dispatch<R> {
     /// Registers the client to receive event messages.
     /// Returns the id that has been assigned to the client.
     pub fn register_client(&mut self, c: Box<Client>) -> u32 {
@@ -180,7 +179,7 @@ impl From<OscResMan> for OscToplevel {
 
 /// Calling any Client method on Dispatch routes it to all the Dispatch's own
 /// clients.
-impl<R: Renderer + Default> Dispatch<R> {
+impl<R: Renderer> Dispatch<R> {
     fn audio_rendered(&mut self, buffer: &[f32], idx: u64, num_slots: u32) {
         for c in self.clients.values_mut() {
             c.audio_rendered(buffer, idx, num_slots);
@@ -190,7 +189,7 @@ impl<R: Renderer + Default> Dispatch<R> {
 
 /// Calling any GraphWatcher method on Dispatch routes it to all the
 /// Dispatch's own GraphWatchers.
-impl<R: Renderer + Default> Dispatch<R> {
+impl<R: Renderer> Dispatch<R> {
     fn on_add_node(&mut self, node: &NodeHandle, data: &NodeData) {
         self.renderer.on_add_node(node, data);
     }
