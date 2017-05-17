@@ -268,6 +268,12 @@ impl EffectMeta {
             outputs,
         }
     }
+    pub fn inputs(&self) -> &HashMap<u32, EffectInput> {
+        &self.inputs
+    }
+    pub fn outputs(&self) -> &HashMap<u32, EffectOutput> {
+        &self.outputs
+    }
 }
 
 impl EffectIO {
