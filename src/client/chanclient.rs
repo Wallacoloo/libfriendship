@@ -11,6 +11,7 @@ pub struct MpscClient {
 
 /// Message to send across a channel, which encodes all the client
 /// callback variants.
+#[derive(Debug)]
 pub enum ClientMessage {
     /// audio_rendered(buffer, idx, slot) call
     AudioRendered(Vec<f32>, u64, u32),

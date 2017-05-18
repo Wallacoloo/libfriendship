@@ -16,7 +16,7 @@ use super::effect;
 use super::effect::Effect;
 use super::nullable_int::NullableInt;
 
-#[derive(Copy, Clone, Hash, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
 pub struct EdgeWeight {
     from_slot: u32,
@@ -35,14 +35,14 @@ pub type DagHandle = NullableInt<u32>;
 /// None represents the Dag's I/O
 type PrimNodeHandle = NullableInt<u32>;
 
-#[derive(Copy, Clone, Hash, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
 pub struct NodeHandle {
     dag_handle: DagHandle,
     node_handle: PrimNodeHandle,
 }
 
-#[derive(Clone, Hash, Eq, PartialEq)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
 pub struct Edge {
     dag_handle: DagHandle,
