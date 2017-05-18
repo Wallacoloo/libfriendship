@@ -11,9 +11,8 @@ use std::rc::Rc;
 
 use resman::ResMan;
 use super::adjlist::AdjList;
-use super::adjlist;
 use super::effect;
-use super::effect::{Effect, EffectId};
+use super::effect::Effect;
 use super::nullable_int::NullableInt;
 
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
@@ -126,46 +125,25 @@ impl RouteGraph {
         //   If we reach the boundary of the DAG while doing so, consider all reachable outbound
         //     edges of the DAG
         //     For each such edge, try to reach this DAG (recursively), and then resume the search for `edge`.
-        match from.to.get() {
+        if let Some(_to) = from.to.get() {
             // The edge points to a NODE inside a DAG.
-            Some(_to) => {
-                // Consider all (reachable) outgoing edges of the node:
-                if let Some(node_data) = self.edges.get(&from.to_full()) {
-                    for candidate_edge in &node_data.outbound {
-                        if self.are_edges_internally_connected(from, candidate_edge) && 
-                          self.is_edge_reachable(candidate_edge, target) {
-                            return true;
-                        }
+            // Consider all (reachable) outgoing edges of the node:
+            if let Some(node_data) = self.edges.get(&from.to_full()) {
+                for candidate_edge in &node_data.outbound {
+                    if self.are_edges_internally_connected(from, candidate_edge) && 
+                      self.is_edge_reachable(candidate_edge, target) {
+                        return true;
                     }
                 }
-            },
-            // The edge points to a DAG output.
-            None => {},
+            }
         }
         false
-    }
-    /// Return all edges into `to` that are reachable from `from`.
-    fn paths_from_edge_to_node<'a>(&'a self, from: &'a Edge, to: &'a NodeHandle) -> impl Iterator<Item=&'a Edge> + 'a {
-        self.edges[to].inbound.iter().filter(move |e| {
-            self.is_edge_reachable(from, e)
-        })
     }
     /// Assuming from.to() == to.from(), will return true if & only if
     /// from and to are internally connected within the node.
     fn are_edges_internally_connected(&self, from: &Edge, to: &Edge) -> bool {
         self.node_data[&from.to_full()]
             .are_slots_connected(from.weight.to_slot, to.weight.from_slot)
-    }
-    /// Return handles to all nodes that match the search.
-    /// Note: this iterates over EVERY node in the DAG.
-    fn node_data_to_handles<'a>(&'a self, data: &'a NodeData) -> impl Iterator<Item=NodeHandle> + 'a {
-        self.node_data.iter().filter_map(move |(handle, node)| {
-            if node == data {
-                Some(*handle)
-            } else {
-                None
-            }
-        })
     }
     /// Returns true if there's a path from `in` to `out` at the toplevel DAG.
     pub fn are_slots_connected(&self, in_slot: u32, out_slot: u32) -> bool {
@@ -314,9 +292,6 @@ impl Edge {
             to: to.node_handle,
             weight
         })
-    }
-    fn dag_handle(&self) -> &DagHandle {
-        &self.dag_handle
     }
     pub fn from_full(&self) -> NodeHandle {
         NodeHandle {

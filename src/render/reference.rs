@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use render::Renderer;
 use resman::AudioBuffer;
-use routing::{DagHandle, Edge, GraphWatcher, NodeData, NodeHandle};
+use routing::{Edge, GraphWatcher, NodeData, NodeHandle};
 use routing::effect::{PrimitiveEffect, EffectData};
 use util::unpack_f32;
 

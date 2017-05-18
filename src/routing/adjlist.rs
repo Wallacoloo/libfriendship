@@ -3,7 +3,7 @@
 /// but is static.
 
 
-use super::routegraph::{NodeHandle, DagHandle, Edge};
+use super::routegraph::{NodeHandle, Edge};
 use super::effect::EffectId;
 
 #[derive(Serialize, Deserialize)]

@@ -8,9 +8,8 @@ use std::ops::Range;
 use client::Client;
 use render::Renderer;
 use resman::ResMan;
-use routing;
 use routing::{Edge, Effect, NodeData, NodeHandle, RouteGraph, EffectId};
-use routing::{adjlist, effect, routegraph};
+use routing::{effect, routegraph};
 
 #[derive(Default)]
 pub struct Dispatch<R, C> {
