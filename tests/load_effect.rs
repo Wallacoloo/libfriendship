@@ -111,7 +111,7 @@ fn load_multby2() {
     // Read some data from ch=0.
     // This should be 0.5*5 = [2.5, 2.5, 2.5, 2.5]
     dispatch.dispatch(
-        OscRenderer::RenderRange((), (0, 4, 0))
+        OscRenderer::RenderRange((), ((0..4), 0))
     .into()).unwrap();
     let rendered = rx.recv().unwrap();
     assert_eq!(rendered, vec![2.5f32, 2.5f32, 2.5f32, 2.5f32]);

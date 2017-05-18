@@ -3,6 +3,7 @@
 //! and all commands are meant to pass through this instead.
 
 use std::path::Path;
+use std::ops::Range;
 
 use client::Client;
 use render::Renderer;
@@ -61,7 +62,7 @@ pub enum OscRenderer {
     /// Last argument indicates the number of slots to render.
     /// TODO: The slot count should become a property of the RouteGraph.
     #[osc_address(address="render")]
-    RenderRange((), (u64, u64, u32)),
+    RenderRange((), (Range<u64>, u32)),
 }
 
 /// OOSC message to /resman/<...>
@@ -133,13 +134,10 @@ impl<R: Renderer, C: Client> Dispatch<R, C> {
                 }
             },
             OscToplevel::Renderer((), rend_msg) => match rend_msg {
-                OscRenderer::RenderRange((), (start, stop, slot)) => {
-                    // Avoid underflows if the range isn't positive.
-                    if stop < start { return Ok(()); }
-                    let size = stop - start;
-                    let mut buff: Vec<f32> = (0..size).map(|_| { 0f32 }).collect();
-                    self.renderer.fill_buffer(&mut buff, start, slot);
-                    self.client.audio_rendered(&buff, start, slot);
+                OscRenderer::RenderRange((), (range, slot)) => {
+                    let mut buff: Vec<f32> = range.clone().map(|_| { 0f32 }).collect();
+                    self.renderer.fill_buffer(&mut buff, range.start, slot);
+                    self.client.audio_rendered(&buff, range.start, slot);
                 }
             },
             OscToplevel::ResMan((), res_msg) => match res_msg {
