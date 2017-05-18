@@ -6,15 +6,9 @@
 use super::routegraph::{NodeHandle, DagHandle, Edge};
 use super::effect::EffectId;
 
-#[derive(Clone)]
-#[derive(Serialize, Deserialize)]
-pub enum NodeData {
-    Effect(EffectId),
-}
-
 #[derive(Serialize, Deserialize)]
 pub struct AdjList {
-    pub nodes: Vec<(NodeHandle, NodeData)>,
+    pub nodes: Vec<(NodeHandle, EffectId)>,
     pub edges: Vec<Edge>,
 }
 

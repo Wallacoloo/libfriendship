@@ -25,7 +25,7 @@ pub fn get_desc(n: u32) -> EffectDesc {
         NodeHandle::new_node_toplevel(1+i)
     });
     let node_data = (0..n).map(|_| {
-        adjlist::NodeData::Effect(f32constant::get_id())
+        f32constant::get_id()
     });
     let edges = weights.zip(handles()).enumerate().map(|(i, (weight, hnd))| {
         Edge::new_to_null(hnd, EdgeWeight::new(pack_f32(weight as f32), i as u32))

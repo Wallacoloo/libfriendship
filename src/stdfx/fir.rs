@@ -16,7 +16,7 @@ pub fn get_desc(bits: u8) -> EffectDesc {
     assert!(bits < 32 && bits != 0);
     let length = 1 << (bits as u64);
     let half_length = length >> 1;
-    let subnode_meta = if bits == 1 {
+    let subnode_id = if bits == 1 {
         multiply::get_id()
     } else {
         get_id(bits-1)
@@ -27,9 +27,9 @@ pub fn get_desc(bits: u8) -> EffectDesc {
     let sub1_hnd = NodeHandle::new_node_toplevel(3);
     let sub2_hnd = NodeHandle::new_node_toplevel(4);
 
-    let delay_data = adjlist::NodeData::Effect(delay::get_id());
-    let delayamt_data = adjlist::NodeData::Effect(f32constant::get_id());
-    let sub1_data = adjlist::NodeData::Effect(subnode_meta);
+    let delay_data = delay::get_id();
+    let delayamt_data = f32constant::get_id();
+    let sub1_data = subnode_id;
     let sub2_data = sub1_data.clone();
     
     // NOTE: half_length guaranteed to fit in f32 because it's a power of two in the range of f32.

@@ -13,7 +13,7 @@ use resman::ResMan;
 use super::adjlist::AdjList;
 use super::adjlist;
 use super::effect;
-use super::effect::Effect;
+use super::effect::{Effect, EffectId};
 use super::nullable_int::NullableInt;
 
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
@@ -241,11 +241,8 @@ impl RouteGraph {
         let (nodes, edges) = (adj.nodes, adj.edges);
 
         // Map EffectId -> Effect
-        let nodes: ResultE<HashMap<NodeHandle, NodeData>> = nodes.into_iter().map(|(handle, data)| {
-            let decoded_data = match data {
-                adjlist::NodeData::Effect(id) =>
-                    NodeData::Effect(Effect::from_id(id, res)?),
-            };
+        let nodes: ResultE<HashMap<NodeHandle, NodeData>> = nodes.into_iter().map(|(handle, id)| {
+            let decoded_data = NodeData::Effect(Effect::from_id(id, res)?);
             Ok((handle, decoded_data))
         }).collect();
         // Type deduction isn't smart enough to unwrap nodes in above statement.
@@ -357,9 +354,9 @@ impl NodeData {
     /// in order to know their internal connections, etc.
     /// This transforms it into a type that is suitable for transmission, i.e.
     /// metadata explaining how to locate the correct effect implementation.
-    fn to_adjlist_data(&self) -> adjlist::NodeData {
+    fn to_adjlist_data(&self) -> EffectId {
         match *self {
-            NodeData::Effect(ref effect) => adjlist::NodeData::Effect(effect.id()),
+            NodeData::Effect(ref effect) => effect.id(),
         }
     }
 }

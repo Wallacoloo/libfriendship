@@ -10,8 +10,8 @@ pub fn get_desc() -> EffectDesc {
     let const_hnd = NodeHandle::new_node_toplevel(1);
     let mod_hnd = NodeHandle::new_node_toplevel(2);
 
-    let const_data = adjlist::NodeData::Effect(f32constant::get_id());
-    let mod_data = adjlist::NodeData::Effect(modulo::get_id());
+    let const_data = f32constant::get_id();
+    let mod_data = modulo::get_id();
 
     let edge_in = Edge::new_from_null(mod_hnd, EdgeWeight::new(0, 0));
     let edge_out = Edge::new_to_null(mod_hnd, EdgeWeight::new(0, 0));
