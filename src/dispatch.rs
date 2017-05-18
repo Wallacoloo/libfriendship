@@ -53,6 +53,9 @@ pub enum OscRouteGraph {
     /// Query a node's metadata: it's I/Os, etc.
     #[osc_address(address="query_meta")]
     QueryMeta((), (NodeHandle,)),
+    /// Query a node's id: it's SHA, name, etc.
+    #[osc_address(address="query_id")]
+    QueryId((), (NodeHandle,)),
 }
 
 /// OSC message to /renderer/<...>
@@ -126,7 +129,18 @@ impl<R: Renderer, C: Client> Dispatch<R, C> {
                     if let Some(node) = self.routegraph.get_data(&handle) {
                         match *node {
                             NodeData::Effect(ref effect) => {
-                                self.client.node_queried(&handle, effect.meta());
+                                self.client.node_meta(&handle, effect.meta());
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                OscRouteGraph::QueryId((), (handle,)) => {
+                    // TODO: probably log something on failure.
+                    if let Some(node) = self.routegraph.get_data(&handle) {
+                        match *node {
+                            NodeData::Effect(ref effect) => {
+                                self.client.node_id(&handle, &effect.id());
                             }
                             _ => {}
                         }

@@ -1,7 +1,7 @@
 use std::sync::mpsc::{channel, Receiver, Sender};
 
 use super::Client;
-use routing::{NodeHandle, EffectMeta};
+use routing::{NodeHandle, EffectMeta, EffectId};
 
 /// Client that turns all messages into an enum variant
 /// and sends them accross a thread-safe channel.
@@ -14,8 +14,10 @@ pub struct MpscClient {
 pub enum ClientMessage {
     /// audio_rendered(buffer, idx, slot) call
     AudioRendered(Vec<f32>, u64, u32),
-    /// node_queried(handle, meta) call
-    NodeQueried(NodeHandle, EffectMeta),
+    /// node_meta(handle, meta) call
+    NodeMeta(NodeHandle, EffectMeta),
+    /// node_id(handle, id) call
+    NodeId(NodeHandle, EffectId),
 }
 
 impl MpscClient {
@@ -29,7 +31,10 @@ impl Client for MpscClient {
     fn audio_rendered(&mut self, buffer: &[f32], idx: u64, slot: u32) {
         self.tx.send(ClientMessage::AudioRendered(buffer.to_vec(), idx, slot));
     }
-    fn node_queried(&mut self, handle: &NodeHandle, meta: &EffectMeta) {
-        self.tx.send(ClientMessage::NodeQueried(handle.clone(), meta.clone()));
+    fn node_meta(&mut self, handle: &NodeHandle, meta: &EffectMeta) {
+        self.tx.send(ClientMessage::NodeMeta(handle.clone(), meta.clone()));
+    }
+    fn node_id(&mut self, handle: &NodeHandle, id: &EffectId) {
+        self.tx.send(ClientMessage::NodeId(handle.clone(), id.clone()));
     }
 }
