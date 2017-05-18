@@ -292,6 +292,12 @@ impl EffectIO {
     pub fn channel(&self) -> u8 {
         self.channel
     }
+    pub fn is_source(&self) -> bool {
+        self.name == "source"
+    }
+    pub fn is_result(&self) -> bool {
+        self.name == "result"
+    }
 }
 
 impl PartialEq for EffectMeta {
