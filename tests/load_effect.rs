@@ -18,7 +18,7 @@ use url::Url;
 use libfriendship::{Dispatch, Client};
 use libfriendship::dispatch::{OscRouteGraph, OscRenderer, OscResMan};
 use libfriendship::render::RefRenderer;
-use libfriendship::routing::{adjlist, NodeHandle, DagHandle, Edge, EdgeWeight, EffectId, EffectDesc, EffectMeta, EffectInput, EffectOutput};
+use libfriendship::routing::{NodeHandle, DagHandle, Edge, EdgeWeight, EffectId, EffectDesc, EffectMeta, EffectInput, EffectOutput};
 use libfriendship::routing::AdjList;
 use libfriendship::util::pack_f32;
 
@@ -40,13 +40,9 @@ fn test_setup() -> (Dispatch<RefRenderer, MyClient>, Receiver<Vec<f32>>) {
 
 fn create_multby2() -> EffectDesc {
     let mult_hnd = NodeHandle::new_node(DagHandle::toplevel(), 1);
-    let mult_data = adjlist::NodeData::Effect(
-        EffectId::new("Multiply".into(), None, vec![Url::parse("primitive:///Multiply").unwrap()])
-    );
+    let mult_data = EffectId::new("Multiply".into(), None, vec![Url::parse("primitive:///Multiply").unwrap()]);
     let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 2);
-    let const_data = adjlist::NodeData::Effect(
-        EffectId::new("Constant".into(), None, vec![Url::parse("primitive:///F32Constant").unwrap()])
-    );
+    let const_data = EffectId::new("Constant".into(), None, vec![Url::parse("primitive:///F32Constant").unwrap()]);
 
     let nodes = collect_arr!{[(mult_hnd, mult_data), (const_hnd, const_data)]};
 
@@ -91,17 +87,17 @@ fn load_multby2() {
 
     // Create the MulBy2 node (id=1)
     let mul_hnd = NodeHandle::new_node(DagHandle::toplevel(), 1);
-    dispatch.dispatch(OscRouteGraph::AddNode((), (mul_hnd, adjlist::NodeData::Effect(
+    dispatch.dispatch(OscRouteGraph::AddNode((), (mul_hnd,
         EffectId::new("MulBy2".into(), Some(sha), None)
-    ))).into()).unwrap();
+    )).into()).unwrap();
     // Connect MulBy2 output to master output.
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(mul_hnd, EdgeWeight::new(0, 0)),)).into()).unwrap();
     
     // Create Constant node (id=2)
     let const_hnd = NodeHandle::new_node(DagHandle::toplevel(), 2);
-    dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
+    dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd,
         EffectId::new("Constant".into(), None, vec![Url::parse("primitive:///F32Constant").unwrap()])
-    ))).into()).unwrap();
+    )).into()).unwrap();
     // Route constant output to mul input
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mul_hnd, EdgeWeight::new(pack_f32(0.5f32), 0)).unwrap(),)).into()).unwrap();
     

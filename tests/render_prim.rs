@@ -10,7 +10,7 @@ use url::Url;
 use libfriendship::{Dispatch, Client};
 use libfriendship::dispatch::{OscRouteGraph, OscRenderer};
 use libfriendship::render::RefRenderer;
-use libfriendship::routing::{adjlist, Edge, EdgeWeight, EffectId, NodeHandle};
+use libfriendship::routing::{Edge, EdgeWeight, EffectId, NodeHandle};
 use libfriendship::util::pack_f32;
 
 
@@ -79,9 +79,7 @@ fn render_const() {
 
     // Route a constant into ch=0.
     let handle = NodeHandle::new_node_toplevel(1);
-    dispatch.dispatch(OscRouteGraph::AddNode((), (handle, adjlist::NodeData::Effect(
-        const_id()
-    ))).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddNode( (), (handle, const_id()) ).into()).unwrap();
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(handle, EdgeWeight::new(pack_f32(0.5f32), 0)),)).into()).unwrap();
     
     // Read some data from ch=0.
@@ -99,25 +97,19 @@ fn render_delay() {
 
     // Create delay node (id=1)
     let delay_hnd = NodeHandle::new_node_toplevel(1);
-    dispatch.dispatch(OscRouteGraph::AddNode((), (delay_hnd, adjlist::NodeData::Effect(
-        delay_id()
-    ))).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddNode( (), (delay_hnd, delay_id()) ).into()).unwrap();
     // Connect delay output to master output.
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(delay_hnd, EdgeWeight::new(0, 0)),)).into()).unwrap();
 
     // Create Constant node (id=2)
     let const_hnd = NodeHandle::new_node_toplevel(2);
-    dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
-        const_id()
-    ))).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to delay input
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, delay_hnd, EdgeWeight::new(pack_f32(0.5f32), 0)).unwrap(),)).into()).unwrap();
     
     // Create Constant node (id=3)
     let const_hnd = NodeHandle::new_node_toplevel(3);
-    dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
-        const_id()
-    ))).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to delay AMOUNT
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, delay_hnd, EdgeWeight::new(pack_f32(2f32), 1)).unwrap(),)).into()).unwrap();
 
@@ -136,25 +128,19 @@ fn render_mult() {
 
     // Create Multiply node (id=1)
     let mult_hnd = NodeHandle::new_node_toplevel(1);
-    dispatch.dispatch(OscRouteGraph::AddNode((), (mult_hnd, adjlist::NodeData::Effect(
-        mult_id()
-    ))).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddNode( (), (mult_hnd, mult_id()) ).into()).unwrap();
     // Connect delay output to master output.
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(mult_hnd, EdgeWeight::new(0, 0)),)).into()).unwrap();
     
     // Create Constant node (id=2)
     let const_hnd = NodeHandle::new_node_toplevel(2);
-    dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
-        const_id()
-    ))).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to multiply input (A)
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mult_hnd, EdgeWeight::new(pack_f32(0.5f32), 0)).unwrap(),)).into()).unwrap();
     
     // Create Constant node (id=3)
     let const_hnd = NodeHandle::new_node_toplevel(3);
-    dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
-        const_id()
-    ))).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to multiply input (B)
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mult_hnd, EdgeWeight::new(pack_f32(-3f32), 1)).unwrap(),)).into()).unwrap();
     
@@ -173,25 +159,19 @@ fn render_div() {
 
     // Create Divide node (id=1)
     let div_hnd = NodeHandle::new_node_toplevel(1);
-    dispatch.dispatch(OscRouteGraph::AddNode((), (div_hnd, adjlist::NodeData::Effect(
-        div_id()
-    ))).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddNode( (), (div_hnd, div_id()) ).into()).unwrap();
     // Connect delay output to master output.
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(div_hnd, EdgeWeight::new(0, 0)),)).into()).unwrap();
     
     // Create Constant node (id=2)
     let const_hnd = NodeHandle::new_node_toplevel(2);
-    dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
-        const_id()
-    ))).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to divide input (A)
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, div_hnd, EdgeWeight::new(pack_f32(0.5f32), 0)).unwrap(),)).into()).unwrap();
     
     // Create Constant node (id=3)
     let const_hnd = NodeHandle::new_node_toplevel(3);
-    dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
-        const_id()
-    ))).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to divide input (B)
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, div_hnd, EdgeWeight::new(pack_f32(-3f32), 1)).unwrap(),)).into()).unwrap();
     
@@ -211,25 +191,19 @@ fn render_mod() {
 
     // Create Modulo node (id=1)
     let mod_hnd = NodeHandle::new_node_toplevel(1);
-    dispatch.dispatch(OscRouteGraph::AddNode((), (mod_hnd, adjlist::NodeData::Effect(
-        mod_id()
-    ))).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddNode( (), (mod_hnd, mod_id()) ).into()).unwrap();
     // Connect delay output to master output.
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(mod_hnd, EdgeWeight::new(0, 0)),)).into()).unwrap();
     
     // Create Constant node (id=2)
     let const_hnd = NodeHandle::new_node_toplevel(2);
-    dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
-        const_id()
-    ))).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to modulo input (A)
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mod_hnd, EdgeWeight::new(pack_f32(-3.5f32), 0)).unwrap(),)).into()).unwrap();
     
     // Create Constant node (id=3)
     let const_hnd = NodeHandle::new_node_toplevel(3);
-    dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
-        const_id()
-    ))).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to modulo input (B)
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mod_hnd, EdgeWeight::new(pack_f32(2f32), 1)).unwrap(),)).into()).unwrap();
     
@@ -249,25 +223,19 @@ fn render_min() {
 
     // Create Modulo node (id=1)
     let min_hnd = NodeHandle::new_node_toplevel(1);
-    dispatch.dispatch(OscRouteGraph::AddNode((), (min_hnd, adjlist::NodeData::Effect(
-        min_id()
-    ))).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddNode( (), (min_hnd, min_id()) ).into()).unwrap();
     // Connect delay output to master output.
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(min_hnd, EdgeWeight::new(0, 0)),)).into()).unwrap();
     
     // Create Constant node (id=2)
     let const_hnd = NodeHandle::new_node_toplevel(2);
-    dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
-        const_id()
-    ))).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to modulo input (A)
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, min_hnd, EdgeWeight::new(pack_f32(-3.5f32), 0)).unwrap(),)).into()).unwrap();
     
     // Create Constant node (id=3)
     let const_hnd = NodeHandle::new_node_toplevel(3);
-    dispatch.dispatch(OscRouteGraph::AddNode((), (const_hnd, adjlist::NodeData::Effect(
-        const_id()
-    ))).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to modulo input (B)
     dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, min_hnd, EdgeWeight::new(pack_f32(2f32), 1)).unwrap(),)).into()).unwrap();
     
