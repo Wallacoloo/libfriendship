@@ -166,25 +166,21 @@ impl RefRenderer {
         edges_in.map(|edge| self.get_value(nodes, edge, time, context)).sum()
     }
 
-    fn make_node(&self, data: &NodeData) -> MyNodeData {
-        match *data {
-            NodeData::Effect(ref effect) => {
-                match *effect.data() {
-                    EffectData::Primitive(e) => MyNodeData::Primitive(e),
-                    EffectData::Buffer(ref buff) => MyNodeData::Buffer(buff.clone()),
-                    EffectData::RouteGraph(ref graph) => {
-                        let mut nodes = HashMap::new();
-                        for (node, data) in graph.iter_nodes() {
-                            nodes.insert(*node, Node::new(self.make_node(data)));
-                        }
-                        for edge in graph.iter_edges() {
-                            nodes.entry(edge.to_full()).or_insert_with(|| {
-                                Node::new(MyNodeData::DagIO)
-                            }).inbound.insert(edge.clone());
-                        }
-                        MyNodeData::UserNode(nodes)
-                    }
+    fn make_node(&self, effect: &NodeData) -> MyNodeData {
+        match *effect.data() {
+            EffectData::Primitive(e) => MyNodeData::Primitive(e),
+            EffectData::Buffer(ref buff) => MyNodeData::Buffer(buff.clone()),
+            EffectData::RouteGraph(ref graph) => {
+                let mut nodes = HashMap::new();
+                for (node, data) in graph.iter_nodes() {
+                    nodes.insert(*node, Node::new(self.make_node(data)));
                 }
+                for edge in graph.iter_edges() {
+                    nodes.entry(edge.to_full()).or_insert_with(|| {
+                        Node::new(MyNodeData::DagIO)
+                    }).inbound.insert(edge.clone());
+                }
+                MyNodeData::UserNode(nodes)
             }
         }
     }

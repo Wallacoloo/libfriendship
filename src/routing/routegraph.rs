@@ -23,10 +23,7 @@ pub struct EdgeWeight {
     to_slot: u32,
 }
 
-#[derive(Clone, Eq, PartialEq)]
-pub enum NodeData {
-    Effect(Rc<Effect>),
-}
+pub type NodeData = Rc<Effect>;
 
 /// None represents the Top-level DAG
 pub type DagHandle = NullableInt<u32>;
@@ -156,10 +153,8 @@ impl RouteGraph {
     /// Assuming from.to() == to.from(), will return true if & only if
     /// from and to are internally connected within the node.
     fn are_edges_internally_connected(&self, from: &Edge, to: &Edge) -> bool {
-        match self.node_data[&from.to_full()] {
-            NodeData::Effect(ref effect) => effect.are_slots_connected(
-                from.weight.to_slot, to.weight.from_slot),
-        }
+        self.node_data[&from.to_full()]
+            .are_slots_connected(from.weight.to_slot, to.weight.from_slot)
     }
     /// Return handles to all nodes that match the search.
     /// Note: this iterates over EVERY node in the DAG.
@@ -224,7 +219,7 @@ impl RouteGraph {
     pub fn to_adjlist(&self) -> AdjList {
         // Map Effect -> EffectId
         let nodes = self.node_data.iter().map(|(handle, data)| {
-            (*handle, data.to_adjlist_data())
+            (*handle, data.id())
         }).collect();
         // Doubly-linked edges -> singly-linked
         let edges = self.edges.iter().flat_map(|(_key, edgeset)| {
@@ -242,7 +237,7 @@ impl RouteGraph {
 
         // Map EffectId -> Effect
         let nodes: ResultE<HashMap<NodeHandle, NodeData>> = nodes.into_iter().map(|(handle, id)| {
-            let decoded_data = NodeData::Effect(Effect::from_id(id, res)?);
+            let decoded_data = Effect::from_id(id, res)?;
             Ok((handle, decoded_data))
         }).collect();
         // Type deduction isn't smart enough to unwrap nodes in above statement.
@@ -349,17 +344,6 @@ impl EdgeWeight {
     }
 }
 
-impl NodeData {
-    /// NodeData normally encodes references to actual node implementations -
-    /// in order to know their internal connections, etc.
-    /// This transforms it into a type that is suitable for transmission, i.e.
-    /// metadata explaining how to locate the correct effect implementation.
-    fn to_adjlist_data(&self) -> EffectId {
-        match *self {
-            NodeData::Effect(ref effect) => effect.id(),
-        }
-    }
-}
 
 impl EdgeSet {
     fn new() -> Self {

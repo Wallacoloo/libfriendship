@@ -103,7 +103,7 @@ impl<R: Renderer, C: Client> Dispatch<R, C> {
         match msg {
             OscToplevel::RouteGraph((), rg_msg) => match rg_msg {
                 OscRouteGraph::AddNode((), (handle, id)) => {
-                    let node_data = routing::NodeData::Effect(Effect::from_id(id, &self.resman)?);
+                    let node_data = Effect::from_id(id, &self.resman)?;
                     self.routegraph.add_node(handle, node_data.clone())?;
                     self.on_add_node(&handle, &node_data);
                 }
@@ -121,13 +121,13 @@ impl<R: Renderer, C: Client> Dispatch<R, C> {
                 }
                 OscRouteGraph::QueryMeta((), (handle,)) => {
                     // TODO: probably log something on failure.
-                    if let Some(&NodeData::Effect(ref effect)) = self.routegraph.get_data(&handle) {
+                    if let Some(effect) = self.routegraph.get_data(&handle) {
                         self.client.node_meta(&handle, effect.meta());
                     }
                 }
                 OscRouteGraph::QueryId((), (handle,)) => {
                     // TODO: probably log something on failure.
-                    if let Some(&NodeData::Effect(ref effect)) = self.routegraph.get_data(&handle) {
+                    if let Some(effect) = self.routegraph.get_data(&handle) {
                         self.client.node_id(&handle, &effect.id());
                     }
                 }
