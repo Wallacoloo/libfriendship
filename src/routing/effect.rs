@@ -274,11 +274,23 @@ impl EffectMeta {
     pub fn outputs(&self) -> &Vec<EffectOutput> {
         &self.outputs
     }
+    pub fn inputs_by_name<'a>(&'a self, name: &'a str) -> impl Iterator<Item=&EffectInput> + 'a {
+        self.inputs.iter().filter(move |item| item.name() == name)
+    }
+    pub fn outputs_by_name<'a>(&'a self, name: &'a str) -> impl Iterator<Item=&EffectOutput> + 'a {
+        self.outputs.iter().filter(move |item| item.name() == name)
+    }
 }
 
 impl EffectIO {
     pub fn new(name: String, channel: u8) -> Self {
         Self{ name, channel }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+    pub fn channel(&self) -> u8 {
+        self.channel
     }
 }
 
