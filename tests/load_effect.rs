@@ -27,7 +27,7 @@ struct MyClient {
     tx: Sender<Vec<f32>>,
 }
 impl Client for MyClient {
-    fn audio_rendered(&mut self, buffer: &[f32], _idx: u64, _num_slots: u32) {
+    fn audio_rendered(&mut self, buffer: &[f32], _idx: u64, _slot: u32) {
         self.tx.send(buffer.iter().cloned().collect()).unwrap();
     }
 }
@@ -64,8 +64,8 @@ fn create_multby2() -> EffectDesc {
         edges: edges.iter().cloned().collect(),
     };
     let meta = EffectMeta::new("MulBy2".into(), None,
-        [(0, EffectInput::new("source".into(), 0))].iter().cloned().collect(),
-        [(0, EffectOutput::new("result".into(), 0))].iter().cloned().collect(),
+        [ EffectInput::new("source".into(), 0) ].iter().cloned().collect(),
+        [ EffectOutput::new("result".into(), 0) ].iter().cloned().collect(),
     );
     EffectDesc::new(meta, list)
 }
@@ -111,7 +111,7 @@ fn load_multby2() {
     // Read some data from ch=0.
     // This should be 0.5*5 = [2.5, 2.5, 2.5, 2.5]
     dispatch.dispatch(
-        OscRenderer::RenderRange((), (0, 4, 1))
+        OscRenderer::RenderRange((), (0, 4, 0))
     .into()).unwrap();
     let rendered = rx.recv().unwrap();
     assert_eq!(rendered, vec![2.5f32, 2.5f32, 2.5f32, 2.5f32]);

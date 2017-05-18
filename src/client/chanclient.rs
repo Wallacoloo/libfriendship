@@ -12,7 +12,7 @@ pub struct MpscClient {
 /// Message to send across a channel, which encodes all the client
 /// callback variants.
 pub enum ClientMessage {
-    /// audio_rendered(buffer, idx, num_slots) call
+    /// audio_rendered(buffer, idx, slot) call
     AudioRendered(Vec<f32>, u64, u32),
     /// node_queried(handle, meta) call
     NodeQueried(NodeHandle, EffectMeta),
@@ -26,8 +26,8 @@ impl MpscClient {
 }
 
 impl Client for MpscClient {
-    fn audio_rendered(&mut self, buffer: &[f32], idx: u64, num_slots: u32) {
-        self.tx.send(ClientMessage::AudioRendered(buffer.to_vec(), idx, num_slots));
+    fn audio_rendered(&mut self, buffer: &[f32], idx: u64, slot: u32) {
+        self.tx.send(ClientMessage::AudioRendered(buffer.to_vec(), idx, slot));
     }
     fn node_queried(&mut self, handle: &NodeHandle, meta: &EffectMeta) {
         self.tx.send(ClientMessage::NodeQueried(handle.clone(), meta.clone()));
