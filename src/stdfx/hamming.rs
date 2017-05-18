@@ -6,7 +6,7 @@ use util::pack_f32;
 
 use super::f32constant;
 
-/// Get the EffectDesc for a Hamming window of size N.
+/// Get the `EffectDesc` for a Hamming window of size N.
 /// Each output is simply the weights for the corresponding index into the
 /// window.
 /// The coefficients used are the optimal Hamming coeffs,
@@ -33,7 +33,7 @@ pub fn get_desc(n: u32) -> EffectDesc {
     let nodes = handles().zip(node_data).collect();
 
     let outputs = (0..n).map(|i| {
-        EffectOutput::new(format!("weight[{}]", 1), 0)
+        EffectOutput::new(format!("weight[{}]", i), 0)
     });
 
     let list = AdjList { nodes, edges };

@@ -1,4 +1,4 @@
-//! Library of commonly-used effects - delays, filters, etc.
+//! Library of commonly used effects: delays, filters, etc.
 
 use routing::EffectDesc;
 
@@ -18,7 +18,7 @@ mod modulo_one;
 mod passthrough;
 mod unitsaw;
 
-/// Iterate over ALL the EffectDescs in the library.
+/// Iterate over ALL the `EffectDesc`s in the library.
 pub fn iter_all_effects() -> impl Iterator<Item=EffectDesc> {
     let effects = None.into_iter();
 

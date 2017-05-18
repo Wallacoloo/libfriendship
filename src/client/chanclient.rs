@@ -29,12 +29,13 @@ impl MpscClient {
 
 impl Client for MpscClient {
     fn audio_rendered(&mut self, buffer: &[f32], idx: u64, slot: u32) {
-        self.tx.send(ClientMessage::AudioRendered(buffer.to_vec(), idx, slot));
+        // TODO: Clients will disconnect; can we handle this more gracefully?
+        self.tx.send(ClientMessage::AudioRendered(buffer.to_vec(), idx, slot)).expect("Unable to reach Client");
     }
     fn node_meta(&mut self, handle: &NodeHandle, meta: &EffectMeta) {
-        self.tx.send(ClientMessage::NodeMeta(handle.clone(), meta.clone()));
+        self.tx.send(ClientMessage::NodeMeta(*handle, meta.clone())).expect("Unable to reach Client");
     }
     fn node_id(&mut self, handle: &NodeHandle, id: &EffectId) {
-        self.tx.send(ClientMessage::NodeId(handle.clone(), id.clone()));
+        self.tx.send(ClientMessage::NodeId(*handle, id.clone())).expect("Unable to reach Client");
     }
 }

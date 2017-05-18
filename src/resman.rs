@@ -44,9 +44,9 @@ impl ResMan {
     }
     fn iter_effect_files<'a>(&'a self, id: &'a EffectId) -> impl Iterator<Item=PathBuf> + 'a{
         self.iter_all_files().filter(move |f| {
-            match id.sha256() {
-                &None => true,
-                &Some(hash) => {
+            match *id.sha256() {
+                None => true,
+                Some(ref hash) => {
                     let mut file = File::open(f).unwrap();
                     let result = digest_reader::<Sha256>(&mut file).unwrap();
                     hash == result.as_slice()
@@ -96,7 +96,7 @@ impl AudioBuffer {
     }
     /// Read data from the buffer.
     pub fn get(&self, idx: u64, ch: u8) -> f32 {
-        assert!(ch == 0);
+        assert_eq!(ch, 0);
         // TODO: this isn't very dependable for 32-bit OSes.
         let view = &self.buffer[idx as usize..idx as usize + 4];
         let mut reader = Cursor::new(view);

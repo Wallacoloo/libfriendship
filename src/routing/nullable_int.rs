@@ -1,5 +1,5 @@
 //! Implements a nullable integer. i.e. behaves similarly to
-//! Option<NonZero<T>>
+//! `Option<NonZero<T>>`
 //! But freely serializes/deserializes/converts to T.
 //! 
 
@@ -38,13 +38,13 @@ impl<T: Copy + Zero> NullableInt<T> {
 }
 
 
-/// T is directly convertable to NullableInt<T>
+/// T is directly convertable to `NullableInt<T>`
 impl<T> From<T> for NullableInt<T> {
     fn from(raw: T) -> Self {
         Self{ raw }
     }
 }
-/// Option<T> is convertible to NullableInt:
+/// Option<T> is convertible to `NullableInt`:
 /// None maps to null,
 /// Some(0) maps to null
 /// Some(x) maps to x
@@ -62,12 +62,9 @@ impl<T: Zero + PartialEq + Copy> PartialEq<Option<T>> for NullableInt<T> {
     fn eq(&self, other: &Option<T>) -> bool {
         *self == Self::from(*other)
     }
-    fn ne(&self, other: &Option<T>) -> bool {
-        !self.eq(other)
-    }
 }
 
-/// All NullableInts Serialize as if they were normal ints.
+/// All `NullableInt`s Serialize as if they were normal ints.
 impl<T: Serialize> Serialize for NullableInt<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: Serializer

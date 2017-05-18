@@ -1,4 +1,4 @@
-/// Type that gets notifications whenever a component of a RouteGraph changes
+/// Type that gets notifications whenever a component of a `RouteGraph` changes
 
 use super::routegraph::{Edge, NodeData, NodeHandle};
 pub trait GraphWatcher {

@@ -27,4 +27,8 @@ pub fn unpack_f32(value: u32) -> f32 {
 /// let v: HashMap<u8, u8> = collect_arr![(0, 4), (1, 8)];
 /// ```
 #[macro_export]
-defmac!(collect_arr array => array.iter().cloned().collect());
+macro_rules! collect_arr {
+    ($val:expr) => {
+        $val.iter().cloned().collect()
+    }
+}

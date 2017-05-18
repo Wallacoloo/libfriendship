@@ -4,7 +4,7 @@ use util::pack_f32;
 
 use super::{f32constant, modulo_one, multiply};
 
-/// Get the EffectDesc for a function that computes a sawtooth wave, given
+/// Get the `EffectDesc` for a function that computes a sawtooth wave, given
 /// an index. Mathematically,
 /// y = -1 + 2*(x mod 1),
 /// where x is the index (slot 0 input) and y is the sawtooth (slot 0 output)
@@ -27,12 +27,10 @@ pub fn get_desc() -> EffectDesc {
     // -1 -> output
     let edge_const_out = Edge::new_to_null(const_hnd, EdgeWeight::new(pack_f32(-1.0f32), 0));
     
-    let nodes = [(const_hnd, const_data), (mod_hnd, mod_data), (mult_hnd, mult_data)];
-    let edges = [edge_in, edge_double, edge_double_const, edge_mul_out, edge_const_out];
-    let list = AdjList {
-        nodes: nodes.iter().cloned().collect(),
-        edges: edges.iter().cloned().collect(),
-    };
+    let nodes = collect_arr!{[(const_hnd, const_data), (mod_hnd, mod_data), (mult_hnd, mult_data)]};
+    let edges = collect_arr!{[edge_in, edge_double, edge_double_const, edge_mul_out, edge_const_out]};
+    let list = AdjList{ nodes, edges };
+
     EffectDesc::new(EffectMeta::new("UnitSaw".into(), None,
         collect_arr!{[ EffectInput::new("source".into(), 0) ]},
         collect_arr!{[ EffectOutput::new("result".into(), 0) ]},

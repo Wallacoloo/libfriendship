@@ -109,7 +109,7 @@ impl<R: Renderer, C: Client> Dispatch<R, C> {
                         adjlist::NodeData::Graph(dag_handle) =>
                             routing::NodeData::Graph(dag_handle),
                     };
-                    self.routegraph.add_node(handle.clone(), node_data.clone())?;
+                    self.routegraph.add_node(handle, node_data.clone())?;
                     self.on_add_node(&handle, &node_data);
                 }
                 OscRouteGraph::AddEdge((), (edge,)) => {
@@ -117,7 +117,7 @@ impl<R: Renderer, C: Client> Dispatch<R, C> {
                     self.on_add_edge(&edge);
                 }
                 OscRouteGraph::DelNode((), (handle,)) => {
-                    self.routegraph.del_node(handle.clone())?;
+                    self.routegraph.del_node(handle)?;
                     self.on_del_node(&handle);
                 }
                 OscRouteGraph::DelEdge((), (edge,)) => {
@@ -126,24 +126,14 @@ impl<R: Renderer, C: Client> Dispatch<R, C> {
                 }
                 OscRouteGraph::QueryMeta((), (handle,)) => {
                     // TODO: probably log something on failure.
-                    if let Some(node) = self.routegraph.get_data(&handle) {
-                        match *node {
-                            NodeData::Effect(ref effect) => {
-                                self.client.node_meta(&handle, effect.meta());
-                            }
-                            _ => {}
-                        }
+                    if let Some(&NodeData::Effect(ref effect)) = self.routegraph.get_data(&handle) {
+                        self.client.node_meta(&handle, effect.meta());
                     }
                 }
                 OscRouteGraph::QueryId((), (handle,)) => {
                     // TODO: probably log something on failure.
-                    if let Some(node) = self.routegraph.get_data(&handle) {
-                        match *node {
-                            NodeData::Effect(ref effect) => {
-                                self.client.node_id(&handle, &effect.id());
-                            }
-                            _ => {}
-                        }
+                    if let Some(&NodeData::Effect(ref effect)) = self.routegraph.get_data(&handle) {
+                        self.client.node_id(&handle, &effect.id());
                     }
                 }
             },
@@ -200,8 +190,7 @@ impl From<OscResMan> for OscToplevel {
 }
 
 
-/// Calling any GraphWatcher method on Dispatch routes it to all the
-/// Dispatch's own GraphWatchers.
+/// Route callbacks to wherever they need to go
 impl<R: Renderer, C> Dispatch<R, C> {
     fn on_add_node(&mut self, node: &NodeHandle, data: &NodeData) {
         self.renderer.on_add_node(node, data);

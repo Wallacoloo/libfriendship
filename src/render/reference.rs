@@ -64,16 +64,16 @@ impl RefRenderer {
                     new_context.push((nodes, from));
                     // Now find the *output* of the sub dag (or 0 if the sub dag has no outputs)
                     new_nodes.get(&NodeHandle::toplevel()).map_or(0f64, |root_node| {
-                        self.sum_input_to_slot(&new_nodes, root_node, time, edge.from_slot(), &new_context)
+                        self.sum_input_to_slot(new_nodes, root_node, time, edge.from_slot(), &new_context)
                     })
                 },
                 // Output = sum of all edges to Null of the same slot, within the given DAG.
-                MyNodeData::Graph(ref dag_handle) => {
+                MyNodeData::Graph(dag_handle) => {
                     // TODO: we can avoid cloning by reversing the push after recursing.
                     let mut new_context = context.clone();
                     new_context.push((nodes, from));
-                    let subdag = &nodes[&NodeHandle::new_dag(dag_handle.clone())];
-                    self.sum_input_to_slot(nodes, &subdag, time, edge.from_slot(), &new_context)
+                    let subdag = &nodes[&NodeHandle::new_dag(dag_handle)];
+                    self.sum_input_to_slot(nodes, subdag, time, edge.from_slot(), &new_context)
                 }
                 MyNodeData::Primitive(prim) => match prim {
                     // Output = sum of all inputs to slot 0.
@@ -178,7 +178,7 @@ impl RefRenderer {
 
     fn make_node(&self, data: &NodeData) -> MyNodeData {
         match *data {
-            NodeData::Graph(ref handle) => MyNodeData::Graph(handle.clone()),
+            NodeData::Graph(handle) => MyNodeData::Graph(handle),
             NodeData::Effect(ref effect) => {
                 match *effect.data() {
                     EffectData::Primitive(e) => MyNodeData::Primitive(e),
@@ -186,7 +186,7 @@ impl RefRenderer {
                     EffectData::RouteGraph(ref graph) => {
                         let mut nodes = HashMap::new();
                         for (node, data) in graph.iter_nodes() {
-                            nodes.insert(node.clone(), Node::new(self.make_node(data)));
+                            nodes.insert(*node, Node::new(self.make_node(data)));
                         }
                         for edge in graph.iter_edges() {
                             nodes.entry(edge.to_full()).or_insert_with(|| {
@@ -204,10 +204,10 @@ impl RefRenderer {
 impl GraphWatcher for RefRenderer {
     fn on_add_node(&mut self, handle: &NodeHandle, data: &NodeData) {
         let my_node_data = self.make_node(data);
-        self.nodes.insert(handle.clone(), Node::new(my_node_data));
+        self.nodes.insert(*handle, Node::new(my_node_data));
         // If the node is part of a new DAG, allocate data so that future edges
         // to null within the DAG can be held.
-        self.nodes.entry(NodeHandle::new_dag(handle.dag_handle().clone())).or_insert_with(|| {
+        self.nodes.entry(NodeHandle::new_dag(*handle.dag_handle())).or_insert_with(|| {
             Node::new(MyNodeData::DagIO)
         });
     }

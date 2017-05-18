@@ -2,7 +2,6 @@
 #![feature(conservative_impl_trait)]
 
 extern crate byteorder;
-#[macro_use] extern crate defmac;
 extern crate digest;
 extern crate filebuffer;
 extern crate num;

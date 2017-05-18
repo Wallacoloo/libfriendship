@@ -4,7 +4,7 @@ use util::pack_f32;
 
 use super::{delay, f32constant, passthrough};
 
-/// Get the EffectDesc for the integrate effect.
+/// Get the `EffectDesc` for the integrate effect.
 /// Integrate is constructed such that at any given time,
 /// y[t] = \sum_{n=0}^t x[n],
 /// where x is the input to slot 0,
@@ -48,14 +48,14 @@ pub fn get_desc(bits: u8) -> EffectDesc {
     // Output from sub2
     let edge_out2 = Edge::new_to_null(sub2_hnd, EdgeWeight::new(0, 0));
 
-    let nodes = [(delay_hnd, delay_data), (delayamt_hnd, delayamt_data),
-        (sub1_hnd, sub1_data), (sub2_hnd, sub2_data)];
-    let edges = [edge_delayamt, edge_delay_to_sub, edge_in1, edge_in2, edge_out1, edge_out2];
+    let nodes = collect_arr!{[
+        (delay_hnd, delay_data), (delayamt_hnd, delayamt_data),
+        (sub1_hnd, sub1_data), (sub2_hnd, sub2_data)
+    ]};
+    let edges = collect_arr!{[edge_delayamt, edge_delay_to_sub, edge_in1, edge_in2, edge_out1, edge_out2]};
 
-    let list = AdjList {
-        nodes: nodes.iter().cloned().collect(),
-        edges: edges.iter().cloned().collect(),
-    };
+    let list = AdjList{ nodes, edges };
+
     let my_name = format!("Integrate{}", length);
     EffectDesc::new(EffectMeta::new(my_name, None,
         collect_arr!{[ EffectInput::new("source".into(), 0) ]},

@@ -4,7 +4,7 @@ use util::pack_f32;
 
 use super::{delay, f32constant, multiply};
 
-/// Get the EffectDesc for the FIR effect.
+/// Get the `EffectDesc` for the FIR effect.
 /// FIR is constructed such that at any given time,
 /// y[t] = \sum_{n=0}^{LEN-1} x[t-n] * SLOT_{n+1}[t]
 /// 
@@ -56,8 +56,10 @@ pub fn get_desc(bits: u8) -> EffectDesc {
         .chain(edges_to_sub1)
         .chain(edges_to_sub2)
         .collect();
-    let nodes = [(delay_hnd, delay_data), (delayamt_hnd, delayamt_data),
-        (sub1_hnd, sub1_data), (sub2_hnd, sub2_data)].iter().cloned().collect();
+    let nodes = collect_arr!{[
+        (delay_hnd, delay_data), (delayamt_hnd, delayamt_data),
+        (sub1_hnd, sub1_data), (sub2_hnd, sub2_data)
+    ]};
 
     let inputs = Some(EffectInput::new("source".into(), 0)).into_iter()
         .chain( (0..length).map(|i| {

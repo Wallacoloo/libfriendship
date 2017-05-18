@@ -44,7 +44,7 @@ pub struct EffectDesc {
     adjlist: AdjList,
 }
 
-/// Validated version of EffectDesc. Guaranteed to be synthesizable.
+/// Validated version of `EffectDesc`. Guaranteed to be synthesizable.
 pub struct Effect {
     id: EffectId,
     meta: EffectMeta,
@@ -217,7 +217,7 @@ impl EffectId {
         Self {
             name,
             sha256,
-            urls: urls.into_iter().map(|url| url_serde::Serde(url)).collect(),
+            urls: urls.into_iter().map(url_serde::Serde).collect(),
         }
     }
     pub fn sha256(&self) -> &Option<[u8; 32]> {
@@ -263,7 +263,7 @@ impl EffectMeta {
     {
         Self {
             name,
-            urls: urls.into_iter().map(|url| url_serde::Serde(url)).collect(),
+            urls: urls.into_iter().map(url_serde::Serde).collect(),
             inputs,
             outputs,
         }

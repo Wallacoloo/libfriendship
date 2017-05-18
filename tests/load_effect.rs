@@ -1,6 +1,6 @@
 //! Test loading of effect definitions from the disk.
 
-extern crate libfriendship;
+#[macro_use] extern crate libfriendship;
 extern crate digest;
 extern crate serde_json;
 extern crate sha2;
@@ -28,7 +28,7 @@ struct MyClient {
 }
 impl Client for MyClient {
     fn audio_rendered(&mut self, buffer: &[f32], _idx: u64, _slot: u32) {
-        self.tx.send(buffer.iter().cloned().collect()).unwrap();
+        self.tx.send(buffer.to_vec()).unwrap();
     }
 }
 
@@ -48,7 +48,7 @@ fn create_multby2() -> EffectDesc {
         EffectId::new("Constant".into(), None, vec![Url::parse("primitive:///F32Constant").unwrap()])
     );
 
-    let nodes = [(mult_hnd, mult_data), (const_hnd, const_data)];
+    let nodes = collect_arr!{[(mult_hnd, mult_data), (const_hnd, const_data)]};
 
     // input data sent to multiply (A)
     let edge_in = Edge::new_from_null(mult_hnd, EdgeWeight::new(0, 0));
@@ -57,15 +57,12 @@ fn create_multby2() -> EffectDesc {
     // const data sent to multiply (B)
     let edge_const = Edge::new(const_hnd, mult_hnd, EdgeWeight::new(pack_f32(5.0f32), 1)).unwrap();
 
-    let edges = [edge_in, edge_out, edge_const];
+    let edges = collect_arr!{[edge_in, edge_out, edge_const]};
 
-    let list = AdjList {
-        nodes: nodes.iter().cloned().collect(),
-        edges: edges.iter().cloned().collect(),
-    };
+    let list = AdjList{ nodes, edges };
     let meta = EffectMeta::new("MulBy2".into(), None,
-        [ EffectInput::new("source".into(), 0) ].iter().cloned().collect(),
-        [ EffectOutput::new("result".into(), 0) ].iter().cloned().collect(),
+        collect_arr!{[ EffectInput::new("source".into(), 0) ]},
+        collect_arr!{[ EffectOutput::new("result".into(), 0) ]},
     );
     EffectDesc::new(meta, list)
 }
@@ -78,7 +75,7 @@ fn load_multby2() {
 
     // Add the temp dir as a search dir
     dispatch.dispatch(
-        OscResMan::AddDir((), (dir.path().to_str().unwrap().to_string(),)).into()
+        OscResMan::AddDir((), (dir.path().to_str().unwrap().into(),)).into()
     ).unwrap();
 
     // Write the effect definition to file

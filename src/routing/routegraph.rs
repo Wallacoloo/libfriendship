@@ -1,4 +1,4 @@
-/// RouteGraph defines a Directed Acyclic Graph of Effects.
+/// `RouteGraph` defines a Directed Acyclic Graph of Effects.
 /// The edges connecting each Effect have a source and destination slot, tag, and channel.
 /// Edges are also allowed to go to null, in which case they only have a destination slot and
 /// channel. These are outputs.
@@ -135,11 +135,10 @@ impl RouteGraph {
             Some(_to) => {
                 // Consider all (reachable) outgoing edges of the node:
                 if let Some(node_data) = self.edges.get(&from.to_full()) {
-                    for candidate_edge in node_data.outbound.iter() {
-                        if self.are_edges_internally_connected(&from, &candidate_edge) {
-                            if self.is_edge_reachable(candidate_edge, target) {
-                                return true;
-                            }
+                    for candidate_edge in &node_data.outbound {
+                        if self.are_edges_internally_connected(from, candidate_edge) && 
+                          self.is_edge_reachable(candidate_edge, target) {
+                            return true;
                         }
                     }
                 }
@@ -149,22 +148,21 @@ impl RouteGraph {
                 // Consider all nodes aliased to this DAG;
                 //   for each one, consider all paths that lead back to it &
                 //   continue the search.
-                let dagnode_handle = NodeHandle::new_dag(from.dag_handle().clone());
+                let dagnode_handle = NodeHandle::new_dag(*from.dag_handle());
                 let search = NodeData::Graph(from.dag_handle);
                 for aliased_node in self.node_data_to_handles(&search) {
-                    for edge_out in self.edges[&aliased_node].outbound.iter() {
+                    for edge_out in &self.edges[&aliased_node].outbound {
                         // Consider all edges leaving this node that are reachable
                         if edge_out.weight.from_slot == from.weight.to_slot {
                             // iter the edges back into this DAG.
                             for edge_in in self.paths_from_edge_to_node(edge_out, &aliased_node) {
                                 // Translate from edges INTO the dag to edges inside the DAG coming
                                 // from null.
-                                for edge in self.edges[&dagnode_handle].outbound.iter() {
-                                    if edge_in.weight.to_slot == edge.weight.from_slot {
-                                        // Now we're back in the DAG; continue the search
-                                        if self.is_edge_reachable(&edge, target) {
-                                            return true
-                                        }
+                                for edge in &self.edges[&dagnode_handle].outbound {
+                                    // Now we're back in the DAG; continue the search
+                                    if edge_in.weight.to_slot == edge.weight.from_slot &&
+                                      self.is_edge_reachable(edge, target) {
+                                        return true
                                     }
                                 }
                             }
@@ -178,7 +176,7 @@ impl RouteGraph {
     /// Return all edges into `to` that are reachable from `from`.
     fn paths_from_edge_to_node<'a>(&'a self, from: &'a Edge, to: &'a NodeHandle) -> impl Iterator<Item=&'a Edge> + 'a {
         self.edges[to].inbound.iter().filter(move |e| {
-            self.is_edge_reachable(&from, e)
+            self.is_edge_reachable(from, e)
         })
     }
     /// Assuming from.to() == to.from(), will return true if & only if
@@ -189,7 +187,7 @@ impl RouteGraph {
                 from.weight.to_slot, to.weight.from_slot),
             // See if there's a path from (None->from.to) to (to.from->None) within the dag
             NodeData::Graph(ref dag_handle) => {
-                let dagnode_handle = NodeHandle::new_dag(dag_handle.clone());
+                let dagnode_handle = NodeHandle::new_dag(*dag_handle);
                 // Consider all edges from (None->from.to)
                 self.edges[&dagnode_handle].outbound.iter().filter(|new_from| {
                     new_from.weight.from_slot == from.weight.to_slot
@@ -208,7 +206,7 @@ impl RouteGraph {
     fn node_data_to_handles<'a>(&'a self, data: &'a NodeData) -> impl Iterator<Item=NodeHandle> + 'a {
         self.node_data.iter().filter_map(move |(handle, node)| {
             if node == data {
-                Some(handle.clone())
+                Some(*handle)
             } else {
                 None
             }
@@ -247,7 +245,7 @@ impl RouteGraph {
                 }
             }
         };
-        if let Ok(_) = ok_to_delete {
+        if ok_to_delete.is_ok() {
             // delete the data associated with this node
             self.node_data.remove(&node);
         }
@@ -266,7 +264,7 @@ impl RouteGraph {
     pub fn to_adjlist(&self) -> AdjList {
         // Map Effect -> EffectId
         let nodes = self.node_data.iter().map(|(handle, data)| {
-            (handle.clone(), data.to_adjlist_data())
+            (*handle, data.to_adjlist_data())
         }).collect();
         // Doubly-linked edges -> singly-linked
         let edges = self.edges.iter().flat_map(|(_key, edgeset)| {
@@ -290,7 +288,7 @@ impl RouteGraph {
                 adjlist::NodeData::Graph(dag_handle) =>
                     NodeData::Graph(dag_handle),
             };
-            Ok((handle.clone(), decoded_data))
+            Ok((handle, decoded_data))
         }).collect();
         // Type deduction isn't smart enough to unwrap nodes in above statement.
         let nodes = nodes?;
@@ -302,8 +300,8 @@ impl RouteGraph {
         };
 
         // Add the edges one at a time, enforcing zero cycles
-        for edge in edges.into_iter() {
-            me.add_edge(edge)?
+        for edge in &edges {
+            me.add_edge(edge.clone())?
         }
         Ok(me)
     }
@@ -404,7 +402,7 @@ impl NodeData {
     fn to_adjlist_data(&self) -> adjlist::NodeData {
         match *self {
             NodeData::Effect(ref effect) => adjlist::NodeData::Effect(effect.id()),
-            NodeData::Graph(ref dag) => adjlist::NodeData::Graph(dag.clone()),
+            NodeData::Graph(dag) => adjlist::NodeData::Graph(dag),
         }
     }
 }

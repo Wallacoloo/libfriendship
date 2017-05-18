@@ -20,7 +20,7 @@ struct MyClient {
 }
 impl Client for MyClient {
     fn audio_rendered(&mut self, buffer: &[f32], _idx: u64, _slot: u32) {
-        self.tx.send(buffer.iter().cloned().collect()).unwrap();
+        self.tx.send(buffer.to_vec()).unwrap();
     }
 }
 
@@ -30,32 +30,32 @@ fn test_setup() -> (Dispatch<RefRenderer, MyClient>, Receiver<Vec<f32>>) {
     (dispatch, rx)
 }
 
-/// Return the EffectId that universally represents Delay nodes.
+/// Return the `EffectId` that universally represents `Delay` nodes.
 fn delay_id() -> EffectId {
     EffectId::new("Delay".into(), None, vec![Url::parse("primitive:///Delay").unwrap()])
 }
 
-/// Return the EffectId that universally represents F32Constant nodes.
+/// Return the `EffectId` that universally represents `F32Constant` nodes.
 fn const_id() -> EffectId {
     EffectId::new("F32Constant".into(), None, vec![Url::parse("primitive:///F32Constant").unwrap()])
 }
 
-/// Return the EffectId that universally represents Multiply nodes.
+/// Return the `EffectId` that universally represents `Multiply` nodes.
 fn mult_id() -> EffectId {
     EffectId::new("Multiply".into(), None, vec![Url::parse("primitive:///Multiply").unwrap()])
 }
 
-/// Return the EffectId that universally represents Divide nodes.
+/// Return the `EffectId` that universally represents `Divide` nodes.
 fn div_id() -> EffectId {
     EffectId::new("Divide".into(), None, vec![Url::parse("primitive:///Divide").unwrap()])
 }
 
-/// Return the EffectId that universally represents Modulo nodes.
+/// Return the `EffectId` that universally represents `Modulo` nodes.
 fn mod_id() -> EffectId {
     EffectId::new("Modulo".into(), None, vec![Url::parse("primitive:///Modulo").unwrap()])
 }
 
-/// Return the EffectId that universally represents Min nodes.
+/// Return the `EffectId` that universally represents `Minimum` nodes.
 fn min_id() -> EffectId {
     EffectId::new("Minimum".into(), None, vec![Url::parse("primitive:///Minimum").unwrap()])
 }
