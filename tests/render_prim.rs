@@ -67,7 +67,7 @@ fn render_zeros() {
     // Read some data from ch=0.
     // This should be all zeros because we have no data being rendered.
     dispatch.dispatch(
-        OscRenderer::RenderRange((), ((0..4), 0))
+        OscRenderer::RenderRange((), (0..4, 0))
     .into()).unwrap();
     let rendered = rx.recv().unwrap();
     assert_eq!(rendered, vec![0f32, 0f32, 0f32, 0f32]);
@@ -87,7 +87,7 @@ fn render_const() {
     // Read some data from ch=0.
     // This should be all 0.5 because of the new node we added.
     dispatch.dispatch(
-        OscRenderer::RenderRange((), ((0..4), 0))
+        OscRenderer::RenderRange((), (0..4, 0))
     .into()).unwrap();
     let rendered = rx.recv().unwrap();
     assert_eq!(rendered, vec![0.5f32, 0.5f32, 0.5f32, 0.5f32]);
@@ -124,7 +124,7 @@ fn render_delay() {
     // Read some data from ch=0.
     // This should be [0, 0, 0.5, 0.5]: constant but delayed by 2.
     dispatch.dispatch(
-        OscRenderer::RenderRange((), ((0..4), 0))
+        OscRenderer::RenderRange((), (0..4, 0))
     .into()).unwrap();
     let rendered = rx.recv().unwrap();
     assert_eq!(rendered, vec![0f32, 0f32, 0.5f32, 0.5f32]);
@@ -161,7 +161,7 @@ fn render_mult() {
     // Read some data from ch=0.
     // This should be 0.5 * -3.0 = -1.5
     dispatch.dispatch(
-        OscRenderer::RenderRange((), ((0..4), 0))
+        OscRenderer::RenderRange((), (0..4, 0))
     .into()).unwrap();
     let rendered = rx.recv().unwrap();
     assert_eq!(rendered, vec![-1.5f32, -1.5f32, -1.5f32, -1.5f32]);
@@ -198,7 +198,7 @@ fn render_div() {
     // Read some data from ch=0.
     // This should be 0.5 / -3.0 = -0.1666...
     dispatch.dispatch(
-        OscRenderer::RenderRange((), ((0..4), 0))
+        OscRenderer::RenderRange((), (0..4, 0))
     .into()).unwrap();
     let rendered = rx.recv().unwrap();
     let exp = 0.5f32 / -3.0f32;
@@ -236,7 +236,7 @@ fn render_mod() {
     // Read some data from ch=0.
     // This should be -3.5 % 2.0 = 0.5
     dispatch.dispatch(
-        OscRenderer::RenderRange((), ((0..4), 0))
+        OscRenderer::RenderRange((), (0..4, 0))
     .into()).unwrap();
     let rendered = rx.recv().unwrap();
     let exp = 0.5f32;
@@ -274,7 +274,7 @@ fn render_min() {
     // Read some data from ch=0.
     // This should be min(-3.5, 2.0) = -3.5
     dispatch.dispatch(
-        OscRenderer::RenderRange((), ((0..4), 0))
+        OscRenderer::RenderRange((), (0..4, 0))
     .into()).unwrap();
     let rendered = rx.recv().unwrap();
     let exp = -3.5f32;
