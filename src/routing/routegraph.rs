@@ -26,7 +26,6 @@ pub struct EdgeWeight {
 #[derive(Clone, Eq, PartialEq)]
 pub enum NodeData {
     Effect(Rc<Effect>),
-    Graph(DagHandle),
 }
 
 /// None represents the Top-level DAG
@@ -144,32 +143,7 @@ impl RouteGraph {
                 }
             },
             // The edge points to a DAG output.
-            None => {
-                // Consider all nodes aliased to this DAG;
-                //   for each one, consider all paths that lead back to it &
-                //   continue the search.
-                let dagnode_handle = NodeHandle::new_dag(*from.dag_handle());
-                let search = NodeData::Graph(from.dag_handle);
-                for aliased_node in self.node_data_to_handles(&search) {
-                    for edge_out in &self.edges[&aliased_node].outbound {
-                        // Consider all edges leaving this node that are reachable
-                        if edge_out.weight.from_slot == from.weight.to_slot {
-                            // iter the edges back into this DAG.
-                            for edge_in in self.paths_from_edge_to_node(edge_out, &aliased_node) {
-                                // Translate from edges INTO the dag to edges inside the DAG coming
-                                // from null.
-                                for edge in &self.edges[&dagnode_handle].outbound {
-                                    // Now we're back in the DAG; continue the search
-                                    if edge_in.weight.to_slot == edge.weight.from_slot &&
-                                      self.is_edge_reachable(edge, target) {
-                                        return true
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
+            None => {},
         }
         false
     }
@@ -185,20 +159,6 @@ impl RouteGraph {
         match self.node_data[&from.to_full()] {
             NodeData::Effect(ref effect) => effect.are_slots_connected(
                 from.weight.to_slot, to.weight.from_slot),
-            // See if there's a path from (None->from.to) to (to.from->None) within the dag
-            NodeData::Graph(ref dag_handle) => {
-                let dagnode_handle = NodeHandle::new_dag(*dag_handle);
-                // Consider all edges from (None->from.to)
-                self.edges[&dagnode_handle].outbound.iter().filter(|new_from| {
-                    new_from.weight.from_slot == from.weight.to_slot
-                })
-                // Check if there's a path to (None) and that the edge to (None) is (to.from->None)
-                .any(|new_from| {
-                    self.paths_from_edge_to_node(new_from, &dagnode_handle).any(|new_to| {
-                        new_to.weight.to_slot == to.weight.from_slot
-                    })
-                })
-            }
         }
     }
     /// Return handles to all nodes that match the search.
@@ -285,8 +245,6 @@ impl RouteGraph {
             let decoded_data = match data {
                 adjlist::NodeData::Effect(id) =>
                     NodeData::Effect(Effect::from_id(id, res)?),
-                adjlist::NodeData::Graph(dag_handle) =>
-                    NodeData::Graph(dag_handle),
             };
             Ok((handle, decoded_data))
         }).collect();
@@ -402,7 +360,6 @@ impl NodeData {
     fn to_adjlist_data(&self) -> adjlist::NodeData {
         match *self {
             NodeData::Effect(ref effect) => adjlist::NodeData::Effect(effect.id()),
-            NodeData::Graph(dag) => adjlist::NodeData::Graph(dag),
         }
     }
 }

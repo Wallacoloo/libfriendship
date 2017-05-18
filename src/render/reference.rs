@@ -21,8 +21,6 @@ struct Node {
 enum MyNodeData {
     /// This node is a non-primitive effect.
     UserNode(NodeMap),
-    /// This node is an instance of another DAG.
-    Graph(DagHandle),
     /// Primitive effect (delay, constant, etc).
     Primitive(PrimitiveEffect),
     /// External audio.
@@ -67,14 +65,6 @@ impl RefRenderer {
                         self.sum_input_to_slot(new_nodes, root_node, time, edge.from_slot(), &new_context)
                     })
                 },
-                // Output = sum of all edges to Null of the same slot, within the given DAG.
-                MyNodeData::Graph(dag_handle) => {
-                    // TODO: we can avoid cloning by reversing the push after recursing.
-                    let mut new_context = context.clone();
-                    new_context.push((nodes, from));
-                    let subdag = &nodes[&NodeHandle::new_dag(dag_handle)];
-                    self.sum_input_to_slot(nodes, subdag, time, edge.from_slot(), &new_context)
-                }
                 MyNodeData::Primitive(prim) => match prim {
                     // Output = sum of all inputs to slot 0.
                     PrimitiveEffect::Delay => {
@@ -178,7 +168,6 @@ impl RefRenderer {
 
     fn make_node(&self, data: &NodeData) -> MyNodeData {
         match *data {
-            NodeData::Graph(handle) => MyNodeData::Graph(handle),
             NodeData::Effect(ref effect) => {
                 match *effect.data() {
                     EffectData::Primitive(e) => MyNodeData::Primitive(e),

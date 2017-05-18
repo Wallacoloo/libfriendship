@@ -106,8 +106,6 @@ impl<R: Renderer, C: Client> Dispatch<R, C> {
                     let node_data = match data {
                         adjlist::NodeData::Effect(id) =>
                             routing::NodeData::Effect(Effect::from_id(id, &self.resman)?),
-                        adjlist::NodeData::Graph(dag_handle) =>
-                            routing::NodeData::Graph(dag_handle),
                     };
                     self.routegraph.add_node(handle, node_data.clone())?;
                     self.on_add_node(&handle, &node_data);

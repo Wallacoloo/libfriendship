@@ -10,7 +10,6 @@ use super::effect::EffectId;
 #[derive(Serialize, Deserialize)]
 pub enum NodeData {
     Effect(EffectId),
-    Graph(DagHandle),
 }
 
 #[derive(Serialize, Deserialize)]
