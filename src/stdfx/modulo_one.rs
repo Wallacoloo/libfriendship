@@ -7,8 +7,8 @@ use super::{f32constant, modulo};
 /// Get the `EffectDesc` for an effect that calculates y = (x mod 1.0),
 /// where x is input into slot 0, y is output from slot 0.
 pub fn get_desc() -> EffectDesc {
-    let const_hnd = NodeHandle::new_node_toplevel(1);
-    let mod_hnd = NodeHandle::new_node_toplevel(2);
+    let const_hnd = NodeHandle::new(1);
+    let mod_hnd = NodeHandle::new(2);
 
     let const_data = f32constant::get_id();
     let mod_data = modulo::get_id();

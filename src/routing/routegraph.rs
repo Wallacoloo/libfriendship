@@ -242,9 +242,6 @@ impl NodeHandle {
     {
         Self{ node_handle: node_handle.into() }
     }
-    pub fn new_node_toplevel(node: u32) -> Self {
-        Self::new(Some(node))
-    }
     pub fn node_handle(&self) -> &PrimNodeHandle {
         &self.node_handle
     }

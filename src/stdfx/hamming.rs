@@ -22,7 +22,7 @@ pub fn get_desc(n: u32) -> EffectDesc {
     });
 
     let handles = || (0..n).map(|i| {
-        NodeHandle::new_node_toplevel(1+i)
+        NodeHandle::new(1+i)
     });
     let node_data = (0..n).map(|_| {
         f32constant::get_id()

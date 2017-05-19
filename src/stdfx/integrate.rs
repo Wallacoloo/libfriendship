@@ -26,10 +26,10 @@ pub fn get_desc(bits: u8) -> EffectDesc {
         get_id(bits-1)
     };
 
-    let delay_hnd = NodeHandle::new_node_toplevel(1);
-    let delayamt_hnd = NodeHandle::new_node_toplevel(2);
-    let sub1_hnd = NodeHandle::new_node_toplevel(3);
-    let sub2_hnd = NodeHandle::new_node_toplevel(4);
+    let delay_hnd = NodeHandle::new(1);
+    let delayamt_hnd = NodeHandle::new(2);
+    let sub1_hnd = NodeHandle::new(3);
+    let sub2_hnd = NodeHandle::new(4);
 
     let delay_data = delay::get_id();
     let delayamt_data = f32constant::get_id();

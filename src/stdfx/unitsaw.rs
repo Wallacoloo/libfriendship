@@ -9,9 +9,9 @@ use super::{f32constant, modulo_one, multiply};
 /// y = -1 + 2*(x mod 1),
 /// where x is the index (slot 0 input) and y is the sawtooth (slot 0 output)
 pub fn get_desc() -> EffectDesc {
-    let const_hnd = NodeHandle::new_node_toplevel(1);
-    let mod_hnd = NodeHandle::new_node_toplevel(2);
-    let mult_hnd = NodeHandle::new_node_toplevel(3);
+    let const_hnd = NodeHandle::new(1);
+    let mod_hnd = NodeHandle::new(2);
+    let mult_hnd = NodeHandle::new(3);
 
     let const_data = f32constant::get_id();
     let mod_data = modulo_one::get_id();
