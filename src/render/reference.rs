@@ -192,7 +192,7 @@ impl GraphWatcher for RefRenderer {
         self.nodes.insert(*handle, Node::new(my_node_data));
         // If the node is part of a new DAG, allocate data so that future edges
         // to null within the DAG can be held.
-        self.nodes.entry(NodeHandle::new_dag(*handle.dag_handle())).or_insert_with(|| {
+        self.nodes.entry(NodeHandle::toplevel()).or_insert_with(|| {
             Node::new(MyNodeData::DagIO)
         });
     }

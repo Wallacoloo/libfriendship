@@ -25,7 +25,7 @@ pub struct EdgeWeight {
 pub type NodeData = Rc<Effect>;
 
 /// None represents the Top-level DAG
-pub type DagHandle = NullableInt<u32>;
+type DagHandle = NullableInt<u32>;
 
 /// None represents the Dag's I/O
 type PrimNodeHandle = NullableInt<u32>;
@@ -33,16 +33,14 @@ type PrimNodeHandle = NullableInt<u32>;
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
 pub struct NodeHandle {
-    dag_handle: DagHandle,
     node_handle: PrimNodeHandle,
 }
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
 pub struct Edge {
-    dag_handle: DagHandle,
-    from: PrimNodeHandle,
-    to: PrimNodeHandle,
+    from: NodeHandle,
+    to: NodeHandle,
     weight: EdgeWeight,
 }
 
@@ -125,7 +123,7 @@ impl RouteGraph {
         //   If we reach the boundary of the DAG while doing so, consider all reachable outbound
         //     edges of the DAG
         //     For each such edge, try to reach this DAG (recursively), and then resume the search for `edge`.
-        if let Some(_to) = from.to.get() {
+        if let Some(_to) = from.to.node_handle.get() {
             // The edge points to a NODE inside a DAG.
             // Consider all (reachable) outgoing edges of the node:
             if let Some(node_data) = self.edges.get(&from.to_full()) {
@@ -148,7 +146,7 @@ impl RouteGraph {
     /// Returns true if there's a path from `in` to `out` at the toplevel DAG.
     pub fn are_slots_connected(&self, in_slot: u32, out_slot: u32) -> bool {
         // Consider all edges from None paired with all edges to None:
-        let root_dag = NodeHandle::new_dag(DagHandle::toplevel());
+        let root_dag = NodeHandle::toplevel();
         let edges_from = self.edges[&root_dag].outbound.iter().filter(|&edge| {
             edge.weight.from_slot == in_slot
         });
@@ -237,25 +235,15 @@ impl RouteGraph {
 
 impl NodeHandle {
     pub fn toplevel() -> Self {
-        NodeHandle::new_dag(DagHandle::toplevel())
+        NodeHandle::new(None)
     }
-    pub fn new(dag: DagHandle, node: PrimNodeHandle) -> Self {
-        Self {
-            dag_handle: dag,
-            node_handle: node,
-        }
-    }
-    pub fn new_node(dag: DagHandle, node: u32) -> Self {
-        NodeHandle::new(dag, Some(node).into())
-    }
-    pub fn new_dag(dag: DagHandle) -> Self {
-        NodeHandle::new(dag, None.into())
+    pub fn new<T>(node_handle: T) -> Self
+        where T: Into<PrimNodeHandle>
+    {
+        Self{ node_handle: node_handle.into() }
     }
     pub fn new_node_toplevel(node: u32) -> Self {
-        Self::new_node(DagHandle::toplevel(), node)
-    }
-    pub fn dag_handle(&self) -> &DagHandle {
-        &self.dag_handle
+        Self::new(Some(node))
     }
     pub fn node_handle(&self) -> &PrimNodeHandle {
         &self.node_handle
@@ -266,44 +254,27 @@ impl Edge {
     /// Create an edge from `from` to null (i.e. an output)
     pub fn new_to_null(from: NodeHandle, weight: EdgeWeight) -> Self {
         Self {
-            dag_handle: from.dag_handle,
-            from: from.node_handle,
-            to: None.into(),
+            from,
+            to: NodeHandle::toplevel(),
             weight,
         }
     }
     pub fn new_from_null(to: NodeHandle, weight: EdgeWeight) -> Self {
         Self {
-            dag_handle: to.dag_handle,
-            from: None.into(),
-            to: to.node_handle,
+            from: NodeHandle::toplevel(),
+            to,
             weight
         }
     }
     /// Create an edge between the two nodes.
-    /// Note: nodes must be in the same DAG, else will return None.
-    pub fn new(from: NodeHandle, to: NodeHandle, weight: EdgeWeight) -> Option<Self> {
-        if from.dag_handle != to.dag_handle {
-            return None;
-        }
-        Some(Self {
-            dag_handle: from.dag_handle,
-            from: from.node_handle,
-            to: to.node_handle,
-            weight
-        })
+    pub fn new(from: NodeHandle, to: NodeHandle, weight: EdgeWeight) -> Self {
+        Self{ from, to, weight }
     }
     pub fn from_full(&self) -> NodeHandle {
-        NodeHandle {
-            dag_handle: self.dag_handle,
-            node_handle: self.from,
-        }
+        self.from
     }
     pub fn to_full(&self) -> NodeHandle {
-        NodeHandle {
-            dag_handle: self.dag_handle,
-            node_handle: self.to,
-        }
+        self.to
     }
     pub fn to_slot(&self) -> u32 {
         self.weight.to_slot
@@ -331,13 +302,6 @@ impl EdgeSet {
         self.outbound.is_empty() && self.inbound.is_empty()
     }
 }
-
-impl DagHandle {
-    pub fn toplevel() -> Self {
-        None.into()
-    }
-}
-
 
 
 /// Conversion from `effect::Error` for use with the `?` operator

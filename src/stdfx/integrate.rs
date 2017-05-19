@@ -37,8 +37,8 @@ pub fn get_desc(bits: u8) -> EffectDesc {
     let sub2_data = sub1_data.clone();
     
     // NOTE: half_length guaranteed to fit in f32 because it's a power of two in the range of f32.
-    let edge_delayamt = Edge::new(delayamt_hnd, delay_hnd, EdgeWeight::new(pack_f32(half_length as f32), 1)).unwrap();
-    let edge_delay_to_sub = Edge::new(delay_hnd, sub1_hnd, EdgeWeight::new(0, 0)).unwrap();
+    let edge_delayamt = Edge::new(delayamt_hnd, delay_hnd, EdgeWeight::new(pack_f32(half_length as f32), 1));
+    let edge_delay_to_sub = Edge::new(delay_hnd, sub1_hnd, EdgeWeight::new(0, 0));
     // Input to delay -> sub1
     let edge_in1 = Edge::new_from_null(delay_hnd, EdgeWeight::new(0, 0));
     // Input to sub2
