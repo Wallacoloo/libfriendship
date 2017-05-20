@@ -166,20 +166,22 @@ impl Effect {
             let desc: Result<EffectDesc, serde_json::Error> = serde_json::from_reader(reader);
             match desc {
                 Ok(desc) => {
-                    // TODO: since we've matched the effect, we only need to recalculate
-                    // the id if the original search had missing hashes.
-                    let id = desc.id();
-                    match RouteGraph::from_adjlist(desc.adjlist, resman) {
-                        Ok(graph) => {
-                            let me = Self {
-                                id,
-                                meta: desc.meta,
-                                data: EffectData::RouteGraph(graph),
-                            };
-                            // TODO: implement some form of caching
-                            return Ok(Rc::new(me));
-                        },
-                        Err(error) => warn!("RouteGraph::from_adjlist failed: {:?}", error)
+                    if desc.id().name() == id.name() {
+                        // TODO: since we've matched the effect, we only need to recalculate
+                        // the id if the original search had missing hashes.
+                        let id = desc.id();
+                        match RouteGraph::from_adjlist(desc.adjlist, resman) {
+                            Ok(graph) => {
+                                let me = Self {
+                                    id,
+                                    meta: desc.meta,
+                                    data: EffectData::RouteGraph(graph),
+                                };
+                                // TODO: implement some form of caching
+                                return Ok(Rc::new(me));
+                            },
+                            Err(error) => warn!("RouteGraph::from_adjlist failed: {:?}", error)
+                        }
                     }
                 },
                 Err(error) => {
@@ -224,6 +226,9 @@ impl EffectId {
             sha256,
             urls: urls.into_iter().map(url_serde::Serde).collect(),
         }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
     }
     pub fn sha256(&self) -> &Option<[u8; 32]> {
         &self.sha256
