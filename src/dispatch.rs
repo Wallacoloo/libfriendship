@@ -62,7 +62,6 @@ pub enum OscRouteGraph {
 pub enum OscRenderer {
     /// Render a range of samples from [a, b)
     /// Last argument indicates the number of slots to render.
-    /// TODO: The slot count should become a property of the RouteGraph.
     #[osc_address(address="render")]
     RenderRange((), (Range<u64>, u32)),
 }
@@ -119,15 +118,17 @@ impl<R: Renderer, C: Client> Dispatch<R, C> {
                     self.on_del_edge(&edge);
                 }
                 OscRouteGraph::QueryMeta((), (handle,)) => {
-                    // TODO: probably log something on failure.
                     if let Some(effect) = self.routegraph.get_data(&handle) {
                         self.client.node_meta(&handle, effect.meta());
+                    } else {
+                        warn!("QueryMeta: no such effect with handle: {:?}", handle);
                     }
                 }
                 OscRouteGraph::QueryId((), (handle,)) => {
-                    // TODO: probably log something on failure.
                     if let Some(effect) = self.routegraph.get_data(&handle) {
                         self.client.node_id(&handle, &effect.id());
+                    } else {
+                        warn!("QueryId: no such effect with handle: {:?}", handle);
                     }
                 }
             },
