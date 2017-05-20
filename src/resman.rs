@@ -58,7 +58,9 @@ impl ResMan {
     fn iter_all_files<'a>(&'a self) -> impl Iterator<Item=PathBuf> + 'a{
         // dirs as PathBuf -> valid ReadDir objects
         self.dirs.iter().filter_map(|dir_path| {
-            fs::read_dir(dir_path).ok()
+            fs::read_dir(dir_path)
+                .map_err(|e| warn!("ResMan: Failed to read directory {:?}: {}", dir_path, e))
+                .ok()
         })
         // ReadDir objects -> flat list of Result<DirEntry>
         .flat_map(|read_dir| {
@@ -66,7 +68,9 @@ impl ResMan {
         })
         // Result<DirEntry> -> DirEntry
         .filter_map(|dir_entry| {
-            dir_entry.ok()
+            dir_entry
+                .map_err(|e| warn!("ResMan: Failed to read directory entry: {}", e))
+                .ok()
         })
         // keep only the files
         .filter(|dir_entry| {
