@@ -42,7 +42,7 @@ impl ResMan {
             (path.clone(), File::open(path).unwrap())
         })
     }
-    fn iter_effect_files<'a>(&'a self, id: &'a EffectId) -> impl Iterator<Item=PathBuf> + 'a{
+    fn iter_effect_files<'a>(&'a self, id: &'a EffectId) -> impl Iterator<Item=PathBuf> + 'a {
         self.iter_all_files().filter(move |f| {
             trace!("Resman: testing hash for: {:?}", f);
             match *id.sha256() {
@@ -55,7 +55,7 @@ impl ResMan {
             }
         })
     }
-    fn iter_all_files<'a>(&'a self) -> impl Iterator<Item=PathBuf> + 'a{
+    fn iter_all_files<'a>(&'a self) -> impl Iterator<Item=PathBuf> + 'a {
         // dirs as PathBuf -> valid ReadDir objects
         self.dirs.iter().filter_map(|dir_path| {
             fs::read_dir(dir_path)
