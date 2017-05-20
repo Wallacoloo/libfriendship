@@ -28,13 +28,13 @@ pub fn iter_all_effects() -> impl Iterator<Item=EffectDesc> {
     let effects = effects.chain(Some(modulo_one::get_desc()).into_iter());
 
     // Integrate
-    let effects = effects.chain((1..65).map(|bits| {
+    let effects = effects.chain((1..64).map(|bits| {
         integrate::get_desc(bits)
     }));
 
     // Finite Impulse Response
     let effects = effects.chain((1..16).map(|bits| {
-        fir::get_desc(1 << bits)
+        fir::get_desc(bits)
     }));
 
     // Windowing function: Hamming
@@ -45,5 +45,7 @@ pub fn iter_all_effects() -> impl Iterator<Item=EffectDesc> {
     // Oscillator function: Sawtooth
     let effects = effects.chain(Some(unitsaw::get_desc()).into_iter());
 
-    effects
+    // TODO: remove this; just return effects.
+    // Currently done to prevent ICE
+    effects.collect::<Vec<_>>().into_iter()
 }
