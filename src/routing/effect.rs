@@ -182,6 +182,8 @@ impl Effect {
                             },
                             Err(error) => warn!("RouteGraph::from_adjlist failed: {:?}", error)
                         }
+                    } else {
+                        trace!("Effect names differ: wanted {:?} got {:?}", id.name(), desc.id().name());
                     }
                 },
                 Err(error) => {
