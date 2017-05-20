@@ -135,21 +135,27 @@ impl Effect {
             "/Divide" => PrimitiveEffect::Divide,
             "/Modulo" => PrimitiveEffect::Modulo,
             "/Minimum" => PrimitiveEffect::Minimum,
+            // TODO: return an error type
             _ => panic!("Unrecognized primitive effect: {} (full url: {})", url.path(), url),
         });
         if let Some(prim_effect) = prim_effect {
-            let me = Self {
-                meta: EffectMeta {
-                    name: id.name.clone(),
-                    urls: id.urls.clone(),
-                    // Primitive effects have undocumented I/O;
-                    inputs: Default::default(),
-                    outputs: Default::default(),
-                },
-                id: id,
-                data: EffectData::Primitive(prim_effect),
-            };
-            return Ok(Rc::new(me));
+            if id.sha256 == None {
+                let me = Self {
+                    meta: EffectMeta {
+                        name: id.name.clone(),
+                        urls: id.urls.clone(),
+                        // Primitive effects have undocumented I/O;
+                        inputs: Default::default(),
+                        outputs: Default::default(),
+                    },
+                    // sha256 was already verified; no need to update it
+                    id: id,
+                    data: EffectData::Primitive(prim_effect),
+                };
+                return Ok(Rc::new(me));
+            } else {
+                warn!("Attempted to load a primitive Effect, but cannot because of mismatched sha256");
+            }
         }
 
         // Locate descriptions for non-primitive effects
@@ -187,6 +193,7 @@ impl Effect {
                                 outputs: Default::default(),
                             },
                             // TODO: refactor to avoid this clone.
+                            // TODO: sha256 may need to be updated.
                             id: id.clone(),
                             data: EffectData::Buffer(buffer),
                         };
