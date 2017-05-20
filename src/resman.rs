@@ -23,8 +23,7 @@ pub struct ResMan {
 }
 
 /// Audio that may be on-disk.
-// TODO: derive Debug. FileBuffer doesn't have it implemented.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AudioBuffer {
     buffer: Rc<FileBuffer>,
 }

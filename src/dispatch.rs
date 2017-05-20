@@ -11,7 +11,7 @@ use resman::ResMan;
 use routing::{Edge, Effect, NodeData, NodeHandle, RouteGraph, EffectId};
 use routing::{effect, routegraph};
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Dispatch<R, C> {
     /// Contains the toplevel description of the audio being generated.
     routegraph: RouteGraph,

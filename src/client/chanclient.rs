@@ -5,6 +5,7 @@ use routing::{NodeHandle, EffectMeta, EffectId};
 
 /// Client that turns all messages into an enum variant
 /// and sends them accross a thread-safe channel.
+#[derive(Debug)]
 pub struct MpscClient {
     tx: Sender<ClientMessage>,
 }

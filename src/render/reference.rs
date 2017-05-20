@@ -8,16 +8,18 @@ use util::unpack_f32;
 
 type NodeMap = HashMap<NodeHandle, Node>;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct RefRenderer {
     nodes: NodeMap,
 }
 
+#[derive(Debug)]
 struct Node {
     data: MyNodeData,
     inbound: HashSet<Edge>
 }
 
+#[derive(Debug)]
 enum MyNodeData {
     /// This node is a non-primitive effect.
     UserNode(NodeMap),

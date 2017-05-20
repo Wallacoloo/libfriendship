@@ -6,6 +6,7 @@
 use super::routegraph::{NodeHandle, Edge};
 use super::effect::EffectId;
 
+#[derive(Debug)]
 #[derive(Serialize, Deserialize)]
 pub struct AdjList {
     pub nodes: Vec<(NodeHandle, EffectId)>,

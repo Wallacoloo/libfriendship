@@ -38,6 +38,7 @@ pub struct EffectId {
 
 /// All information that will be loaded from disk/network to describe how to
 /// synthesize the Effect.
+#[derive(Debug)]
 #[derive(Serialize, Deserialize)]
 pub struct EffectDesc {
     meta: EffectMeta,
@@ -45,6 +46,7 @@ pub struct EffectDesc {
 }
 
 /// Validated version of `EffectDesc`. Guaranteed to be synthesizable.
+#[derive(Debug)]
 pub struct Effect {
     id: EffectId,
     meta: EffectMeta,
@@ -76,6 +78,7 @@ pub type EffectOutput = EffectIO;
 
 /// Implementation details of an Effect.
 /// Either its route graph, a primitive effect, etc.
+#[derive(Debug)]
 pub enum EffectData {
     RouteGraph(RouteGraph),
     Primitive(PrimitiveEffect),

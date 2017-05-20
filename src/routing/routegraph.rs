@@ -57,12 +57,13 @@ pub enum Error {
 pub type ResultE<T> = Result<T, Error>;
 
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct RouteGraph {
     edges: HashMap<NodeHandle, EdgeSet>,
     node_data: HashMap<NodeHandle, NodeData>,
 }
 
+#[derive(Debug)]
 struct EdgeSet {
     outbound: HashSet<Edge>,
     inbound: HashSet<Edge>,
