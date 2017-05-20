@@ -24,9 +24,6 @@ pub struct EdgeWeight {
 
 pub type NodeData = Rc<Effect>;
 
-/// None represents the Top-level DAG
-type DagHandle = NullableInt<u32>;
-
 /// None represents the Dag's I/O
 type PrimNodeHandle = NullableInt<u32>;
 
