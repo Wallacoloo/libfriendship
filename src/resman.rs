@@ -101,7 +101,7 @@ impl AudioBuffer {
         }
     }
     /// Read data from the buffer.
-    pub fn get(&self, idx: u64, ch: u8) -> f32 {
+    pub fn get(&self, idx: u64, ch: u32) -> f32 {
         assert_eq!(ch, 0);
         // TODO: this isn't very dependable for 32-bit OSes.
         let view = &self.buffer[idx as usize..idx as usize + 4];

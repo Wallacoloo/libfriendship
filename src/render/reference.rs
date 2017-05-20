@@ -153,6 +153,8 @@ impl RefRenderer {
                         }
                     },
                 },
+                MyNodeData::Buffer(ref buf) => buf.get(time, edge.from_slot()) as f64,
+                // TODO: refactor to remove illegal enums
                 _ => panic!("Internal RefRenderer error: illegal node type"),
             }
         }
