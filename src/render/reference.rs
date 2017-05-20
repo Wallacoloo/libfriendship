@@ -70,7 +70,7 @@ impl RefRenderer {
                     PrimitiveEffect::Delay => {
                         // The only nonzero output is slot=0.
                         if edge.from_slot() != 0 {
-                            println!("Warning: attempt to read from Delay slot != 0");
+                            warn!("Attempt to read from Delay slot != 0");
                             0f64
                         } else {
                             let delay_frames = self.sum_input_to_slot(nodes, node, time, 1, context);
@@ -99,7 +99,7 @@ impl RefRenderer {
                     PrimitiveEffect::Multiply => {
                         // The only nonzero output is slot=0.
                         if edge.from_slot() != 0 {
-                            println!("Warning: attempt to read from Multiply slot != 0");
+                            warn!("Attempt to read from Multiply slot != 0");
                             0f64
                         } else {
                             // Sum all inputs from slot=0 and slot=2 into two separate
@@ -112,7 +112,7 @@ impl RefRenderer {
                     PrimitiveEffect::Divide => {
                         // The only nonzero output is slot=0.
                         if edge.from_slot() != 0 {
-                            println!("Warning: attempt to read from MultInv slot != 0");
+                            warn!("Attempt to read from MultInv slot != 0");
                             0f64
                         } else {
                             // Sum all inputs
@@ -124,7 +124,7 @@ impl RefRenderer {
                     PrimitiveEffect::Minimum => {
                         // The only nonzero output is slot=0.
                         if edge.from_slot() != 0 {
-                            println!("Warning: attempt to read from Modulo slot != 0");
+                            warn!("Attempt to read from Modulo slot != 0");
                             0f64
                         } else {
                             let input_a = self.sum_input_to_slot(nodes, node, time, 0, context);
@@ -135,7 +135,7 @@ impl RefRenderer {
                     PrimitiveEffect::Modulo => {
                         // The only nonzero output is slot=0.
                         if edge.from_slot() != 0 {
-                            println!("Warning: attempt to read from Modulo slot != 0");
+                            warn!("Attempt to read from Modulo slot != 0");
                             0f64
                         } else {
                             // Sum all dividends

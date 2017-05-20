@@ -44,6 +44,7 @@ impl ResMan {
     }
     fn iter_effect_files<'a>(&'a self, id: &'a EffectId) -> impl Iterator<Item=PathBuf> + 'a{
         self.iter_all_files().filter(move |f| {
+            trace!("Resman: testing hash for: {:?}", f);
             match *id.sha256() {
                 None => true,
                 Some(ref hash) => {
