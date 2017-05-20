@@ -128,15 +128,17 @@ impl Effect {
     /// resources, return an actual Effect.
     pub fn from_id(id: EffectId, resman: &ResMan) -> ResultE<Rc<Self>> {
         // For primitive effects, don't attempt to locate their descriptions (they don't exist)
-        let prim_effect = id.get_primitive_url().map(|url| match url.path() {
-            "/F32Constant" => PrimitiveEffect::F32Constant,
-            "/Delay" => PrimitiveEffect::Delay,
-            "/Multiply" => PrimitiveEffect::Multiply,
-            "/Divide" => PrimitiveEffect::Divide,
-            "/Modulo" => PrimitiveEffect::Modulo,
-            "/Minimum" => PrimitiveEffect::Minimum,
-            // TODO: return an error type
-            _ => panic!("Unrecognized primitive effect: {} (full url: {})", url.path(), url),
+        let prim_effect = id.get_primitive_url().and_then(|url| match url.path() {
+            "/F32Constant" => Some(PrimitiveEffect::F32Constant),
+            "/Delay"       => Some(PrimitiveEffect::Delay),
+            "/Multiply"    => Some(PrimitiveEffect::Multiply),
+            "/Divide"      => Some(PrimitiveEffect::Divide),
+            "/Modulo"      => Some(PrimitiveEffect::Modulo),
+            "/Minimum"     => Some(PrimitiveEffect::Minimum),
+            _ => {
+                warn!("Unrecognized primitive effect: {} (full url: {})", url.path(), url);
+                None
+            }
         });
         if let Some(prim_effect) = prim_effect {
             if id.sha256 == None {
