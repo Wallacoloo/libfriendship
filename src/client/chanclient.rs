@@ -26,17 +26,23 @@ impl MpscClient {
         let (tx, rx) = channel();
         (Self{ tx }, rx)
     }
+    fn send(&self, msg: ClientMessage) {
+        trace!("Sending message to Client: {:?}", msg);
+        if let Err(msg) = self.tx.send(msg) {
+            warn!("Unable to send message to Client: {:?}", msg);
+        }
+    }
 }
 
 impl Client for MpscClient {
     fn audio_rendered(&mut self, buffer: &[f32], idx: u64, slot: u32) {
         // TODO: Clients will disconnect; can we handle this more gracefully?
-        self.tx.send(ClientMessage::AudioRendered(buffer.to_vec(), idx, slot)).expect("Unable to reach Client");
+        self.send(ClientMessage::AudioRendered(buffer.to_vec(), idx, slot));
     }
     fn node_meta(&mut self, handle: &NodeHandle, meta: &EffectMeta) {
-        self.tx.send(ClientMessage::NodeMeta(*handle, meta.clone())).expect("Unable to reach Client");
+        self.send(ClientMessage::NodeMeta(*handle, meta.clone()));
     }
     fn node_id(&mut self, handle: &NodeHandle, id: &EffectId) {
-        self.tx.send(ClientMessage::NodeId(*handle, id.clone())).expect("Unable to reach Client");
+        self.send(ClientMessage::NodeId(*handle, id.clone()));
     }
 }
