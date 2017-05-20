@@ -25,6 +25,7 @@ pub struct Dispatch<R, C> {
 }
 
 /// OSC message to /<...>
+#[derive(Debug, Clone)]
 #[derive(OscMessage)]
 pub enum OscToplevel {
     /// Send a message to the primary RouteGraph
@@ -39,6 +40,7 @@ pub enum OscToplevel {
 }
 
 /// OSC message to /routegraph/<...>
+#[derive(Debug, Clone)]
 #[derive(OscMessage)]
 pub enum OscRouteGraph {
     #[osc_address(address="add_node")]
@@ -58,6 +60,7 @@ pub enum OscRouteGraph {
 }
 
 /// OSC message to /renderer/<...>
+#[derive(Debug, Clone)]
 #[derive(OscMessage)]
 pub enum OscRenderer {
     /// Render a range of samples from [a, b)
@@ -67,6 +70,7 @@ pub enum OscRenderer {
 }
 
 /// OOSC message to /resman/<...>
+#[derive(Debug, Clone)]
 #[derive(OscMessage)]
 pub enum OscResMan {
     /// Add another directory to watch when loading resources.
@@ -98,6 +102,7 @@ impl<R, C> Dispatch<R, C> {
 impl<R: Renderer, C: Client> Dispatch<R, C> {
     /// Process the OSC message.
     pub fn dispatch(&mut self, msg: OscToplevel) -> ResultE<()> {
+        trace!("Dispatching message: {:?}", msg);
         match msg {
             OscToplevel::RouteGraph((), rg_msg) => match rg_msg {
                 OscRouteGraph::AddNode((), (handle, id)) => {
