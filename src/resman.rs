@@ -104,6 +104,7 @@ impl AudioBuffer {
     pub fn get(&self, idx: u64, ch: u32) -> f32 {
         assert_eq!(ch, 0);
         // TODO: this isn't very dependable for 32-bit OSes.
+        let idx = idx*4; // frame index -> byte index
         let view = &self.buffer[idx as usize..idx as usize + 4];
         let mut reader = Cursor::new(view);
         // Read float or 0f32 if error (e.g. end of file?)
