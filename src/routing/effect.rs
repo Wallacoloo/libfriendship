@@ -118,12 +118,8 @@ impl Effect {
             _ => true,
         }
     }
-    pub fn id(&self) -> EffectId {
-        EffectId {
-            name: self.meta.name.clone(),
-            sha256: None,
-            urls: self.meta.urls.clone(),
-        }
+    pub fn id(&self) -> &EffectId {
+        &self.id
     }
     pub fn meta(&self) -> &EffectMeta {
         &self.meta

@@ -192,7 +192,7 @@ impl RouteGraph {
     pub fn to_adjlist(&self) -> AdjList {
         // Map Effect -> EffectId
         let nodes = self.node_data.iter().map(|(handle, data)| {
-            (*handle, data.id())
+            (*handle, data.id().clone())
         }).collect();
         // Doubly-linked edges -> singly-linked
         let edges = self.edges.iter().flat_map(|(_key, edgeset)| {
