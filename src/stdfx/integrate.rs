@@ -1,4 +1,4 @@
-use routing::{adjlist, NodeHandle, Edge, EdgeWeight, EffectId, EffectDesc, EffectMeta, EffectInput, EffectOutput};
+use routing::{NodeHandle, Edge, EdgeWeight, EffectId, EffectDesc, EffectMeta, EffectInput, EffectOutput};
 use routing::AdjList;
 use util::pack_f32;
 
@@ -17,28 +17,29 @@ use super::{delay, f32constant, passthrough};
 /// This is done as an attempt to minimize rounding errors by ensuring each
 /// addition operand is approximately the same magnitude given a regular input.
 pub fn get_desc(bits: u8) -> EffectDesc {
-    assert!(bits >= 1); // Minimum size is length=2
-    let length = 1 << (bits as u64);
-    let half_length = length >> 1;
+    // TODO: should allow 64 bits; currently unable to do so because of u64 overflow.
+    assert!(bits >= 1 && bits < 64); // Minimum size is length=2
+    let half_length = 1u64 << ((bits-1) as u64);
+    let length = half_length << 1;
     let subnode_meta = if bits == 1 {
         passthrough::get_id()
     } else {
         get_id(bits-1)
     };
 
-    let delay_hnd = NodeHandle::new_node_toplevel(1);
-    let delayamt_hnd = NodeHandle::new_node_toplevel(2);
-    let sub1_hnd = NodeHandle::new_node_toplevel(3);
-    let sub2_hnd = NodeHandle::new_node_toplevel(4);
+    let delay_hnd = NodeHandle::new(1);
+    let delayamt_hnd = NodeHandle::new(2);
+    let sub1_hnd = NodeHandle::new(3);
+    let sub2_hnd = NodeHandle::new(4);
 
-    let delay_data = adjlist::NodeData::Effect(delay::get_id());
-    let delayamt_data = adjlist::NodeData::Effect(f32constant::get_id());
-    let sub1_data = adjlist::NodeData::Effect(subnode_meta);
+    let delay_data = delay::get_id();
+    let delayamt_data = f32constant::get_id();
+    let sub1_data = subnode_meta;
     let sub2_data = sub1_data.clone();
     
     // NOTE: half_length guaranteed to fit in f32 because it's a power of two in the range of f32.
-    let edge_delayamt = Edge::new(delayamt_hnd, delay_hnd, EdgeWeight::new(pack_f32(half_length as f32), 1)).unwrap();
-    let edge_delay_to_sub = Edge::new(delay_hnd, sub1_hnd, EdgeWeight::new(0, 0)).unwrap();
+    let edge_delayamt = Edge::new(delayamt_hnd, delay_hnd, EdgeWeight::new(pack_f32(half_length as f32), 1));
+    let edge_delay_to_sub = Edge::new(delay_hnd, sub1_hnd, EdgeWeight::new(0, 0));
     // Input to delay -> sub1
     let edge_in1 = Edge::new_from_null(delay_hnd, EdgeWeight::new(0, 0));
     // Input to sub2

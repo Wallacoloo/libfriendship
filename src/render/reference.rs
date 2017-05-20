@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use render::Renderer;
 use resman::AudioBuffer;
-use routing::{DagHandle, Edge, GraphWatcher, NodeData, NodeHandle};
+use routing::{Edge, GraphWatcher, NodeData, NodeHandle};
 use routing::effect::{PrimitiveEffect, EffectData};
 use util::unpack_f32;
 
@@ -21,8 +21,6 @@ struct Node {
 enum MyNodeData {
     /// This node is a non-primitive effect.
     UserNode(NodeMap),
-    /// This node is an instance of another DAG.
-    Graph(DagHandle),
     /// Primitive effect (delay, constant, etc).
     Primitive(PrimitiveEffect),
     /// External audio.
@@ -67,20 +65,12 @@ impl RefRenderer {
                         self.sum_input_to_slot(new_nodes, root_node, time, edge.from_slot(), &new_context)
                     })
                 },
-                // Output = sum of all edges to Null of the same slot, within the given DAG.
-                MyNodeData::Graph(dag_handle) => {
-                    // TODO: we can avoid cloning by reversing the push after recursing.
-                    let mut new_context = context.clone();
-                    new_context.push((nodes, from));
-                    let subdag = &nodes[&NodeHandle::new_dag(dag_handle)];
-                    self.sum_input_to_slot(nodes, subdag, time, edge.from_slot(), &new_context)
-                }
                 MyNodeData::Primitive(prim) => match prim {
                     // Output = sum of all inputs to slot 0.
                     PrimitiveEffect::Delay => {
                         // The only nonzero output is slot=0.
                         if edge.from_slot() != 0 {
-                            println!("Warning: attempt to read from Delay slot != 0");
+                            warn!("Attempt to read from Delay slot != 0");
                             0f64
                         } else {
                             let delay_frames = self.sum_input_to_slot(nodes, node, time, 1, context);
@@ -109,7 +99,7 @@ impl RefRenderer {
                     PrimitiveEffect::Multiply => {
                         // The only nonzero output is slot=0.
                         if edge.from_slot() != 0 {
-                            println!("Warning: attempt to read from Multiply slot != 0");
+                            warn!("Attempt to read from Multiply slot != 0");
                             0f64
                         } else {
                             // Sum all inputs from slot=0 and slot=2 into two separate
@@ -122,7 +112,7 @@ impl RefRenderer {
                     PrimitiveEffect::Divide => {
                         // The only nonzero output is slot=0.
                         if edge.from_slot() != 0 {
-                            println!("Warning: attempt to read from MultInv slot != 0");
+                            warn!("Attempt to read from MultInv slot != 0");
                             0f64
                         } else {
                             // Sum all inputs
@@ -134,7 +124,7 @@ impl RefRenderer {
                     PrimitiveEffect::Minimum => {
                         // The only nonzero output is slot=0.
                         if edge.from_slot() != 0 {
-                            println!("Warning: attempt to read from Modulo slot != 0");
+                            warn!("Attempt to read from Modulo slot != 0");
                             0f64
                         } else {
                             let input_a = self.sum_input_to_slot(nodes, node, time, 0, context);
@@ -145,7 +135,7 @@ impl RefRenderer {
                     PrimitiveEffect::Modulo => {
                         // The only nonzero output is slot=0.
                         if edge.from_slot() != 0 {
-                            println!("Warning: attempt to read from Modulo slot != 0");
+                            warn!("Attempt to read from Modulo slot != 0");
                             0f64
                         } else {
                             // Sum all dividends
@@ -176,26 +166,21 @@ impl RefRenderer {
         edges_in.map(|edge| self.get_value(nodes, edge, time, context)).sum()
     }
 
-    fn make_node(&self, data: &NodeData) -> MyNodeData {
-        match *data {
-            NodeData::Graph(handle) => MyNodeData::Graph(handle),
-            NodeData::Effect(ref effect) => {
-                match *effect.data() {
-                    EffectData::Primitive(e) => MyNodeData::Primitive(e),
-                    EffectData::Buffer(ref buff) => MyNodeData::Buffer(buff.clone()),
-                    EffectData::RouteGraph(ref graph) => {
-                        let mut nodes = HashMap::new();
-                        for (node, data) in graph.iter_nodes() {
-                            nodes.insert(*node, Node::new(self.make_node(data)));
-                        }
-                        for edge in graph.iter_edges() {
-                            nodes.entry(edge.to_full()).or_insert_with(|| {
-                                Node::new(MyNodeData::DagIO)
-                            }).inbound.insert(edge.clone());
-                        }
-                        MyNodeData::UserNode(nodes)
-                    }
+    fn make_node(&self, effect: &NodeData) -> MyNodeData {
+        match *effect.data() {
+            EffectData::Primitive(e) => MyNodeData::Primitive(e),
+            EffectData::Buffer(ref buff) => MyNodeData::Buffer(buff.clone()),
+            EffectData::RouteGraph(ref graph) => {
+                let mut nodes = HashMap::new();
+                for (node, data) in graph.iter_nodes() {
+                    nodes.insert(*node, Node::new(self.make_node(data)));
                 }
+                for edge in graph.iter_edges() {
+                    nodes.entry(edge.to_full()).or_insert_with(|| {
+                        Node::new(MyNodeData::DagIO)
+                    }).inbound.insert(edge.clone());
+                }
+                MyNodeData::UserNode(nodes)
             }
         }
     }
@@ -207,7 +192,7 @@ impl GraphWatcher for RefRenderer {
         self.nodes.insert(*handle, Node::new(my_node_data));
         // If the node is part of a new DAG, allocate data so that future edges
         // to null within the DAG can be held.
-        self.nodes.entry(NodeHandle::new_dag(*handle.dag_handle())).or_insert_with(|| {
+        self.nodes.entry(NodeHandle::toplevel()).or_insert_with(|| {
             Node::new(MyNodeData::DagIO)
         });
     }

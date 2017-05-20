@@ -4,6 +4,7 @@
 extern crate byteorder;
 extern crate digest;
 extern crate filebuffer;
+#[macro_use] extern crate log;
 extern crate num;
 #[macro_use] extern crate osc_address_derive;
 extern crate osc_address;

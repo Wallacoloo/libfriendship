@@ -175,7 +175,7 @@ impl Effect {
                             // TODO: implement some form of caching
                             return Ok(Rc::new(me));
                         },
-                        Err(error) => println!("Warning: RouteGraph::from_adjlist failed: {:?}", error)
+                        Err(error) => warn!("RouteGraph::from_adjlist failed: {:?}", error)
                     }
                 },
                 Err(error) => {
@@ -197,7 +197,7 @@ impl Effect {
                         // TODO: implement some form of caching
                         return Ok(Rc::new(me));
                     } else {
-                        println!("Warning: unable to deserialize EffectDesc: {:?}", error)
+                        warn!("Unable to deserialize EffectDesc: {:?}", error)
                     }
                 }
             }
@@ -243,6 +243,9 @@ impl EffectDesc {
     pub fn new(meta: EffectMeta, adjlist: AdjList) -> Self {
         Self{ meta, adjlist }
     }
+    pub fn meta(&self) -> &EffectMeta {
+        &self.meta
+    }
     pub fn id(&self) -> EffectId {
         // TODO: calculate sha using a smaller buffer
         let as_vec = serde_json::to_vec(self).unwrap();
@@ -267,6 +270,9 @@ impl EffectMeta {
             inputs,
             outputs,
         }
+    }
+    pub fn name(&self) -> &str {
+        self.name.as_str()
     }
     pub fn inputs(&self) -> &Vec<EffectInput> {
         &self.inputs

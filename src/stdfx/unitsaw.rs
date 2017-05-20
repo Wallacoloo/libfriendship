@@ -1,4 +1,4 @@
-use routing::{adjlist, NodeHandle, Edge, EdgeWeight, EffectId, EffectDesc, EffectMeta, EffectInput, EffectOutput};
+use routing::{NodeHandle, Edge, EdgeWeight, EffectId, EffectDesc, EffectMeta, EffectInput, EffectOutput};
 use routing::AdjList;
 use util::pack_f32;
 
@@ -9,19 +9,19 @@ use super::{f32constant, modulo_one, multiply};
 /// y = -1 + 2*(x mod 1),
 /// where x is the index (slot 0 input) and y is the sawtooth (slot 0 output)
 pub fn get_desc() -> EffectDesc {
-    let const_hnd = NodeHandle::new_node_toplevel(1);
-    let mod_hnd = NodeHandle::new_node_toplevel(2);
-    let mult_hnd = NodeHandle::new_node_toplevel(3);
+    let const_hnd = NodeHandle::new(1);
+    let mod_hnd = NodeHandle::new(2);
+    let mult_hnd = NodeHandle::new(3);
 
-    let const_data = adjlist::NodeData::Effect(f32constant::get_id());
-    let mod_data = adjlist::NodeData::Effect(modulo_one::get_id());
-    let mult_data = adjlist::NodeData::Effect(multiply::get_id());
+    let const_data = f32constant::get_id();
+    let mod_data = modulo_one::get_id();
+    let mult_data = multiply::get_id();
 
     // x mod 1
     let edge_in = Edge::new_from_null(mod_hnd, EdgeWeight::new(0, 0));
     // 2*[x mod 1]
-    let edge_double = Edge::new(mod_hnd, mult_hnd, EdgeWeight::new(0, 0)).unwrap();
-    let edge_double_const = Edge::new(const_hnd, mult_hnd, EdgeWeight::new(pack_f32(2.0f32), 1)).unwrap();
+    let edge_double = Edge::new(mod_hnd, mult_hnd, EdgeWeight::new(0, 0));
+    let edge_double_const = Edge::new(const_hnd, mult_hnd, EdgeWeight::new(pack_f32(2.0f32), 1));
     // [2*(x mod 1)] -> output
     let edge_mul_out = Edge::new_to_null(mult_hnd, EdgeWeight::new(0, 0));
     // -1 -> output

@@ -1,6 +1,6 @@
 use std;
 
-use routing::{adjlist, NodeHandle, Edge, EdgeWeight, EffectId, EffectDesc, EffectMeta, EffectOutput};
+use routing::{NodeHandle, Edge, EdgeWeight, EffectId, EffectDesc, EffectMeta, EffectOutput};
 use routing::AdjList;
 use util::pack_f32;
 
@@ -22,10 +22,10 @@ pub fn get_desc(n: u32) -> EffectDesc {
     });
 
     let handles = || (0..n).map(|i| {
-        NodeHandle::new_node_toplevel(1+i)
+        NodeHandle::new(1+i)
     });
     let node_data = (0..n).map(|_| {
-        adjlist::NodeData::Effect(f32constant::get_id())
+        f32constant::get_id()
     });
     let edges = weights.zip(handles()).enumerate().map(|(i, (weight, hnd))| {
         Edge::new_to_null(hnd, EdgeWeight::new(pack_f32(weight as f32), i as u32))

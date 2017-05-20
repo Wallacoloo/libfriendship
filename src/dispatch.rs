@@ -8,9 +8,8 @@ use std::ops::Range;
 use client::Client;
 use render::Renderer;
 use resman::ResMan;
-use routing;
-use routing::{Edge, Effect, NodeData, NodeHandle, RouteGraph};
-use routing::{adjlist, effect, routegraph};
+use routing::{Edge, Effect, NodeData, NodeHandle, RouteGraph, EffectId};
+use routing::{effect, routegraph};
 
 #[derive(Default)]
 pub struct Dispatch<R, C> {
@@ -43,7 +42,7 @@ pub enum OscToplevel {
 #[derive(OscMessage)]
 pub enum OscRouteGraph {
     #[osc_address(address="add_node")]
-    AddNode((), (NodeHandle, adjlist::NodeData)),
+    AddNode((), (NodeHandle, EffectId)),
     #[osc_address(address="add_edge")]
     AddEdge((), (Edge,)),
     #[osc_address(address="del_node")]
@@ -102,13 +101,8 @@ impl<R: Renderer, C: Client> Dispatch<R, C> {
     pub fn dispatch(&mut self, msg: OscToplevel) -> ResultE<()> {
         match msg {
             OscToplevel::RouteGraph((), rg_msg) => match rg_msg {
-                OscRouteGraph::AddNode((), (handle, data)) => {
-                    let node_data = match data {
-                        adjlist::NodeData::Effect(id) =>
-                            routing::NodeData::Effect(Effect::from_id(id, &self.resman)?),
-                        adjlist::NodeData::Graph(dag_handle) =>
-                            routing::NodeData::Graph(dag_handle),
-                    };
+                OscRouteGraph::AddNode((), (handle, id)) => {
+                    let node_data = Effect::from_id(id, &self.resman)?;
                     self.routegraph.add_node(handle, node_data.clone())?;
                     self.on_add_node(&handle, &node_data);
                 }
@@ -126,13 +120,13 @@ impl<R: Renderer, C: Client> Dispatch<R, C> {
                 }
                 OscRouteGraph::QueryMeta((), (handle,)) => {
                     // TODO: probably log something on failure.
-                    if let Some(&NodeData::Effect(ref effect)) = self.routegraph.get_data(&handle) {
+                    if let Some(effect) = self.routegraph.get_data(&handle) {
                         self.client.node_meta(&handle, effect.meta());
                     }
                 }
                 OscRouteGraph::QueryId((), (handle,)) => {
                     // TODO: probably log something on failure.
-                    if let Some(&NodeData::Effect(ref effect)) = self.routegraph.get_data(&handle) {
+                    if let Some(effect) = self.routegraph.get_data(&handle) {
                         self.client.node_id(&handle, &effect.id());
                     }
                 }

@@ -11,7 +11,6 @@ use std::rc::Rc;
 
 use resman::ResMan;
 use super::adjlist::AdjList;
-use super::adjlist;
 use super::effect;
 use super::effect::Effect;
 use super::nullable_int::NullableInt;
@@ -23,14 +22,7 @@ pub struct EdgeWeight {
     to_slot: u32,
 }
 
-#[derive(Clone, Eq, PartialEq)]
-pub enum NodeData {
-    Effect(Rc<Effect>),
-    Graph(DagHandle),
-}
-
-/// None represents the Top-level DAG
-pub type DagHandle = NullableInt<u32>;
+pub type NodeData = Rc<Effect>;
 
 /// None represents the Dag's I/O
 type PrimNodeHandle = NullableInt<u32>;
@@ -38,16 +30,14 @@ type PrimNodeHandle = NullableInt<u32>;
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
 pub struct NodeHandle {
-    dag_handle: DagHandle,
     node_handle: PrimNodeHandle,
 }
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
 pub struct Edge {
-    dag_handle: DagHandle,
-    from: PrimNodeHandle,
-    to: PrimNodeHandle,
+    from: NodeHandle,
+    to: NodeHandle,
     weight: EdgeWeight,
 }
 
@@ -130,92 +120,30 @@ impl RouteGraph {
         //   If we reach the boundary of the DAG while doing so, consider all reachable outbound
         //     edges of the DAG
         //     For each such edge, try to reach this DAG (recursively), and then resume the search for `edge`.
-        match from.to.get() {
+        if let Some(_to) = from.to.node_handle.get() {
             // The edge points to a NODE inside a DAG.
-            Some(_to) => {
-                // Consider all (reachable) outgoing edges of the node:
-                if let Some(node_data) = self.edges.get(&from.to_full()) {
-                    for candidate_edge in &node_data.outbound {
-                        if self.are_edges_internally_connected(from, candidate_edge) && 
-                          self.is_edge_reachable(candidate_edge, target) {
-                            return true;
-                        }
+            // Consider all (reachable) outgoing edges of the node:
+            if let Some(node_data) = self.edges.get(&from.to_full()) {
+                for candidate_edge in &node_data.outbound {
+                    if self.are_edges_internally_connected(from, candidate_edge) && 
+                      self.is_edge_reachable(candidate_edge, target) {
+                        return true;
                     }
                 }
-            },
-            // The edge points to a DAG output.
-            None => {
-                // Consider all nodes aliased to this DAG;
-                //   for each one, consider all paths that lead back to it &
-                //   continue the search.
-                let dagnode_handle = NodeHandle::new_dag(*from.dag_handle());
-                let search = NodeData::Graph(from.dag_handle);
-                for aliased_node in self.node_data_to_handles(&search) {
-                    for edge_out in &self.edges[&aliased_node].outbound {
-                        // Consider all edges leaving this node that are reachable
-                        if edge_out.weight.from_slot == from.weight.to_slot {
-                            // iter the edges back into this DAG.
-                            for edge_in in self.paths_from_edge_to_node(edge_out, &aliased_node) {
-                                // Translate from edges INTO the dag to edges inside the DAG coming
-                                // from null.
-                                for edge in &self.edges[&dagnode_handle].outbound {
-                                    // Now we're back in the DAG; continue the search
-                                    if edge_in.weight.to_slot == edge.weight.from_slot &&
-                                      self.is_edge_reachable(edge, target) {
-                                        return true
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
+            }
         }
         false
-    }
-    /// Return all edges into `to` that are reachable from `from`.
-    fn paths_from_edge_to_node<'a>(&'a self, from: &'a Edge, to: &'a NodeHandle) -> impl Iterator<Item=&'a Edge> + 'a {
-        self.edges[to].inbound.iter().filter(move |e| {
-            self.is_edge_reachable(from, e)
-        })
     }
     /// Assuming from.to() == to.from(), will return true if & only if
     /// from and to are internally connected within the node.
     fn are_edges_internally_connected(&self, from: &Edge, to: &Edge) -> bool {
-        match self.node_data[&from.to_full()] {
-            NodeData::Effect(ref effect) => effect.are_slots_connected(
-                from.weight.to_slot, to.weight.from_slot),
-            // See if there's a path from (None->from.to) to (to.from->None) within the dag
-            NodeData::Graph(ref dag_handle) => {
-                let dagnode_handle = NodeHandle::new_dag(*dag_handle);
-                // Consider all edges from (None->from.to)
-                self.edges[&dagnode_handle].outbound.iter().filter(|new_from| {
-                    new_from.weight.from_slot == from.weight.to_slot
-                })
-                // Check if there's a path to (None) and that the edge to (None) is (to.from->None)
-                .any(|new_from| {
-                    self.paths_from_edge_to_node(new_from, &dagnode_handle).any(|new_to| {
-                        new_to.weight.to_slot == to.weight.from_slot
-                    })
-                })
-            }
-        }
-    }
-    /// Return handles to all nodes that match the search.
-    /// Note: this iterates over EVERY node in the DAG.
-    fn node_data_to_handles<'a>(&'a self, data: &'a NodeData) -> impl Iterator<Item=NodeHandle> + 'a {
-        self.node_data.iter().filter_map(move |(handle, node)| {
-            if node == data {
-                Some(*handle)
-            } else {
-                None
-            }
-        })
+        self.node_data[&from.to_full()]
+            .are_slots_connected(from.weight.to_slot, to.weight.from_slot)
     }
     /// Returns true if there's a path from `in` to `out` at the toplevel DAG.
     pub fn are_slots_connected(&self, in_slot: u32, out_slot: u32) -> bool {
         // Consider all edges from None paired with all edges to None:
-        let root_dag = NodeHandle::new_dag(DagHandle::toplevel());
+        let root_dag = NodeHandle::toplevel();
         let edges_from = self.edges[&root_dag].outbound.iter().filter(|&edge| {
             edge.weight.from_slot == in_slot
         });
@@ -264,7 +192,7 @@ impl RouteGraph {
     pub fn to_adjlist(&self) -> AdjList {
         // Map Effect -> EffectId
         let nodes = self.node_data.iter().map(|(handle, data)| {
-            (*handle, data.to_adjlist_data())
+            (*handle, data.id())
         }).collect();
         // Doubly-linked edges -> singly-linked
         let edges = self.edges.iter().flat_map(|(_key, edgeset)| {
@@ -281,13 +209,8 @@ impl RouteGraph {
         let (nodes, edges) = (adj.nodes, adj.edges);
 
         // Map EffectId -> Effect
-        let nodes: ResultE<HashMap<NodeHandle, NodeData>> = nodes.into_iter().map(|(handle, data)| {
-            let decoded_data = match data {
-                adjlist::NodeData::Effect(id) =>
-                    NodeData::Effect(Effect::from_id(id, res)?),
-                adjlist::NodeData::Graph(dag_handle) =>
-                    NodeData::Graph(dag_handle),
-            };
+        let nodes: ResultE<HashMap<NodeHandle, NodeData>> = nodes.into_iter().map(|(handle, id)| {
+            let decoded_data = Effect::from_id(id, res)?;
             Ok((handle, decoded_data))
         }).collect();
         // Type deduction isn't smart enough to unwrap nodes in above statement.
@@ -309,25 +232,12 @@ impl RouteGraph {
 
 impl NodeHandle {
     pub fn toplevel() -> Self {
-        NodeHandle::new_dag(DagHandle::toplevel())
+        NodeHandle::new(None)
     }
-    pub fn new(dag: DagHandle, node: PrimNodeHandle) -> Self {
-        Self {
-            dag_handle: dag,
-            node_handle: node,
-        }
-    }
-    pub fn new_node(dag: DagHandle, node: u32) -> Self {
-        NodeHandle::new(dag, Some(node).into())
-    }
-    pub fn new_dag(dag: DagHandle) -> Self {
-        NodeHandle::new(dag, None.into())
-    }
-    pub fn new_node_toplevel(node: u32) -> Self {
-        Self::new_node(DagHandle::toplevel(), node)
-    }
-    pub fn dag_handle(&self) -> &DagHandle {
-        &self.dag_handle
+    pub fn new<T>(node_handle: T) -> Self
+        where T: Into<PrimNodeHandle>
+    {
+        Self{ node_handle: node_handle.into() }
     }
     pub fn node_handle(&self) -> &PrimNodeHandle {
         &self.node_handle
@@ -338,47 +248,27 @@ impl Edge {
     /// Create an edge from `from` to null (i.e. an output)
     pub fn new_to_null(from: NodeHandle, weight: EdgeWeight) -> Self {
         Self {
-            dag_handle: from.dag_handle,
-            from: from.node_handle,
-            to: None.into(),
+            from,
+            to: NodeHandle::toplevel(),
             weight,
         }
     }
     pub fn new_from_null(to: NodeHandle, weight: EdgeWeight) -> Self {
         Self {
-            dag_handle: to.dag_handle,
-            from: None.into(),
-            to: to.node_handle,
+            from: NodeHandle::toplevel(),
+            to,
             weight
         }
     }
     /// Create an edge between the two nodes.
-    /// Note: nodes must be in the same DAG, else will return None.
-    pub fn new(from: NodeHandle, to: NodeHandle, weight: EdgeWeight) -> Option<Self> {
-        if from.dag_handle != to.dag_handle {
-            return None;
-        }
-        Some(Self {
-            dag_handle: from.dag_handle,
-            from: from.node_handle,
-            to: to.node_handle,
-            weight
-        })
-    }
-    fn dag_handle(&self) -> &DagHandle {
-        &self.dag_handle
+    pub fn new(from: NodeHandle, to: NodeHandle, weight: EdgeWeight) -> Self {
+        Self{ from, to, weight }
     }
     pub fn from_full(&self) -> NodeHandle {
-        NodeHandle {
-            dag_handle: self.dag_handle,
-            node_handle: self.from,
-        }
+        self.from
     }
     pub fn to_full(&self) -> NodeHandle {
-        NodeHandle {
-            dag_handle: self.dag_handle,
-            node_handle: self.to,
-        }
+        self.to
     }
     pub fn to_slot(&self) -> u32 {
         self.weight.to_slot
@@ -394,18 +284,6 @@ impl EdgeWeight {
     }
 }
 
-impl NodeData {
-    /// NodeData normally encodes references to actual node implementations -
-    /// in order to know their internal connections, etc.
-    /// This transforms it into a type that is suitable for transmission, i.e.
-    /// metadata explaining how to locate the correct effect implementation.
-    fn to_adjlist_data(&self) -> adjlist::NodeData {
-        match *self {
-            NodeData::Effect(ref effect) => adjlist::NodeData::Effect(effect.id()),
-            NodeData::Graph(dag) => adjlist::NodeData::Graph(dag),
-        }
-    }
-}
 
 impl EdgeSet {
     fn new() -> Self {
@@ -418,13 +296,6 @@ impl EdgeSet {
         self.outbound.is_empty() && self.inbound.is_empty()
     }
 }
-
-impl DagHandle {
-    pub fn toplevel() -> Self {
-        None.into()
-    }
-}
-
 
 
 /// Conversion from `effect::Error` for use with the `?` operator

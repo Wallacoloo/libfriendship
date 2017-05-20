@@ -12,5 +12,5 @@ mod nullable_int;
 // re-export the things we want public
 pub use self::effect::{Effect, EffectDesc, EffectId, EffectMeta, EffectInput, EffectOutput};
 pub use self::graphwatcher::GraphWatcher;
-pub use self::routegraph::{DagHandle, Edge, EdgeWeight, NodeData, NodeHandle, RouteGraph};
+pub use self::routegraph::{Edge, EdgeWeight, NodeData, NodeHandle, RouteGraph};
 pub use self::adjlist::AdjList;
