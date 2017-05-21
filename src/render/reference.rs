@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::ops::{Deref, DerefMut};
 
 use render::Renderer;
 use resman::AudioBuffer;
@@ -6,7 +7,11 @@ use routing::{Edge, GraphWatcher, NodeData, NodeHandle};
 use routing::effect::{PrimitiveEffect, EffectData};
 use util::unpack_f32;
 
-type NodeMap = HashMap<NodeHandle, Node>;
+
+#[derive(Debug)]
+struct NodeMap {
+    nodes: HashMap<NodeHandle, Node>,
+}
 
 #[derive(Default, Debug)]
 pub struct RefRenderer {
@@ -31,13 +36,9 @@ enum MyNodeData {
 
 impl Renderer for RefRenderer {
     fn get_sample(&mut self, time: u64, slot: u32) -> f32 {
-        // Try to find the edge that goes to -> (Null, slot==slot)
-        let root_handle = NodeHandle::toplevel();
-        // empty graph is 0 = silence
-        self.nodes.get(&root_handle).map_or(0f32, |node| {
-            // find all edges to ([Null], slot=slot)
-            self.sum_input_to_slot(&self.nodes, node, time, slot, &Vec::new()) as f32
-        })
+        let node = &self.nodes[&NodeHandle::toplevel()];
+        // find all edges to ([Null], slot=slot)
+        self.sum_input_to_slot(&self.nodes, node, time, slot, &Vec::new()) as f32
     }
 }
 impl RefRenderer {
@@ -171,8 +172,7 @@ impl RefRenderer {
             EffectData::Primitive(e) => MyNodeData::Primitive(e),
             EffectData::Buffer(ref buff) => MyNodeData::Buffer(buff.clone()),
             EffectData::RouteGraph(ref graph) => {
-                let mut nodes = HashMap::new();
-                nodes.entry(NodeHandle::toplevel()).or_insert_with(Default::default);
+                let mut nodes: NodeMap = Default::default();
 
                 for (node, data) in graph.iter_nodes() {
                     nodes.insert(*node, Node::new(Some(self.make_node(data))));
@@ -190,9 +190,6 @@ impl GraphWatcher for RefRenderer {
     fn on_add_node(&mut self, handle: &NodeHandle, data: &NodeData) {
         let my_node_data = self.make_node(data);
         self.nodes.insert(*handle, Node::new(Some(my_node_data)));
-        // If the node is part of a new DAG, allocate data so that future edges
-        // to null within the DAG can be held.
-        self.nodes.entry(NodeHandle::toplevel()).or_insert_with(Default::default);
     }
     fn on_del_node(&mut self, handle: &NodeHandle) {
         self.nodes.remove(handle);
@@ -212,5 +209,28 @@ impl Node {
             data: data,
             inbound: HashSet::new(),
         }
+    }
+}
+
+
+impl Default for NodeMap {
+    fn default() -> Self {
+        // Create a NodeMap that already has an entry for the toplevel so that it can receive
+        // edges.
+        let nodes = Some((NodeHandle::toplevel(), Default::default())).into_iter().collect();
+        Self { nodes }
+    }
+}
+
+impl Deref for NodeMap {
+    type Target = HashMap<NodeHandle, Node>;
+    fn deref(&self) -> &Self::Target {
+        &self.nodes
+    }
+}
+
+impl DerefMut for NodeMap {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.nodes
     }
 }
