@@ -13,9 +13,9 @@ pub struct RefRenderer {
     nodes: NodeMap,
 }
 
-#[derive(Debug)]
+#[derive(Default, Debug)]
 struct Node {
-    data: MyNodeData,
+    data: Option<MyNodeData>,
     inbound: HashSet<Edge>
 }
 
@@ -27,8 +27,6 @@ enum MyNodeData {
     Primitive(PrimitiveEffect),
     /// External audio.
     Buffer(AudioBuffer),
-    /// This node is a DAG definition. i.e. it holds the output edges of a DAG.
-    DagIO,
 }
 
 impl Renderer for RefRenderer {
@@ -58,7 +56,7 @@ impl RefRenderer {
         } else {
             // Reading from another node within the DAG
             let node = &nodes[&from];
-            match node.data {
+            match *node.data.as_ref().expect("Expected node to have associated data") {
                 MyNodeData::UserNode(ref new_nodes) => {
                     let mut new_context = context.clone();
                     new_context.push((nodes, from));
@@ -156,8 +154,6 @@ impl RefRenderer {
                     },
                 },
                 MyNodeData::Buffer(ref buf) => buf.get(time, edge.from_slot()) as f64,
-                // TODO: refactor to remove illegal enums
-                _ => panic!("Internal RefRenderer error: illegal node type"),
             }
         }
     }
@@ -177,12 +173,11 @@ impl RefRenderer {
             EffectData::RouteGraph(ref graph) => {
                 let mut nodes = HashMap::new();
                 for (node, data) in graph.iter_nodes() {
-                    nodes.insert(*node, Node::new(self.make_node(data)));
+                    nodes.insert(*node, Node::new(Some(self.make_node(data))));
                 }
                 for edge in graph.iter_edges() {
-                    nodes.entry(edge.to_full()).or_insert_with(|| {
-                        Node::new(MyNodeData::DagIO)
-                    }).inbound.insert(edge.clone());
+                    nodes.entry(edge.to_full()).or_insert_with(Default::default)
+                        .inbound.insert(edge.clone());
                 }
                 MyNodeData::UserNode(nodes)
             }
@@ -193,12 +188,10 @@ impl RefRenderer {
 impl GraphWatcher for RefRenderer {
     fn on_add_node(&mut self, handle: &NodeHandle, data: &NodeData) {
         let my_node_data = self.make_node(data);
-        self.nodes.insert(*handle, Node::new(my_node_data));
+        self.nodes.insert(*handle, Node::new(Some(my_node_data)));
         // If the node is part of a new DAG, allocate data so that future edges
         // to null within the DAG can be held.
-        self.nodes.entry(NodeHandle::toplevel()).or_insert_with(|| {
-            Node::new(MyNodeData::DagIO)
-        });
+        self.nodes.entry(NodeHandle::toplevel()).or_insert_with(Default::default);
     }
     fn on_del_node(&mut self, handle: &NodeHandle) {
         self.nodes.remove(handle);
@@ -213,7 +206,7 @@ impl GraphWatcher for RefRenderer {
 
 
 impl Node {
-    fn new(data: MyNodeData) -> Self {
+    fn new(data: Option<MyNodeData>) -> Self {
         Node {
             data: data,
             inbound: HashSet::new(),
