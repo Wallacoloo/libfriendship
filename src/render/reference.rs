@@ -172,12 +172,13 @@ impl RefRenderer {
             EffectData::Buffer(ref buff) => MyNodeData::Buffer(buff.clone()),
             EffectData::RouteGraph(ref graph) => {
                 let mut nodes = HashMap::new();
+                nodes.entry(NodeHandle::toplevel()).or_insert_with(Default::default);
+
                 for (node, data) in graph.iter_nodes() {
                     nodes.insert(*node, Node::new(Some(self.make_node(data))));
                 }
                 for edge in graph.iter_edges() {
-                    nodes.entry(edge.to_full()).or_insert_with(Default::default)
-                        .inbound.insert(edge.clone());
+                    nodes.get_mut(&edge.to_full()).unwrap().inbound.insert(edge.clone());
                 }
                 MyNodeData::UserNode(nodes)
             }
