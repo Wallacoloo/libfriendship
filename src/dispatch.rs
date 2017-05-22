@@ -2,8 +2,12 @@
 //! something cohesive. It effectively hides the rest of the library,
 //! and all commands are meant to pass through this instead.
 
+use std::iter::FromIterator;
 use std::path::Path;
 use std::ops::Range;
+
+use jagged_array::Jagged2;
+use ndarray::{ArrayBase, Dim};
 
 use client::Client;
 use render::Renderer;
@@ -63,10 +67,14 @@ pub enum OscRouteGraph {
 #[derive(Debug, Clone)]
 #[derive(OscMessage)]
 pub enum OscRenderer {
-    /// Render a range of samples from [a, b)
-    /// Last argument indicates the number of slots to render.
+    /// Render a range of samples.
+    /// First argument = which samples to render.
+    /// Second arg = inputs to be fed into slot0, 1, 2, ...,n.
+    /// Third arg = number of output slots to render.
+    /// TODO: third argument should be made implicit based on RouteGraph metadata.
+    /// TODO: second argument should be Jagged2; not Vec<Vec<f32>>
     #[osc_address(address="render")]
-    RenderRange((), (Range<u64>, u32)),
+    RenderRange((), (Range<u64>, Vec<Vec<f32>>, u32)),
 }
 
 /// OOSC message to /resman/<...>
@@ -138,10 +146,11 @@ impl<R: Renderer, C: Client> Dispatch<R, C> {
                 }
             },
             OscToplevel::Renderer((), rend_msg) => match rend_msg {
-                OscRenderer::RenderRange((), (range, slot)) => {
-                    let mut buff: Vec<f32> = range.clone().map(|_| { 0f32 }).collect();
-                    self.renderer.fill_buffer(&mut buff, range.start, slot);
-                    self.client.audio_rendered(&buff, range.start, slot);
+                OscRenderer::RenderRange((), (range, inputs, num_slots)) => {
+                    let mut buff = ArrayBase::zeros(Dim([num_slots as usize, (range.end-range.start) as usize]));
+                    let inputs = Jagged2::from_iter(inputs);
+                    self.renderer.fill_buffer(&mut buff, range.start, inputs);
+                    self.client.audio_rendered(buff, range.start);
                 }
             },
             OscToplevel::ResMan((), res_msg) => match res_msg {

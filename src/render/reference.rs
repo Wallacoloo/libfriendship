@@ -1,6 +1,9 @@
 use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, DerefMut};
 
+use ndarray::Array2;
+use jagged_array::Jagged2;
+
 use render::Renderer;
 use resman::AudioBuffer;
 use routing::{Edge, GraphWatcher, NodeData, NodeHandle};
@@ -35,13 +38,22 @@ enum MyNodeData {
 }
 
 impl Renderer for RefRenderer {
+    fn fill_buffer(&mut self, buff: &mut Array2<f32>, idx: u64, inputs: Jagged2<f32>) {
+        // TODO: read inputs into a buffer.
+        let (n_slots, n_times) = buff.dim().into();
+        for slot in 0..n_slots as u32 {
+            for time in idx..idx+n_times as u64 {
+                buff[[slot as usize, time as usize]] = self.get_sample(time, slot);
+            }
+        }
+    }
+}
+impl RefRenderer {
     fn get_sample(&mut self, time: u64, slot: u32) -> f32 {
         let node = &self.nodes[&NodeHandle::toplevel()];
         // find all edges to ([Null], slot=slot)
         self.sum_input_to_slot(&self.nodes, node, time, slot, &Vec::new()) as f32
     }
-}
-impl RefRenderer {
     /// Get the value on an edge at a particular time
     /// When backtracking from the output, we push each Node onto the context if we enter inside of
     ///   it (i.e. if it's a nested DAG) & pop when exiting.

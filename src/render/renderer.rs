@@ -1,12 +1,17 @@
+use jagged_array::Jagged2;
+use ndarray::Array2;
+
 use routing::GraphWatcher;
 /// Trait that allows for rendering a `RouteGraph`
 pub trait Renderer: GraphWatcher {
-    fn get_sample(&mut self, idx: u64, slot: u32) -> f32;
     /// Fill the provided buffer with samples from a specific slot.
-    fn fill_buffer(&mut self, buff: &mut [f32], idx: u64, slot: u32) {
-        for (buff_idx, sample) in buff.iter_mut().enumerate() {
-            let time_idx = idx + buff_idx as u64;
-            *sample = self.get_sample(time_idx, slot);
-        }
-    }
+    /// First, `inputs[0]` is fed to slot=0, `inputs[1]` to slot=1, and so forth.
+    /// Then `buff[[0, ..]]` is filled with the output of slot=0,
+    /// `buff[[1, ..]]` is filled with slot=1, and so forth.
+    /// 
+    /// Note that if `idx` != to 1 + the last index queried, then this is considered
+    /// a "seeking" operation and the renderer is expected to flush all its internal state;
+    /// i.e. it should act as if the inputs into all slots were 0 for all times outside
+    /// the range being queried.
+    fn fill_buffer(&mut self, buff: &mut Array2<f32>, idx: u64, inputs: Jagged2<f32>);
 }

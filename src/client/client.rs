@@ -1,3 +1,5 @@
+use ndarray::Array2;
+
 use routing::{NodeHandle, EffectMeta, EffectId};
 
 /// Trait for any client that wants to listen in on information that is broadcast
@@ -5,7 +7,7 @@ use routing::{NodeHandle, EffectMeta, EffectId};
 /// change (in the routegraph), renderer results, etc.
 pub trait Client {
     /// Audio has been produced from the toplevel DAG
-    fn audio_rendered(&mut self, _buffer: &[f32], _idx: u64, _slot: u32) {}
+    fn audio_rendered(&mut self, _buffer: Array2<f32>, _idx: u64) {}
     /// Response to a query of a node's metadata
     fn node_meta(&mut self, _handle: &NodeHandle, _meta: &EffectMeta) {}
     /// Response to a query of a node's id
