@@ -9,7 +9,7 @@ license = "MIT"
 byteorder = "1.0"
 digest = {version="0.5", features=["std"]}
 filebuffer = "0.2"
-jagged_array = "0.1"
+jagged_array = "0.2"
 log = "0.3"
 ndarray = "0.9"
 num = "0.1"
