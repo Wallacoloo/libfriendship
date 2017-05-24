@@ -74,7 +74,7 @@ pub enum OscRenderer {
     /// TODO: third argument should be made implicit based on RouteGraph metadata.
     /// TODO: second argument should be Jagged2; not Vec<Vec<f32>>
     #[osc_address(address="render")]
-    RenderRange((), (Range<u64>, Vec<Vec<f32>>, u32)),
+    RenderRange((), (Range<u64>, Jagged2<f32>, u32)),
 }
 
 /// OOSC message to /resman/<...>
@@ -148,7 +148,6 @@ impl<R: Renderer, C: Client> Dispatch<R, C> {
             OscToplevel::Renderer((), rend_msg) => match rend_msg {
                 OscRenderer::RenderRange((), (range, inputs, num_slots)) => {
                     let mut buff = ArrayBase::zeros(Dim([num_slots as usize, (range.end-range.start) as usize]));
-                    let inputs = Jagged2::from_iter(inputs);
                     self.renderer.fill_buffer(&mut buff, range.start, inputs);
                     self.client.audio_rendered(buff, range.start);
                 }
