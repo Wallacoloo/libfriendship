@@ -2,6 +2,7 @@
 
 #[macro_use] extern crate libfriendship;
 extern crate digest;
+#[macro_use] extern crate ndarray;
 extern crate serde_json;
 extern crate sha2;
 extern crate tempdir;
@@ -11,6 +12,7 @@ use std::fs::File;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
 use digest::digest_reader;
+use ndarray::Array2;
 use sha2::Sha256;
 use tempdir::TempDir;
 use url::Url;
@@ -24,15 +26,15 @@ use libfriendship::util::pack_f32;
 
 struct MyClient {
     /// Where to send the rendered audio.
-    tx: Sender<Vec<f32>>,
+    tx: Sender<Array2<f32>>,
 }
 impl Client for MyClient {
-    fn audio_rendered(&mut self, buffer: &[f32], _idx: u64, _slot: u32) {
-        self.tx.send(buffer.to_vec()).unwrap();
+    fn audio_rendered(&mut self, buffer: Array2<f32>, _idx: u64) {
+        self.tx.send(buffer).unwrap();
     }
 }
 
-fn test_setup() -> (Dispatch<RefRenderer, MyClient>, Receiver<Vec<f32>>) {
+fn test_setup() -> (Dispatch<RefRenderer, MyClient>, Receiver<Array2<f32>>) {
     let (tx, rx) = channel();
     let dispatch = Dispatch::new(RefRenderer::default(), MyClient{ tx });
     (dispatch, rx)
@@ -104,9 +106,9 @@ fn load_multby2() {
     // Read some data from ch=0.
     // This should be 0.5*5 = [2.5, 2.5, 2.5, 2.5]
     dispatch.dispatch(
-        OscRenderer::RenderRange((), (0..4, 0))
+        OscRenderer::RenderRange((), (0..4, 1, Default::default()))
     .into()).unwrap();
     let rendered = rx.recv().unwrap();
-    assert_eq!(rendered, vec![2.5f32, 2.5f32, 2.5f32, 2.5f32]);
+    assert_eq!(rendered, array![[2.5f32, 2.5f32, 2.5f32, 2.5f32]]);
 }
 

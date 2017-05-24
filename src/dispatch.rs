@@ -69,12 +69,12 @@ pub enum OscRouteGraph {
 pub enum OscRenderer {
     /// Render a range of samples.
     /// First argument = which samples to render.
-    /// Second arg = inputs to be fed into slot0, 1, 2, ...,n.
-    /// Third arg = number of output slots to render.
+    /// Second arg = number of output slots to render.
+    /// Third arg = inputs to be fed into slot0, 1, 2, ...,n.
     /// TODO: third argument should be made implicit based on RouteGraph metadata.
     /// TODO: second argument should be Jagged2; not Vec<Vec<f32>>
     #[osc_address(address="render")]
-    RenderRange((), (Range<u64>, Jagged2<f32>, u32)),
+    RenderRange((), (Range<u64>, u32, Jagged2<f32>)),
 }
 
 /// OOSC message to /resman/<...>
@@ -146,7 +146,7 @@ impl<R: Renderer, C: Client> Dispatch<R, C> {
                 }
             },
             OscToplevel::Renderer((), rend_msg) => match rend_msg {
-                OscRenderer::RenderRange((), (range, inputs, num_slots)) => {
+                OscRenderer::RenderRange((), (range, num_slots, inputs)) => {
                     let mut buff = ArrayBase::zeros(Dim([num_slots as usize, (range.end-range.start) as usize]));
                     self.renderer.fill_buffer(&mut buff, range.start, inputs);
                     self.client.audio_rendered(buff, range.start);
