@@ -15,6 +15,7 @@ extern crate serde_osc;
 #[macro_use] extern crate serde_derive;
 extern crate serde_json;
 extern crate sha2;
+extern crate streaming_iterator;
 extern crate url;
 extern crate url_serde;
 

@@ -8,6 +8,7 @@ use render::Renderer;
 use resman::AudioBuffer;
 use routing::{Edge, GraphWatcher, NodeData, NodeHandle};
 use routing::effect::{PrimitiveEffect, EffectData};
+use streaming_iterator::StreamingIterator;
 use util::unpack_f32;
 
 
@@ -19,6 +20,12 @@ struct NodeMap {
 #[derive(Default, Debug)]
 pub struct RefRenderer {
     nodes: NodeMap,
+    /// inputs[slot][sample] represents the value of the external input at
+    /// the given slot and time. On OOB, it is assumed to be 0.
+    inputs: Vec<Vec<f32>>,
+    /// Next expected sample to be queried.
+    /// This is tracked because if we do a seek, the inputs need to be zero'd.
+    head: u64,
 }
 
 #[derive(Default, Debug)]
@@ -39,20 +46,48 @@ enum MyNodeData {
 
 impl Renderer for RefRenderer {
     fn fill_buffer(&mut self, buff: &mut Array2<f32>, idx: u64, inputs: Jagged2<f32>) {
-        // TODO: read inputs into a buffer.
+        // Store inputs for future use
+        {
+            if idx != self.head {
+                for slot in &mut self.inputs {
+                    *slot = Vec::new();
+                }
+            }
+            if self.inputs.len() < buff.len() {
+                self.inputs.resize(buff.len(), Default::default());
+            }
+            let mut stream = inputs.stream();
+            let mut self_it = self.inputs.iter_mut();
+            while let (Some(row), Some(vec_dest)) = (stream.next(), self_it.next()) {
+                // NB: Improper indexing on 32-bit OS, but will OOM first.
+                vec_dest.resize(idx as usize, 0f32);
+                vec_dest.extend(row);
+            }
+        }
+
+        // Calculate outputs
         let (n_slots, n_times) = buff.dim().into();
         for slot in 0..n_slots as u32 {
             for time in idx..idx+n_times as u64 {
                 buff[[slot as usize, time as usize]] = self.get_sample(time, slot);
             }
         }
+        // Keep track of the playhead
+        self.head = idx + n_times as u64;
     }
 }
 impl RefRenderer {
     fn get_sample(&mut self, time: u64, slot: u32) -> f32 {
         let node = &self.nodes[&NodeHandle::toplevel()];
         // find all edges to ([Null], slot=slot)
-        self.sum_input_to_slot(&self.nodes, node, time, slot, &Vec::new()) as f32
+        let edges_out = node.inbound.iter().filter(|in_edge| {
+            in_edge.to_slot() == slot
+        });
+        // Sum the outputs
+        let total: f64 = edges_out.map(|edge| {
+            self.get_value(&self.nodes, edge, time, &Vec::new())
+        }).sum();
+        total as f32
     }
     /// Get the value on an edge at a particular time
     /// When backtracking from the output, we push each Node onto the context if we enter inside of
@@ -173,10 +208,16 @@ impl RefRenderer {
     /// Return the sum of all inputs into a specific slot of the given
     /// node at the given time.
     fn sum_input_to_slot(&self, nodes: &NodeMap, node: &Node, time: u64, slot: u32, context: &Vec<(&NodeMap, NodeHandle)>) -> f64 {
-        let edges_in = node.inbound.iter().filter(|in_edge| {
-            in_edge.to_slot() == slot
-        });
-        edges_in.map(|edge| self.get_value(nodes, edge, time, context)).sum()
+        if node.data.is_none() && context.is_empty() {
+            // Read top-level input, or 0 if non-existent input.
+            *self.inputs.get(slot as usize).and_then(|v| v.get(time as usize)).unwrap_or(&0f32) as f64
+        } else {
+            // Sum internal inputs
+            let edges_in = node.inbound.iter().filter(|in_edge| {
+                in_edge.to_slot() == slot
+            });
+            edges_in.map(|edge| self.get_value(nodes, edge, time, context)).sum()
+        }
     }
 
     fn make_node(&self, effect: &NodeData) -> MyNodeData {
