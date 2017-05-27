@@ -79,15 +79,7 @@ impl Renderer for RefRenderer {
 impl RefRenderer {
     fn get_sample(&mut self, time: u64, slot: u32) -> f32 {
         let node = &self.nodes[&NodeHandle::toplevel()];
-        // find all edges to ([Null], slot=slot)
-        let edges_out = node.inbound.iter().filter(|in_edge| {
-            in_edge.to_slot() == slot
-        });
-        // Sum the outputs
-        let total: f64 = edges_out.map(|edge| {
-            self.get_value(&self.nodes, edge, time, &Vec::new())
-        }).sum();
-        total as f32
+        self.sum_input_to_slot(&self.nodes, &node, time, slot, &Vec::new()) as f32
     }
     /// Get the value on an edge at a particular time
     /// When backtracking from the output, we push each Node onto the context if we enter inside of
@@ -95,12 +87,18 @@ impl RefRenderer {
     fn get_value(&self, nodes: &NodeMap, edge: &Edge, time: u64, context: &Vec<(&NodeMap, NodeHandle)>) -> f64 {
         let from = edge.from_full();
         if *from.node_handle() == None {
-            // Reading from one of the inputs to the top of `context`
-            // TODO: we can avoid cloning by reversing the pop after recursing.
-            let mut new_context = context.clone();
-            let (new_nodes, head) = new_context.pop().unwrap();
-            // Sum the inputs to the matching slot
-            self.sum_input_to_slot(new_nodes, &new_nodes[&head], time, edge.from_slot(), &new_context)
+            if context.is_empty() {
+                // toplevel input (i.e. external input)
+                let slot = edge.from_slot() as usize;
+                *self.inputs.get(slot).and_then(|v| v.get(time as usize)).unwrap_or(&0f32) as f64
+            } else {
+                // Reading from one of the inputs to the top of `context`
+                // TODO: we can avoid cloning by reversing the pop after recursing.
+                let mut new_context = context.clone();
+                let (new_nodes, head) = new_context.pop().unwrap();
+                // Sum the inputs to the matching slot
+                self.sum_input_to_slot(new_nodes, &new_nodes[&head], time, edge.from_slot(), &new_context)
+            }
         } else {
             // Reading from another node within the DAG
             let node = &nodes[&from];
@@ -208,16 +206,10 @@ impl RefRenderer {
     /// Return the sum of all inputs into a specific slot of the given
     /// node at the given time.
     fn sum_input_to_slot(&self, nodes: &NodeMap, node: &Node, time: u64, slot: u32, context: &Vec<(&NodeMap, NodeHandle)>) -> f64 {
-        if node.data.is_none() && context.is_empty() {
-            // Read top-level input, or 0 if non-existent input.
-            *self.inputs.get(slot as usize).and_then(|v| v.get(time as usize)).unwrap_or(&0f32) as f64
-        } else {
-            // Sum internal inputs
-            let edges_in = node.inbound.iter().filter(|in_edge| {
-                in_edge.to_slot() == slot
-            });
-            edges_in.map(|edge| self.get_value(nodes, edge, time, context)).sum()
-        }
+        let edges_in = node.inbound.iter().filter(|in_edge| {
+            in_edge.to_slot() == slot
+        });
+        edges_in.map(|edge| self.get_value(nodes, edge, time, context)).sum()
     }
 
     fn make_node(&self, effect: &NodeData) -> MyNodeData {
