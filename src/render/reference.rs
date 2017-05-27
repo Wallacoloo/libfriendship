@@ -69,7 +69,7 @@ impl Renderer for RefRenderer {
         let (n_slots, n_times) = buff.dim().into();
         for slot in 0..n_slots as u32 {
             for time in idx..idx+n_times as u64 {
-                buff[[slot as usize, time as usize]] = self.get_sample(time, slot);
+                buff[[slot as usize, (time - idx) as usize]] = self.get_sample(time, slot);
             }
         }
         // Keep track of the playhead

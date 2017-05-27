@@ -61,5 +61,23 @@ fn render_passthrough() {
     .into()).unwrap();
     let rendered = rx.recv().unwrap();
     assert_eq!(rendered, array![[1f32, 2f32, 3f32, 4f32]]);
+
+    // Read some more data
+    let mut builder = Jagged2Builder::new();
+    builder.extend(&[0f32, 1f32, 2f32]);
+    dispatch.dispatch(
+        OscRenderer::RenderRange((), (4..8, 1, builder.into()))
+    .into()).unwrap();
+    let rendered = rx.recv().unwrap();
+    // empty inputs are implicitly 0.
+    assert_eq!(rendered, array![[0f32, 1f32, 2f32, 0f32]]);
+
+    // Seek to zero and render more
+    dispatch.dispatch(
+        OscRenderer::RenderRange((), (0..4, 1, Default::default()))
+    .into()).unwrap();
+    // Seeking implicitly zeros the inputs
+    let rendered = rx.recv().unwrap();
+    assert_eq!(rendered, array![[0f32, 0f32, 0f32, 0f32]]);
 }
 
