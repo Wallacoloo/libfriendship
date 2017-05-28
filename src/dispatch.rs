@@ -2,7 +2,6 @@
 //! something cohesive. It effectively hides the rest of the library,
 //! and all commands are meant to pass through this instead.
 
-use std::iter::FromIterator;
 use std::path::Path;
 use std::ops::Range;
 
