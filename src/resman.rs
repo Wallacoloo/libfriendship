@@ -44,15 +44,16 @@ impl ResMan {
     }
     fn iter_effect_files<'a>(&'a self, id: &'a EffectId) -> impl Iterator<Item=PathBuf> + 'a {
         self.iter_all_files().filter(move |f| {
-            trace!("Resman: testing hash for: {:?}", f);
-            match *id.sha256() {
+            let did_match = match *id.sha256() {
                 None => true,
                 Some(ref hash) => {
                     let mut file = File::open(f).unwrap();
                     let result = digest_reader::<Sha256>(&mut file).unwrap();
                     hash == result.as_slice()
                 }
-            }
+            };
+            trace!("Resman: testing hash for: {:?} ({:?})", f, did_match);
+            did_match
         })
     }
     fn iter_all_files<'a>(&'a self) -> impl Iterator<Item=PathBuf> + 'a {
