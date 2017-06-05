@@ -186,12 +186,12 @@ impl Effect {
                             Err(error) => warn!("RouteGraph::from_adjlist failed: {:?}", error)
                         }
                     } else {
-                        trace!("Effect names differ: wanted {:?} got {:?}", id.name(), desc.id().name());
+                        trace!("[{:?}] Effect names differ: wanted {:?} got {:?}", path, id.name(), desc.id().name());
                     }
                 },
                 Err(error) => {
                     // Try parsing the file as an audio stream.
-                    if let Ok(buffer) = AudioBuffer::from_path(path) {
+                    if let Ok(buffer) = AudioBuffer::from_path(path.clone()) {
                         let me = Self {
                             meta: EffectMeta {
                                 name: id.name.clone(),
@@ -209,7 +209,7 @@ impl Effect {
                         // TODO: implement some form of caching
                         return Ok(Rc::new(me));
                     } else {
-                        warn!("Unable to deserialize EffectDesc: {:?}", error)
+                        warn!("[{:?}] Unable to deserialize EffectDesc: {:?}", path, error)
                     }
                 }
             }
