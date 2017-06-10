@@ -46,27 +46,36 @@ enum MyNodeData {
 
 impl Renderer for RefRenderer {
     fn fill_buffer(&mut self, buff: &mut Array2<f32>, idx: u64, inputs: Jagged2<f32>) {
+        let (n_slots, n_times) = buff.dim().into();
         // Store inputs for future use
         {
+            // If this is a seek operation, forget historical input values.
             if idx != self.head {
                 for slot in &mut self.inputs {
                     *slot = Vec::new();
+                    // NB: Improper indexing on 32-bit OS, but will OOM first.
+                    slot.resize(idx as usize, 0f32);
                 }
             }
-            if self.inputs.len() < buff.len() {
-                self.inputs.resize(buff.len(), Default::default());
+            // Make sure we have storage space for all inputs.
+            while self.inputs.len() < buff.len() {
+                // NB: Improper indexing on 32-bit OS, but will OOM first.
+                let mut v = Vec::with_capacity(idx as usize);
+                v.resize(idx as usize, 0f32);
+                self.inputs.push(v);
             }
             let mut stream = inputs.stream();
             let mut self_it = self.inputs.iter_mut();
             while let (Some(row), Some(vec_dest)) = (stream.next(), self_it.next()) {
-                // NB: Improper indexing on 32-bit OS, but will OOM first.
-                vec_dest.resize(idx as usize, 0f32);
+                assert_eq!(vec_dest.len(), idx as usize);
                 vec_dest.extend(row);
+                assert!(vec_dest.len() <= idx as usize + n_times); // cannot send inputs ahead of outputs.
+                let pad_val = vec_dest.last().cloned().unwrap_or(0f32);
+                vec_dest.resize(idx as usize +n_times, pad_val);
             }
         }
 
         // Calculate outputs
-        let (n_slots, n_times) = buff.dim().into();
         for slot in 0..n_slots as u32 {
             for time in idx..idx+n_times as u64 {
                 buff[[slot as usize, (time - idx) as usize]] = self.get_sample(time, slot);

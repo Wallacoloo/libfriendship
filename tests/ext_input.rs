@@ -69,8 +69,8 @@ fn render_passthrough() {
         OscRenderer::RenderRange((), (4..8, 1, builder.into()))
     .into()).unwrap();
     let rendered = rx.recv().unwrap();
-    // empty inputs are implicitly 0.
-    assert_eq!(rendered, array![[0f32, 1f32, 2f32, 0f32]]);
+    // empty inputs take on their last known value.
+    assert_eq!(rendered, array![[0f32, 1f32, 2f32, 2f32]]);
 
     // Seek to zero and render more
     dispatch.dispatch(
