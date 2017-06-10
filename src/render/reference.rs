@@ -99,7 +99,9 @@ impl RefRenderer {
             if context.is_empty() {
                 // toplevel input (i.e. external input)
                 let slot = edge.from_slot() as usize;
-                *self.inputs.get(slot).and_then(|v| v.get(time as usize)).unwrap_or(&0f32) as f64
+                let value = *self.inputs.get(slot).and_then(|v| v.get(time as usize)).unwrap_or(&0f32) as f64;
+                trace!("Renderer reading from ext input [t={}] [slot={}]: {}", time, slot, value);
+                value
             } else {
                 // Reading from one of the inputs to the top of `context`
                 // TODO: we can avoid cloning by reversing the pop after recursing.
