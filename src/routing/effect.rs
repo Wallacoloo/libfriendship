@@ -273,6 +273,9 @@ impl EffectDesc {
             urls: self.meta.urls.clone(),
         }
     }
+    pub fn adjlist(&self) -> &AdjList {
+        &self.adjlist
+    }
 }
 
 impl EffectMeta {
