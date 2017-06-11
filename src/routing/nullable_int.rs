@@ -24,6 +24,17 @@ impl<T> NullableInt<T> {
     }
 }
 
+impl<T: Zero> NullableInt<T> {
+    /// Return true if the number has been nulled.
+    pub fn is_null(&self) -> bool {
+        self.raw.is_zero()
+    }
+    /// Return true is the number is not null.
+    pub fn is_nonnull(&self) -> bool {
+        !self.is_null()
+    }
+}
+
 impl<T: Copy + Zero> NullableInt<T> {
     /// Return None if self is null,
     /// else Some(value) where value != 0.
