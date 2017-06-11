@@ -6,6 +6,8 @@
 use std::collections::hash_map::HashMap;
 use std::collections::hash_map;
 use std::collections::hash_set::HashSet;
+use std::fmt::{Display, Formatter};
+use std::fmt;
 use std::rc::Rc;
 
 use resman::ResMan;
@@ -241,6 +243,11 @@ impl NodeHandle {
     }
     pub fn node_handle(&self) -> &PrimNodeHandle {
         &self.node_handle
+    }
+}
+impl Display for NodeHandle {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        self.node_handle.fmt(f)
     }
 }
 
