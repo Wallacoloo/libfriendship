@@ -1,8 +1,7 @@
 /// `RouteGraph` defines a Directed Acyclic Graph of Effects.
-/// The edges connecting each Effect have a source and destination slot, tag, and channel.
-/// Edges are also allowed to go to null, in which case they only have a destination slot and
-/// channel. These are outputs.
-/// Edges can also COME from null, in which case the source has the format (slot, channel)
+/// The edges connecting each Effect have a source and destination slot.
+/// Edges are also allowed to go to null, in which case they are treated as outputs.
+/// Edges can also come from null, in which case they are treated as inputs.
 
 use std::collections::hash_map::HashMap;
 use std::collections::hash_map;
@@ -265,6 +264,7 @@ impl Edge {
     pub fn new(from: NodeHandle, to: NodeHandle, weight: EdgeWeight) -> Self {
         Self{ from, to, weight }
     }
+    // TODO: rename to 'from' and 'to' or 'from_hnd', 'to_hnd'?
     pub fn from_full(&self) -> NodeHandle {
         self.from
     }

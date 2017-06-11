@@ -6,6 +6,9 @@
 use num::Zero;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 
+use std::fmt::{Display, Formatter};
+use std::fmt;
+
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub struct NullableInt<T> {
     raw: T,
@@ -61,6 +64,12 @@ impl<T: Zero> From<Option<T>> for NullableInt<T> {
 impl<T: Zero + PartialEq + Copy> PartialEq<Option<T>> for NullableInt<T> {
     fn eq(&self, other: &Option<T>) -> bool {
         *self == Self::from(*other)
+    }
+}
+
+impl<T: Display> Display for NullableInt<T> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        self.raw.fmt(f)
     }
 }
 
