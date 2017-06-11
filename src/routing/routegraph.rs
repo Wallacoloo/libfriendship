@@ -8,6 +8,7 @@ use std::collections::hash_map;
 use std::collections::hash_set::HashSet;
 use std::fmt::{Display, Formatter};
 use std::fmt;
+use std::ops::Deref;
 use std::rc::Rc;
 
 use resman::ResMan;
@@ -248,6 +249,12 @@ impl NodeHandle {
 impl Display for NodeHandle {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         self.node_handle.fmt(f)
+    }
+}
+impl Deref for NodeHandle {
+    type Target = PrimNodeHandle;
+    fn deref(&self) -> &Self::Target {
+        &self.node_handle
     }
 }
 
