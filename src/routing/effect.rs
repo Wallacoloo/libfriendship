@@ -95,6 +95,8 @@ pub enum PrimitiveEffect {
     /// Also serves as a unit step;
     /// Returns the float value for t >= 0, else 0.
     F32Constant,
+    /// Sum 2 floating point streams.
+    Sum2,
     /// Primitive effect to multiply TWO input streams sample-wise.
     Multiply,
     /// Primitive effect to calculate A/B.
@@ -132,8 +134,9 @@ impl Effect {
     pub fn from_id(id: EffectId, resman: &ResMan) -> ResultE<Rc<Self>> {
         // For primitive effects, don't attempt to locate their descriptions (they don't exist)
         let prim_effect = id.get_primitive_url().and_then(|url| match url.path() {
-            "/F32Constant" => Some(PrimitiveEffect::F32Constant),
             "/Delay"       => Some(PrimitiveEffect::Delay),
+            "/F32Constant" => Some(PrimitiveEffect::F32Constant),
+            "/Sum2"        => Some(PrimitiveEffect::Sum2),
             "/Multiply"    => Some(PrimitiveEffect::Multiply),
             "/Divide"      => Some(PrimitiveEffect::Divide),
             "/Modulo"      => Some(PrimitiveEffect::Modulo),

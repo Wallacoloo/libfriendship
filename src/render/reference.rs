@@ -166,10 +166,22 @@ impl RefRenderer {
                             val_a * val_b
                         }
                     },
+                    PrimitiveEffect::Sum2 => {
+                        // The only nonzero output is slot=0.
+                        if edge.from_slot() != 0 {
+                            warn!("Attempt to read from Sum2 slot != 0");
+                            0f64
+                        } else {
+                            // Sum all inputs
+                            let input_left = self.sum_input_to_slot(nodes, node, time, 0, context);
+                            let input_right = self.sum_input_to_slot(nodes, node, time, 1, context);
+                            input_left + input_right
+                        }
+                    },
                     PrimitiveEffect::Divide => {
                         // The only nonzero output is slot=0.
                         if edge.from_slot() != 0 {
-                            warn!("Attempt to read from MultInv slot != 0");
+                            warn!("Attempt to read from Divide slot != 0");
                             0f64
                         } else {
                             // Sum all inputs
@@ -181,7 +193,7 @@ impl RefRenderer {
                     PrimitiveEffect::Minimum => {
                         // The only nonzero output is slot=0.
                         if edge.from_slot() != 0 {
-                            warn!("Attempt to read from Modulo slot != 0");
+                            warn!("Attempt to read from Minimum slot != 0");
                             0f64
                         } else {
                             let input_a = self.sum_input_to_slot(nodes, node, time, 0, context);

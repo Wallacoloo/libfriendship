@@ -9,6 +9,7 @@ use super::effect::EffectId;
 #[derive(Debug)]
 #[derive(Serialize, Deserialize)]
 pub struct AdjList {
+    // TODO: No need to store NodeHandles; just assume they start counting from 1.
     pub nodes: Vec<(NodeHandle, EffectId)>,
     pub edges: Vec<Edge>,
 }

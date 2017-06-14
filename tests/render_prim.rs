@@ -37,6 +37,11 @@ fn delay_id() -> EffectId {
     EffectId::new("Delay".into(), None, vec![Url::parse("primitive:///Delay").unwrap()])
 }
 
+/// Return the `EffectId` that universally represents `Sum2` nodes.
+fn sum2_id() -> EffectId {
+    EffectId::new("Sum2".into(), None, vec![Url::parse("primitive:///Sum2").unwrap()])
+}
+
 /// Return the `EffectId` that universally represents `F32Constant` nodes.
 fn const_id() -> EffectId {
     EffectId::new("F32Constant".into(), None, vec![Url::parse("primitive:///F32Constant").unwrap()])
@@ -155,6 +160,39 @@ fn render_mult() {
     .into()).unwrap();
     let rendered = rx.recv().unwrap();
     assert_eq!(rendered, array![[-1.5f32, -1.5f32, -1.5f32, -1.5f32]]);
+}
+
+#[test]
+fn render_sum2() {
+    let (mut dispatch, rx) = test_setup();
+
+    // Create Multiply node (id=1)
+    let sum_hnd = NodeHandle::new(1);
+    dispatch.dispatch(OscRouteGraph::AddNode( (), (sum_hnd, sum2_id()) ).into()).unwrap();
+    // Connect delay output to master output.
+    dispatch.dispatch(OscRouteGraph::AddEdge(
+        (), (Edge::new_to_null(sum_hnd, EdgeWeight::new(0, 0)),)
+    ).into()).unwrap();
+    
+    // Create Constant node (id=2)
+    let const_hnd = NodeHandle::new(2);
+    dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
+    // Route constant output to sum input (A)
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, sum_hnd, EdgeWeight::new(pack_f32(0.5f32), 0)),)).into()).unwrap();
+    
+    // Create Constant node (id=3)
+    let const_hnd = NodeHandle::new(3);
+    dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
+    // Route constant output to sum input (B)
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, sum_hnd, EdgeWeight::new(pack_f32(-3f32), 1)),)).into()).unwrap();
+    
+    // Read some data from ch=0.
+    // This should be 0.5 + -3.0 = -2.5
+    dispatch.dispatch(
+        OscRenderer::RenderRange((), (0..4, 1, Default::default()))
+    .into()).unwrap();
+    let rendered = rx.recv().unwrap();
+    assert_eq!(rendered, array![[-2.5f32, -2.5f32, -2.5f32, -2.5f32]]);
 }
 
 #[test]
