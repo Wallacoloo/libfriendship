@@ -51,6 +51,8 @@ pub enum Error {
     NodeInUse,
     /// Raised on attempt to create a node with an id that's already in use.
     NodeExists,
+    /// Raised on attempt to wire two edges to the same input slot (i.e. many-to-one).
+    SlotAlreadyConnected,
     /// Error inside some Effect:: method
     EffectError(effect::Error),
 }
@@ -61,7 +63,9 @@ pub type ResultE<T> = Result<T, Error>;
 
 #[derive(Default, Debug)]
 pub struct RouteGraph {
+    /// Maps nodes to a set of ALL edges directly connected to them (either inbound or outbound).
     edges: HashMap<NodeHandle, EdgeSet>,
+    /// Associate node handles with their data.
     node_data: HashMap<NodeHandle, NodeData>,
 }
 
@@ -82,6 +86,8 @@ impl RouteGraph {
     pub fn iter_edges<'a>(&'a self) -> impl Iterator<Item=&Edge> + 'a {
         self.edges.values().flat_map(|v_set| v_set.outbound.iter())
     }
+    /// Retrieve the data associated with a node, or `None` if the node handle
+    /// does not exist within this graph.
     pub fn get_data(&self, handle: &NodeHandle) -> Option<&NodeData> {
         self.node_data.get(handle)
     }
@@ -97,7 +103,18 @@ impl RouteGraph {
         assert!(self.node_data.insert(handle, node_data.clone()).is_none());
         Ok(())
     }
+    /// Connect two nodes with an edge.
+    /// Will return an error if the connection would violate any of the DAGs constraints.
     pub fn add_edge(&mut self, edge: Edge) -> ResultE<()> {
+        // Each node input may only have one inbound edge.
+        if let hash_map::Entry::Occupied(entry) = self.edges.entry(edge.to_full()) {
+            let is_slot_in_use = entry.get().inbound.iter()
+                .filter(|in_edge| in_edge.to_slot() == edge.to_slot())
+                .next().is_some();
+            if is_slot_in_use {
+                return Err(Error::SlotAlreadyConnected);
+            }
+        }
         // Algorithm:
         //   Assume we currently have a DAG.
         //   Given that, the only way this new edge could introduce a cycle is if it was a part of
@@ -111,12 +128,15 @@ impl RouteGraph {
             Ok(())
         }
     }
+    /// Functionally equivalent to the `add_edge` method, but does not validate DAG constraints.
     fn add_edge_unchecked(&mut self, edge: Edge) {
         // associate the edge with its origin.
         self.edges.entry(edge.from_full()).or_insert_with(EdgeSet::new).outbound.insert(edge.clone());
         // associate the edge with its destination.
         self.edges.entry(edge.to_full()).or_insert_with(EdgeSet::new).inbound.insert(edge);
     }
+    /// Returns true if there is some directed path the connects `from` to `target`.
+    /// Note that neither edge need currently exist in the graph.
     fn is_edge_reachable(&self, from: &Edge, target: &Edge) -> bool {
         // Algorithm:
         //   Try to reach `edge` from `edge`.
@@ -191,7 +211,7 @@ impl RouteGraph {
             edge_set.inbound.remove(&edge);
         }
     }
-
+    // TODO: replace this with an implementation of `Into`
     pub fn to_adjlist(&self) -> AdjList {
         // Map Effect -> EffectId
         let nodes = self.node_data.iter().map(|(handle, data)| {
@@ -207,6 +227,7 @@ impl RouteGraph {
             edges: edges,
         }
     }
+    // TODO: replace with an implementation of `TryFrom`.
     pub fn from_adjlist(adj: AdjList, res: &ResMan) -> ResultE<Self> {
         // Unwrap struct fields to local variables
         let (nodes, edges) = (adj.nodes, adj.edges);

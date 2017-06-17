@@ -146,6 +146,7 @@ impl Effect {
                 None
             }
         });
+        // Attempt to instantiate a primitive effect, if the URL matched.
         if let Some(prim_effect) = prim_effect {
             if id.sha256 == None {
                 let me = Self {
