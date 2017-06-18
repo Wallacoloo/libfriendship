@@ -163,7 +163,7 @@ impl Effect {
                 };
                 return Ok(Rc::new(me));
             } else {
-                warn!("Attempted to load a primitive Effect, but cannot because of mismatched sha256");
+                warn!("Attempted to load a primitive Effect, but cannot because of mismatched sha256: {:?}", id.sha256);
             }
         }
 
@@ -187,7 +187,7 @@ impl Effect {
                                 // TODO: implement some form of caching
                                 return Ok(Rc::new(me));
                             },
-                            Err(error) => warn!("RouteGraph::from_adjlist failed: {:?}", error)
+                            Err(error) => warn!("[{:?}] RouteGraph::from_adjlist failed: {:?}", path, error)
                         }
                     } else {
                         trace!("[{:?}] Effect names differ: wanted {:?} got {:?}", path, id.name(), desc.id().name());
