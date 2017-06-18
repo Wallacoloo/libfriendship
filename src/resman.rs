@@ -1,9 +1,10 @@
-use std::path::PathBuf;
-use std::io;
-use std::io::Cursor;
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
-use std::path::Path;
+use std::io;
+use std::io::Cursor;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use byteorder::{LittleEndian, ReadBytesExt};
@@ -19,13 +20,22 @@ use routing::EffectId;
 /// ~/.friendship, etc). Instead, designed to be configured by the host.
 #[derive(Default, Debug)]
 pub struct ResMan {
+    /// List of directories to search for files in.
     dirs: Vec<PathBuf>,
+    /// Object that handles indexing/caching files.
+    cache: RefCell<ResCache>,
 }
 
 /// Audio that may be on-disk.
 #[derive(Clone, Debug)]
 pub struct AudioBuffer {
     buffer: Rc<FileBuffer>,
+}
+
+#[derive(Default, Debug)]
+struct ResCache {
+    /// Map sha's to paths.
+    sha256_to_path: HashMap<[u8; 32], PathBuf>,
 }
 
 impl ResMan {
@@ -43,12 +53,15 @@ impl ResMan {
         })
     }
     fn iter_effect_files<'a>(&'a self, id: &'a EffectId) -> impl Iterator<Item=PathBuf> + 'a {
-        self.iter_all_files().filter(move |f| {
+        self.iter_all_files(id.sha256().as_ref()).filter(move |f| {
             let did_match = match *id.sha256() {
                 None => true,
                 Some(ref hash) => {
                     let mut file = File::open(f).unwrap();
+                    // TODO: the hash could still change between now and when we parse the file!
                     let result = digest_reader::<Sha256>(&mut file).unwrap();
+                    // Cache this sha256->file relationship.
+                    self.cache.borrow_mut().notify_sha256(f.clone(), slice_to_array32(result.as_slice()));
                     hash == result.as_slice()
                 }
             };
@@ -56,9 +69,15 @@ impl ResMan {
             did_match
         })
     }
-    fn iter_all_files<'a>(&'a self) -> impl Iterator<Item=PathBuf> + 'a {
+    /// Iterates over all files.
+    /// Files with matching search criteria are iterated first.
+    /// Files may be visited multiple times. This happens if their sha matches the hint.
+    fn iter_all_files<'a>(&'a self, sha256_hint: Option<&[u8; 32]>) -> impl Iterator<Item=PathBuf> + 'a {
+        let prioritized = sha256_hint
+            .and_then(|sha| self.cache.borrow().get_path_by_sha256(sha).cloned())
+            .into_iter();
         // dirs as PathBuf -> valid ReadDir objects
-        self.dirs.iter().filter_map(|dir_path| {
+        let all_files = self.dirs.iter().filter_map(|dir_path| {
             fs::read_dir(dir_path)
                 .map_err(|e| warn!("ResMan: Failed to read directory {:?}: {}", dir_path, e))
                 .ok()
@@ -84,7 +103,8 @@ impl ResMan {
         // DirEntry -> Path
         .map(|dir_entry| {
             dir_entry.path()
-        })
+        });
+        prioritized.chain(all_files)
     }
 }
 
@@ -110,4 +130,22 @@ impl AudioBuffer {
         // Read float or 0f32 if error (e.g. end of file?)
         reader.read_f32::<LittleEndian>().unwrap_or(0f32)
     }
+}
+
+impl ResCache {
+    /// Call upon discovery of a file's hash.
+    fn notify_sha256(&mut self, path: PathBuf, sha256: [u8; 32]) {
+        self.sha256_to_path.insert(sha256, path);
+    }
+    /// Attempt to look up a file by its hash.
+    fn get_path_by_sha256(&self, sha256: &[u8; 32]) -> Option<&PathBuf> {
+        self.sha256_to_path.get(sha256)
+    }
+}
+
+/// Create a 32-entry array from a slice.
+fn slice_to_array32(slice: &[u8]) -> [u8; 32] {
+    let mut ret: [u8; 32] = Default::default();
+    ret.copy_from_slice(slice);
+    ret
 }
