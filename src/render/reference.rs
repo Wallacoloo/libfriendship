@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 
 use ndarray::Array2;
@@ -31,7 +31,8 @@ pub struct RefRenderer {
 #[derive(Default, Debug)]
 struct Node {
     data: Option<MyNodeData>,
-    inbound: HashSet<Edge>
+    /// Inbound edges, indexed by slot idx.
+    inbound: Vec<Option<Edge>>,
 }
 
 #[derive(Debug)]
@@ -88,7 +89,7 @@ impl Renderer for RefRenderer {
 impl RefRenderer {
     fn get_sample(&mut self, time: u64, slot: u32) -> f32 {
         let node = &self.nodes[&NodeHandle::toplevel()];
-        self.sum_input_to_slot(&self.nodes, &node, time, slot, &Vec::new()) as f32
+        self.get_input_to_slot(&self.nodes, &node, time, slot, &Vec::new()) as f32
     }
     /// Get the value on an edge at a particular time
     /// When backtracking from the output, we push each Node onto the context if we enter inside of
@@ -107,8 +108,8 @@ impl RefRenderer {
                 // TODO: we can avoid cloning by reversing the pop after recursing.
                 let mut new_context = context.clone();
                 let (new_nodes, head) = new_context.pop().unwrap();
-                // Sum the inputs to the matching slot
-                self.sum_input_to_slot(new_nodes, &new_nodes[&head], time, edge.from_slot(), &new_context)
+                // Get the input to the matching slot
+                self.get_input_to_slot(new_nodes, &new_nodes[&head], time, edge.from_slot(), &new_context)
             }
         } else {
             // Reading from another node within the DAG
@@ -119,7 +120,7 @@ impl RefRenderer {
                     new_context.push((nodes, from));
                     // Now find the *output* of the sub dag (or 0 if the sub dag has no outputs)
                     new_nodes.get(&NodeHandle::toplevel()).map_or(0f64, |root_node| {
-                        self.sum_input_to_slot(new_nodes, root_node, time, edge.from_slot(), &new_context)
+                        self.get_input_to_slot(new_nodes, root_node, time, edge.from_slot(), &new_context)
                     })
                 },
                 MyNodeData::Primitive(prim) => match prim {
@@ -130,13 +131,15 @@ impl RefRenderer {
                             warn!("Attempt to read from Delay slot != 0");
                             0f64
                         } else {
-                            let delay_frames = self.sum_input_to_slot(nodes, node, time, 1, context);
+                            let delay_frames = self.get_input_to_slot(nodes, node, time, 1, context);
                             // Clamp delay value to [0, u64::max]
                             let delay_int = if delay_frames < 0f64 {
                                 0u64
                             } else if delay_frames > u64::max_value() as f64 {
                                 // TODO: u64::max isn't precisely representable in f64;
                                 // will this cause issues?
+                                // TODO: this is technically incorrect when time=u64::max_value,
+                                // as this results in returning the value at t=0.
                                 u64::max_value()
                             } else {
                                 // Note: this conversion is flooring.
@@ -144,7 +147,7 @@ impl RefRenderer {
                             };
                             // t<0 -> value is 0.
                             time.checked_sub(delay_int).map_or(0f64, |origin_time| {
-                                self.sum_input_to_slot(nodes, node, origin_time, 0, context)
+                                self.get_input_to_slot(nodes, node, origin_time, 0, context)
                             })
                         }
                     },
@@ -159,10 +162,8 @@ impl RefRenderer {
                             warn!("Attempt to read from Multiply slot != 0");
                             0f64
                         } else {
-                            // Sum all inputs from slot=0 and slot=2 into two separate
-                            // variables, then multiply them.
-                            let val_a = self.sum_input_to_slot(nodes, node, time, 0, context);
-                            let val_b = self.sum_input_to_slot(nodes, node, time, 1, context);
+                            let val_a = self.get_input_to_slot(nodes, node, time, 0, context);
+                            let val_b = self.get_input_to_slot(nodes, node, time, 1, context);
                             val_a * val_b
                         }
                     },
@@ -172,9 +173,8 @@ impl RefRenderer {
                             warn!("Attempt to read from Sum2 slot != 0");
                             0f64
                         } else {
-                            // Sum all inputs
-                            let input_left = self.sum_input_to_slot(nodes, node, time, 0, context);
-                            let input_right = self.sum_input_to_slot(nodes, node, time, 1, context);
+                            let input_left = self.get_input_to_slot(nodes, node, time, 0, context);
+                            let input_right = self.get_input_to_slot(nodes, node, time, 1, context);
                             input_left + input_right
                         }
                     },
@@ -184,9 +184,8 @@ impl RefRenderer {
                             warn!("Attempt to read from Divide slot != 0");
                             0f64
                         } else {
-                            // Sum all inputs
-                            let dividend = self.sum_input_to_slot(nodes, node, time, 0, context);
-                            let divisor = self.sum_input_to_slot(nodes, node, time, 1, context);
+                            let dividend = self.get_input_to_slot(nodes, node, time, 0, context);
+                            let divisor = self.get_input_to_slot(nodes, node, time, 1, context);
                             dividend / divisor
                         }
                     },
@@ -196,8 +195,8 @@ impl RefRenderer {
                             warn!("Attempt to read from Minimum slot != 0");
                             0f64
                         } else {
-                            let input_a = self.sum_input_to_slot(nodes, node, time, 0, context);
-                            let input_b = self.sum_input_to_slot(nodes, node, time, 1, context);
+                            let input_a = self.get_input_to_slot(nodes, node, time, 0, context);
+                            let input_b = self.get_input_to_slot(nodes, node, time, 1, context);
                             input_a.min(input_b)
                         }
                     }
@@ -207,10 +206,8 @@ impl RefRenderer {
                             warn!("Attempt to read from Modulo slot != 0");
                             0f64
                         } else {
-                            // Sum all dividends
-                            let dividend = self.sum_input_to_slot(nodes, node, time, 0, context);
-                            // Sum all divisors
-                            let divisor = self.sum_input_to_slot(nodes, node, time, 1, context);
+                            let dividend = self.get_input_to_slot(nodes, node, time, 0, context);
+                            let divisor = self.get_input_to_slot(nodes, node, time, 1, context);
                             let rem = dividend % divisor;
                             if rem < 0f64 {
                                 // TODO: We may be losing precision here, if rem is small.
@@ -226,13 +223,14 @@ impl RefRenderer {
             }
         }
     }
-    /// Return the sum of all inputs into a specific slot of the given
+    /// Return the input into a specific slot of the given
     /// node at the given time.
-    fn sum_input_to_slot(&self, nodes: &NodeMap, node: &Node, time: u64, slot: u32, context: &Vec<(&NodeMap, NodeHandle)>) -> f64 {
-        let edges_in = node.inbound.iter().filter(|in_edge| {
-            in_edge.to_slot() == slot
-        });
-        edges_in.map(|edge| self.get_value(nodes, edge, time, context)).sum()
+    fn get_input_to_slot(&self, nodes: &NodeMap, node: &Node, time: u64, slot: u32, context: &Vec<(&NodeMap, NodeHandle)>) -> f64 {
+        if let Some(&Some(ref edge)) = node.inbound.get(slot as usize) {
+            self.get_value(nodes, &edge, time, context)
+        } else {
+            0f64
+        }
     }
 
     fn make_node(&self, effect: &NodeData) -> MyNodeData {
@@ -246,11 +244,20 @@ impl RefRenderer {
                     nodes.insert(*node, Node::new(Some(self.make_node(data))));
                 }
                 for edge in graph.iter_edges() {
-                    nodes.get_mut(&edge.to_full()).unwrap().inbound.insert(edge.clone());
+                    RefRenderer::helper_add_edge(&mut nodes, edge);
                 }
                 MyNodeData::UserNode(nodes)
             }
         }
+    }
+    fn helper_add_edge(nodes: &mut NodeMap, edge: &Edge) {
+        let inbound = &mut nodes.get_mut(&edge.to_full()).unwrap().inbound;
+        let slot: u32 = edge.to_slot().into();
+        let slot = slot as usize;
+        // allocate space to store the edge.
+        if inbound.len() <= slot { inbound.resize(slot+1, None) }
+
+        inbound[slot] = Some(edge.clone());
     }
 }
 
@@ -263,10 +270,13 @@ impl GraphWatcher for RefRenderer {
         self.nodes.remove(handle);
     }
     fn on_add_edge(&mut self, edge: &Edge) {
-        self.nodes.get_mut(&edge.to_full()).unwrap().inbound.insert(edge.clone());
+        RefRenderer::helper_add_edge(&mut self.nodes, edge);
     }
     fn on_del_edge(&mut self, edge: &Edge) {
-        self.nodes.get_mut(&edge.to_full()).unwrap().inbound.remove(edge);
+        let inbound = &mut self.nodes.get_mut(&edge.to_full()).unwrap().inbound;
+        if let Some(stored_edge) = inbound.get_mut(edge.to_slot() as usize) {
+            *stored_edge = None
+        }
     }
 }
 
@@ -275,7 +285,7 @@ impl Node {
     fn new(data: Option<MyNodeData>) -> Self {
         Node {
             data: data,
-            inbound: HashSet::new(),
+            inbound: Vec::new(),
         }
     }
 }
