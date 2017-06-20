@@ -94,13 +94,13 @@ impl RefRenderer {
     /// Get the value on an edge at a particular time
     /// When backtracking from the output, we push each Node onto the context if we enter inside of
     ///   it (i.e. if it's a nested DAG) & pop when exiting.
-    fn get_value(&self, nodes: &NodeMap, edge: &Edge, time: u64, context: &Vec<(&NodeMap, NodeHandle)>) -> f64 {
+    fn get_value(&self, nodes: &NodeMap, edge: &Edge, time: u64, context: &Vec<(&NodeMap, NodeHandle)>) -> f32 {
         let from = edge.from_full();
         if *from.node_handle() == None {
             if context.is_empty() {
                 // toplevel input (i.e. external input)
                 let slot = edge.from_slot() as usize;
-                let value = *self.inputs.get(slot).and_then(|v| v.get(time as usize)).unwrap_or(&0f32) as f64;
+                let value = *self.inputs.get(slot).and_then(|v| v.get(time as usize)).unwrap_or(&0f32);
                 trace!("Renderer reading from ext input [t={}] [slot={}]: {}", time, slot, value);
                 value
             } else {
@@ -119,7 +119,7 @@ impl RefRenderer {
                     let mut new_context = context.clone();
                     new_context.push((nodes, from));
                     // Now find the *output* of the sub dag (or 0 if the sub dag has no outputs)
-                    new_nodes.get(&NodeHandle::toplevel()).map_or(0f64, |root_node| {
+                    new_nodes.get(&NodeHandle::toplevel()).map_or(0f32, |root_node| {
                         self.get_input_to_slot(new_nodes, root_node, time, edge.from_slot(), &new_context)
                     })
                 },
@@ -129,14 +129,14 @@ impl RefRenderer {
                         // The only nonzero output is slot=0.
                         if edge.from_slot() != 0 {
                             warn!("Attempt to read from Delay slot != 0");
-                            0f64
+                            0f32
                         } else {
                             let delay_frames = self.get_input_to_slot(nodes, node, time, 1, context);
                             // Clamp delay value to [0, u64::max]
-                            let delay_int = if delay_frames < 0f64 {
+                            let delay_int = if delay_frames < 0f32 {
                                 0u64
-                            } else if delay_frames > u64::max_value() as f64 {
-                                // TODO: u64::max isn't precisely representable in f64;
+                            } else if delay_frames > u64::max_value() as f32 {
+                                // TODO: u64::max isn't precisely representable in f32;
                                 // will this cause issues?
                                 // TODO: this is technically incorrect when time=u64::max_value,
                                 // as this results in returning the value at t=0.
@@ -146,7 +146,7 @@ impl RefRenderer {
                                 delay_frames as u64
                             };
                             // t<0 -> value is 0.
-                            time.checked_sub(delay_int).map_or(0f64, |origin_time| {
+                            time.checked_sub(delay_int).map_or(0f32, |origin_time| {
                                 self.get_input_to_slot(nodes, node, origin_time, 0, context)
                             })
                         }
@@ -154,13 +154,13 @@ impl RefRenderer {
                     PrimitiveEffect::F32Constant => {
                         // Float value is encoded via the slot.
                         let value = edge.from_slot();
-                        unpack_f32(value) as f64
+                        unpack_f32(value)
                     },
                     PrimitiveEffect::Multiply => {
                         // The only nonzero output is slot=0.
                         if edge.from_slot() != 0 {
                             warn!("Attempt to read from Multiply slot != 0");
-                            0f64
+                            0f32
                         } else {
                             let val_a = self.get_input_to_slot(nodes, node, time, 0, context);
                             let val_b = self.get_input_to_slot(nodes, node, time, 1, context);
@@ -171,7 +171,7 @@ impl RefRenderer {
                         // The only nonzero output is slot=0.
                         if edge.from_slot() != 0 {
                             warn!("Attempt to read from Sum2 slot != 0");
-                            0f64
+                            0f32
                         } else {
                             let input_left = self.get_input_to_slot(nodes, node, time, 0, context);
                             let input_right = self.get_input_to_slot(nodes, node, time, 1, context);
@@ -182,7 +182,7 @@ impl RefRenderer {
                         // The only nonzero output is slot=0.
                         if edge.from_slot() != 0 {
                             warn!("Attempt to read from Divide slot != 0");
-                            0f64
+                            0f32
                         } else {
                             let dividend = self.get_input_to_slot(nodes, node, time, 0, context);
                             let divisor = self.get_input_to_slot(nodes, node, time, 1, context);
@@ -193,7 +193,7 @@ impl RefRenderer {
                         // The only nonzero output is slot=0.
                         if edge.from_slot() != 0 {
                             warn!("Attempt to read from Minimum slot != 0");
-                            0f64
+                            0f32
                         } else {
                             let input_a = self.get_input_to_slot(nodes, node, time, 0, context);
                             let input_b = self.get_input_to_slot(nodes, node, time, 1, context);
@@ -204,12 +204,12 @@ impl RefRenderer {
                         // The only nonzero output is slot=0.
                         if edge.from_slot() != 0 {
                             warn!("Attempt to read from Modulo slot != 0");
-                            0f64
+                            0f32
                         } else {
                             let dividend = self.get_input_to_slot(nodes, node, time, 0, context);
                             let divisor = self.get_input_to_slot(nodes, node, time, 1, context);
                             let rem = dividend % divisor;
-                            if rem < 0f64 {
+                            if rem < 0f32 {
                                 // TODO: We may be losing precision here, if rem is small.
                                 // We should find a way to do true modulus.
                                 rem + divisor
@@ -219,17 +219,17 @@ impl RefRenderer {
                         }
                     },
                 },
-                MyNodeData::Buffer(ref buf) => buf.get(time, edge.from_slot()) as f64,
+                MyNodeData::Buffer(ref buf) => buf.get(time, edge.from_slot()),
             }
         }
     }
     /// Return the input into a specific slot of the given
     /// node at the given time.
-    fn get_input_to_slot(&self, nodes: &NodeMap, node: &Node, time: u64, slot: u32, context: &Vec<(&NodeMap, NodeHandle)>) -> f64 {
+    fn get_input_to_slot(&self, nodes: &NodeMap, node: &Node, time: u64, slot: u32, context: &Vec<(&NodeMap, NodeHandle)>) -> f32 {
         if let Some(&Some(ref edge)) = node.inbound.get(slot as usize) {
             self.get_value(nodes, &edge, time, context)
         } else {
-            0f64
+            0f32
         }
     }
 
