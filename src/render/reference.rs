@@ -86,52 +86,118 @@ impl Renderer for RefRenderer {
         self.head = idx + n_times as u64;
     }
 }
+
 impl RefRenderer {
+    /// Get the output at a particular time and to a particular output slot.
     fn get_sample(&mut self, time: u64, slot: u32) -> f32 {
-        let node = &self.nodes[&NodeHandle::toplevel()];
-        self.get_input_to_slot(&self.nodes, &node, time, slot, &Vec::new()) as f32
+        self.nodes.get_output(time, slot, |time2, slot2| {
+            *self.inputs.get(slot2 as usize)
+                .and_then(|v| v.get(time2 as usize))
+                .unwrap_or(&0f32)
+        })
     }
-    /// Get the value on an edge at a particular time
-    /// When backtracking from the output, we push each Node onto the context if we enter inside of
-    ///   it (i.e. if it's a nested DAG) & pop when exiting.
-    fn get_value(&self, nodes: &NodeMap, edge: &Edge, time: u64, context: &Vec<(&NodeMap, NodeHandle)>) -> f32 {
-        let from = edge.from_full();
-        if *from.node_handle() == None {
-            if context.is_empty() {
-                // toplevel input (i.e. external input)
-                let slot = edge.from_slot() as usize;
-                let value = *self.inputs.get(slot).and_then(|v| v.get(time as usize)).unwrap_or(&0f32);
-                trace!("Renderer reading from ext input [t={}] [slot={}]: {}", time, slot, value);
-                value
-            } else {
-                // Reading from one of the inputs to the top of `context`
-                // TODO: we can avoid cloning by reversing the pop after recursing.
-                let mut new_context = context.clone();
-                let (new_nodes, head) = new_context.pop().unwrap();
-                // Get the input to the matching slot
-                self.get_input_to_slot(new_nodes, &new_nodes[&head], time, edge.from_slot(), &new_context)
+    /// Allocate renderer data based on data from a RouteGraph node.
+    fn make_node(&self, effect: &NodeData) -> MyNodeData {
+        match *effect.data() {
+            EffectData::Primitive(e) => MyNodeData::Primitive(e),
+            EffectData::Buffer(ref buff) => MyNodeData::Buffer(buff.clone()),
+            EffectData::RouteGraph(ref graph) => {
+                let mut nodes: NodeMap = Default::default();
+
+                for (node, data) in graph.iter_nodes() {
+                    nodes.insert(*node, Node::new(Some(self.make_node(data))));
+                }
+                for edge in graph.iter_edges() {
+                    nodes.add_edge(edge);
+                }
+                MyNodeData::UserNode(nodes)
             }
+        }
+    }
+}
+
+impl GraphWatcher for RefRenderer {
+    fn on_add_node(&mut self, handle: &NodeHandle, data: &NodeData) {
+        let my_node_data = self.make_node(data);
+        self.nodes.insert(*handle, Node::new(Some(my_node_data)));
+    }
+    fn on_del_node(&mut self, handle: &NodeHandle) {
+        self.nodes.remove(handle);
+    }
+    fn on_add_edge(&mut self, edge: &Edge) {
+        self.nodes.add_edge(edge);
+    }
+    fn on_del_edge(&mut self, edge: &Edge) {
+        let inbound = &mut self.nodes.get_mut(&edge.to_full()).unwrap().inbound;
+        if let Some(stored_edge) = inbound.get_mut(edge.to_slot() as usize) {
+            *stored_edge = None
+        }
+    }
+}
+
+impl NodeMap {
+    /// Add an edge that connects two nodes within this graph.
+    fn add_edge(&mut self, edge: &Edge) {
+        let inbound = &mut self.nodes.get_mut(&edge.to_full()).unwrap().inbound;
+        let slot: u32 = edge.to_slot().into();
+        let slot = slot as usize;
+        // allocate space to store the edge.
+        if inbound.len() <= slot { inbound.resize(slot+1, None) }
+
+        inbound[slot] = Some(edge.clone());
+    }
+    /// Get the value of a particular output slot at a given time.
+    /// This will recurse down, all the way to the input to this node itself.
+    /// `get_input(time, slot)` will be called (multiple times, with different args)
+    /// in order to query whatever is input to this node.
+    fn get_output<F: Fn(u64, u32) -> f32>(&self, time: u64, slot: u32, get_input: F) -> f32 {
+        let root_node = &self.nodes[&NodeHandle::toplevel()];
+        // get the output edge.
+        let out_edge = root_node.inbound.get(slot as usize);
+        self.get_maybe_edge_value(time, out_edge, &get_input)
+    }
+    /// Wrapper around `get_edge_value` that will return 0f32 if maybe_edge is not
+    /// `Some(&Some(edge))`.
+    fn get_maybe_edge_value(&self, time: u64,
+        maybe_edge: Option<&Option<Edge>>, get_input: &Fn(u64, u32) -> f32) -> f32
+    {
+        if let Some(&Some(ref edge)) = maybe_edge {
+            self.get_edge_value(time, &edge, get_input)
+        } else {
+            // Edge doesn't exist; value is zero.
+            0f32
+        }
+    }
+    /// Get the value on an edge at a specific time.
+    /// This will recurse down, all the way to the input to this node itself.
+    /// `get_input(time, slot)` will be called (multiple times, with different args)
+    /// in order to query whatever is input to this node.
+    fn get_edge_value(&self, time: u64, edge: &Edge, get_input: &Fn(u64, u32) -> f32) -> f32 {
+        let from = edge.from_full();
+        let from_slot = edge.from_slot();
+        if *from.node_handle() == None {
+            // reading from an input
+            get_input(time, from_slot)
         } else {
             // Reading from another node within the DAG
-            let node = &nodes[&from];
+            let node = &self.nodes[&from];
             match *node.data.as_ref().expect("Expected node to have associated data") {
                 MyNodeData::UserNode(ref new_nodes) => {
-                    let mut new_context = context.clone();
-                    new_context.push((nodes, from));
-                    // Now find the *output* of the sub dag (or 0 if the sub dag has no outputs)
-                    new_nodes.get(&NodeHandle::toplevel()).map_or(0f32, |root_node| {
-                        self.get_input_to_slot(new_nodes, root_node, time, edge.from_slot(), &new_context)
+                    new_nodes.get_output(time, from_slot, |time2, slot2| {
+                        // get the input to this node.
+                        let in_edge = node.inbound.get(slot2 as usize);
+                        self.get_maybe_edge_value(time2, in_edge, get_input)
                     })
                 },
                 MyNodeData::Primitive(prim) => match prim {
                     // Output = sum of all inputs to slot 0.
                     PrimitiveEffect::Delay => {
                         // The only nonzero output is slot=0.
-                        if edge.from_slot() != 0 {
+                        if from_slot != 0 {
                             warn!("Attempt to read from Delay slot != 0");
                             0f32
                         } else {
-                            let delay_frames = self.get_input_to_slot(nodes, node, time, 1, context);
+                            let delay_frames = self.get_maybe_edge_value(time, node.inbound.get(1), get_input);
                             // Clamp delay value to [0, u64::max]
                             let delay_int = if delay_frames < 0f32 {
                                 0u64
@@ -147,67 +213,66 @@ impl RefRenderer {
                             };
                             // t<0 -> value is 0.
                             time.checked_sub(delay_int).map_or(0f32, |origin_time| {
-                                self.get_input_to_slot(nodes, node, origin_time, 0, context)
+                                self.get_maybe_edge_value(origin_time, node.inbound.get(0), get_input)
                             })
                         }
                     },
                     PrimitiveEffect::F32Constant => {
                         // Float value is encoded via the slot.
-                        let value = edge.from_slot();
-                        unpack_f32(value)
+                        unpack_f32(from_slot)
                     },
                     PrimitiveEffect::Multiply => {
                         // The only nonzero output is slot=0.
-                        if edge.from_slot() != 0 {
+                        if from_slot != 0 {
                             warn!("Attempt to read from Multiply slot != 0");
                             0f32
                         } else {
-                            let val_a = self.get_input_to_slot(nodes, node, time, 0, context);
-                            let val_b = self.get_input_to_slot(nodes, node, time, 1, context);
-                            val_a * val_b
+                            let input_left = self.get_maybe_edge_value(time, node.inbound.get(0), get_input);
+                            let input_right = self.get_maybe_edge_value(time, node.inbound.get(1), get_input);
+                            input_left * input_right
                         }
                     },
                     PrimitiveEffect::Sum2 => {
                         // The only nonzero output is slot=0.
-                        if edge.from_slot() != 0 {
+                        if from_slot != 0 {
                             warn!("Attempt to read from Sum2 slot != 0");
                             0f32
                         } else {
-                            let input_left = self.get_input_to_slot(nodes, node, time, 0, context);
-                            let input_right = self.get_input_to_slot(nodes, node, time, 1, context);
+                            let input_left = self.get_maybe_edge_value(time, node.inbound.get(0), get_input);
+                            let input_right = self.get_maybe_edge_value(time, node.inbound.get(1), get_input);
                             input_left + input_right
                         }
                     },
                     PrimitiveEffect::Divide => {
                         // The only nonzero output is slot=0.
-                        if edge.from_slot() != 0 {
+                        if from_slot != 0 {
                             warn!("Attempt to read from Divide slot != 0");
                             0f32
                         } else {
-                            let dividend = self.get_input_to_slot(nodes, node, time, 0, context);
-                            let divisor = self.get_input_to_slot(nodes, node, time, 1, context);
+                            let dividend = self.get_maybe_edge_value(time, node.inbound.get(0), get_input);
+                            let divisor = self.get_maybe_edge_value(time, node.inbound.get(1), get_input);
                             dividend / divisor
                         }
                     },
                     PrimitiveEffect::Minimum => {
                         // The only nonzero output is slot=0.
-                        if edge.from_slot() != 0 {
+                        if from_slot != 0 {
                             warn!("Attempt to read from Minimum slot != 0");
                             0f32
                         } else {
-                            let input_a = self.get_input_to_slot(nodes, node, time, 0, context);
-                            let input_b = self.get_input_to_slot(nodes, node, time, 1, context);
-                            input_a.min(input_b)
+                            let input_left = self.get_maybe_edge_value(time, node.inbound.get(0), get_input);
+                            let input_right = self.get_maybe_edge_value(time, node.inbound.get(1), get_input);
+                            input_left.min(input_right)
                         }
                     }
                     PrimitiveEffect::Modulo => {
                         // The only nonzero output is slot=0.
-                        if edge.from_slot() != 0 {
+                        if from_slot != 0 {
                             warn!("Attempt to read from Modulo slot != 0");
                             0f32
                         } else {
-                            let dividend = self.get_input_to_slot(nodes, node, time, 0, context);
-                            let divisor = self.get_input_to_slot(nodes, node, time, 1, context);
+                            let dividend = self.get_maybe_edge_value(time, node.inbound.get(0), get_input);
+                            let divisor = self.get_maybe_edge_value(time, node.inbound.get(1), get_input);
                             let rem = dividend % divisor;
                             if rem < 0f32 {
                                 // TODO: We may be losing precision here, if rem is small.
@@ -219,63 +284,8 @@ impl RefRenderer {
                         }
                     },
                 },
-                MyNodeData::Buffer(ref buf) => buf.get(time, edge.from_slot()),
+                MyNodeData::Buffer(ref buf) => buf.get(time, from_slot),
             }
-        }
-    }
-    /// Return the input into a specific slot of the given
-    /// node at the given time.
-    fn get_input_to_slot(&self, nodes: &NodeMap, node: &Node, time: u64, slot: u32, context: &Vec<(&NodeMap, NodeHandle)>) -> f32 {
-        if let Some(&Some(ref edge)) = node.inbound.get(slot as usize) {
-            self.get_value(nodes, &edge, time, context)
-        } else {
-            0f32
-        }
-    }
-
-    fn make_node(&self, effect: &NodeData) -> MyNodeData {
-        match *effect.data() {
-            EffectData::Primitive(e) => MyNodeData::Primitive(e),
-            EffectData::Buffer(ref buff) => MyNodeData::Buffer(buff.clone()),
-            EffectData::RouteGraph(ref graph) => {
-                let mut nodes: NodeMap = Default::default();
-
-                for (node, data) in graph.iter_nodes() {
-                    nodes.insert(*node, Node::new(Some(self.make_node(data))));
-                }
-                for edge in graph.iter_edges() {
-                    RefRenderer::helper_add_edge(&mut nodes, edge);
-                }
-                MyNodeData::UserNode(nodes)
-            }
-        }
-    }
-    fn helper_add_edge(nodes: &mut NodeMap, edge: &Edge) {
-        let inbound = &mut nodes.get_mut(&edge.to_full()).unwrap().inbound;
-        let slot: u32 = edge.to_slot().into();
-        let slot = slot as usize;
-        // allocate space to store the edge.
-        if inbound.len() <= slot { inbound.resize(slot+1, None) }
-
-        inbound[slot] = Some(edge.clone());
-    }
-}
-
-impl GraphWatcher for RefRenderer {
-    fn on_add_node(&mut self, handle: &NodeHandle, data: &NodeData) {
-        let my_node_data = self.make_node(data);
-        self.nodes.insert(*handle, Node::new(Some(my_node_data)));
-    }
-    fn on_del_node(&mut self, handle: &NodeHandle) {
-        self.nodes.remove(handle);
-    }
-    fn on_add_edge(&mut self, edge: &Edge) {
-        RefRenderer::helper_add_edge(&mut self.nodes, edge);
-    }
-    fn on_del_edge(&mut self, edge: &Edge) {
-        let inbound = &mut self.nodes.get_mut(&edge.to_full()).unwrap().inbound;
-        if let Some(stored_edge) = inbound.get_mut(edge.to_slot() as usize) {
-            *stored_edge = None
         }
     }
 }
