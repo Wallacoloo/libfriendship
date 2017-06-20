@@ -12,9 +12,10 @@ use streaming_iterator::StreamingIterator;
 use util::unpack_f32;
 
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 struct NodeMap {
     nodes: HashMap<NodeHandle, Node>,
+    output_edges: Vec<Option<Edge>>,
 }
 
 #[derive(Default, Debug)]
@@ -28,9 +29,9 @@ pub struct RefRenderer {
     head: u64,
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 struct Node {
-    data: Option<MyNodeData>,
+    data: MyNodeData,
     /// Inbound edges, indexed by slot idx.
     inbound: Vec<Option<Edge>>,
 }
@@ -105,7 +106,7 @@ impl RefRenderer {
                 let mut nodes: NodeMap = Default::default();
 
                 for (node, data) in graph.iter_nodes() {
-                    nodes.insert(*node, Node::new(Some(self.make_node(data))));
+                    nodes.insert(*node, Node::new(self.make_node(data)));
                 }
                 for edge in graph.iter_edges() {
                     nodes.add_edge(edge);
@@ -119,7 +120,7 @@ impl RefRenderer {
 impl GraphWatcher for RefRenderer {
     fn on_add_node(&mut self, handle: &NodeHandle, data: &NodeData) {
         let my_node_data = self.make_node(data);
-        self.nodes.insert(*handle, Node::new(Some(my_node_data)));
+        self.nodes.insert(*handle, Node::new(my_node_data));
     }
     fn on_del_node(&mut self, handle: &NodeHandle) {
         self.nodes.remove(handle);
@@ -128,7 +129,11 @@ impl GraphWatcher for RefRenderer {
         self.nodes.add_edge(edge);
     }
     fn on_del_edge(&mut self, edge: &Edge) {
-        let inbound = &mut self.nodes.get_mut(&edge.to_full()).unwrap().inbound;
+        let inbound = if edge.to_full().is_toplevel() {
+            &mut self.nodes.output_edges
+        } else {
+            &mut self.nodes.get_mut(&edge.to_full()).expect("Attempt to delete edge, but it was never created!").inbound
+        };
         if let Some(stored_edge) = inbound.get_mut(edge.to_slot() as usize) {
             *stored_edge = None
         }
@@ -138,7 +143,11 @@ impl GraphWatcher for RefRenderer {
 impl NodeMap {
     /// Add an edge that connects two nodes within this graph.
     fn add_edge(&mut self, edge: &Edge) {
-        let inbound = &mut self.nodes.get_mut(&edge.to_full()).unwrap().inbound;
+        let inbound = if edge.to_full().is_toplevel() {
+            &mut self.output_edges
+        } else {
+            &mut self.nodes.get_mut(&edge.to_full()).unwrap().inbound
+        };
         let slot: u32 = edge.to_slot().into();
         let slot = slot as usize;
         // allocate space to store the edge.
@@ -151,9 +160,7 @@ impl NodeMap {
     /// `get_input(time, slot)` will be called (multiple times, with different args)
     /// in order to query whatever is input to this node.
     fn get_output<F: Fn(u64, u32) -> f32>(&self, time: u64, slot: u32, get_input: F) -> f32 {
-        let root_node = &self.nodes[&NodeHandle::toplevel()];
-        // get the output edge.
-        let out_edge = root_node.inbound.get(slot as usize);
+        let out_edge = self.output_edges.get(slot as usize);
         self.get_maybe_edge_value(time, out_edge, &get_input)
     }
     /// Wrapper around `get_edge_value` that will return 0f32 if maybe_edge is not
@@ -181,7 +188,7 @@ impl NodeMap {
         } else {
             // Reading from another node within the DAG
             let node = &self.nodes[&from];
-            match *node.data.as_ref().expect("Expected node to have associated data") {
+            match node.data {
                 MyNodeData::UserNode(ref new_nodes) => {
                     new_nodes.get_output(time, from_slot, |time2, slot2| {
                         // get the input to this node.
@@ -292,7 +299,7 @@ impl NodeMap {
 
 
 impl Node {
-    fn new(data: Option<MyNodeData>) -> Self {
+    fn new(data: MyNodeData) -> Self {
         Node {
             data: data,
             inbound: Vec::new(),
@@ -300,15 +307,6 @@ impl Node {
     }
 }
 
-
-impl Default for NodeMap {
-    fn default() -> Self {
-        // Create a NodeMap that already has an entry for the toplevel so that it can receive
-        // edges.
-        let nodes = Some((NodeHandle::toplevel(), Default::default())).into_iter().collect();
-        Self { nodes }
-    }
-}
 
 impl Deref for NodeMap {
     type Target = HashMap<NodeHandle, Node>;

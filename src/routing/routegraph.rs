@@ -266,6 +266,9 @@ impl NodeHandle {
     pub fn node_handle(&self) -> &PrimNodeHandle {
         &self.node_handle
     }
+    pub fn is_toplevel(&self) -> bool {
+        *self.node_handle() == None
+    }
 }
 impl Display for NodeHandle {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
