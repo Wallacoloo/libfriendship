@@ -11,7 +11,7 @@ extern crate url;
 use std::fs::File;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
-use digest::digest_reader;
+use digest::Digest;
 use ndarray::Array2;
 use sha2::Sha256;
 use tempdir::TempDir;
@@ -83,7 +83,7 @@ fn load_multby2() {
 
     // Determine the hash of our file
     let mut mulby2_file = File::open(mulby2_path).unwrap();
-    let hash_result = digest_reader::<Sha256>(&mut mulby2_file).unwrap();
+    let hash_result = Sha256::digest_reader(&mut mulby2_file).unwrap();
     let mut sha: [u8; 32] = Default::default();
     sha.copy_from_slice(hash_result.as_slice());
 

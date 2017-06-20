@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use byteorder::{LittleEndian, ReadBytesExt};
-use digest::digest_reader;
+use digest::Digest;
 use filebuffer::FileBuffer;
 use sha2::Sha256;
 
@@ -59,7 +59,7 @@ impl ResMan {
                 Some(ref hash) => {
                     let mut file = File::open(f).unwrap();
                     // TODO: the hash could still change between now and when we parse the file!
-                    let result = digest_reader::<Sha256>(&mut file).unwrap();
+                    let result = Sha256::digest_reader(&mut file).unwrap();
                     // Cache this sha256->file relationship.
                     self.cache.borrow_mut().notify_sha256(f.clone(), slice_to_array32(result.as_slice()));
                     hash == result.as_slice()

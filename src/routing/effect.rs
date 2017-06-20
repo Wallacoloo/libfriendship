@@ -3,7 +3,7 @@ use std::io::Cursor;
 use std::ops::Deref;
 use std::rc::Rc;
 
-use digest::digest_reader;
+use digest::Digest;
 use serde_json;
 use sha2::Sha256;
 use url::Url;
@@ -268,7 +268,7 @@ impl EffectDesc {
     pub fn id(&self) -> EffectId {
         // TODO: calculate sha using a smaller buffer
         let as_vec = serde_json::to_vec(self).unwrap();
-        let result = digest_reader::<Sha256>(&mut Cursor::new(as_vec)).unwrap();
+        let result = Sha256::digest_reader(&mut Cursor::new(as_vec)).unwrap();
         let mut hash: [u8; 32] = Default::default();
         hash.copy_from_slice(result.as_slice());
         EffectId {
