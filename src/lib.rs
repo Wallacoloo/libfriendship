@@ -1,10 +1,14 @@
 // needed for returning Iterator traits
 #![feature(conservative_impl_trait)]
+// needed for some Option methods (note: on track for stabilization)
+//#![feature(option_entry)]
 
 extern crate byteorder;
 extern crate digest;
 extern crate filebuffer;
 extern crate jagged_array;
+extern crate llvm;
+extern crate llvm_sys;
 #[macro_use] extern crate log;
 extern crate ndarray;
 extern crate num;

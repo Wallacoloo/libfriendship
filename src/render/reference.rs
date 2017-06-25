@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 
-use ndarray::Array2;
 use jagged_array::Jagged2;
+use ndarray::Array2;
 
 use render::Renderer;
 use resman::AudioBuffer;

@@ -10,6 +10,8 @@ byteorder = "1.0"
 digest = {version="0.6", features=["std"]}
 filebuffer = "0.2"
 jagged_array = "0.2"
+#llvm = "*"
+llvm-sys = "40.0"
 log = "0.3"
 ndarray = "0.9"
 num = "0.1"
@@ -23,6 +25,10 @@ sha2 = "0.6"
 streaming-iterator = "0.1"
 url = "1.5"
 url_serde = "0.2"
+
+[dependencies.llvm]
+git = "https://github.com/wallacoloo/llvm.git"
+rev = "46901bb"
 
 [dev-dependencies]
 tempdir = "0.3"
