@@ -171,12 +171,28 @@ impl SparkleRenderer {
             // Open a basic block to begin appending instructions.
             let bb = self.llvm_ctx.append_basic_block(&mut func, &fname);
             self.llvm_builder.position_at_end(bb);
-            // TODO: fill in function body.
             let time = func.get_param(0).unwrap();
             let slot = func.get_param(1).unwrap();
             let in_getter = func.get_param(2).unwrap();
-            let ret = self.llvm_ctx.cons(20f32); // Dummy return value
-            self.llvm_builder.build_ret(ret);
+            match *effect.data() {
+                EffectData::Primitive(prim) => match prim {
+                    PrimitiveEffect::F32Constant => {
+                        let f32_type = f32::get_type_in_context(&self.llvm_ctx);
+                        let slot_as_f32 = self.llvm_builder.build_bit_cast(slot, f32_type, "slot_as_f32");
+                        self.llvm_builder.build_ret(slot_as_f32);
+                    },
+                    _ => {
+                        let ret = self.llvm_ctx.cons(20f32);
+                        self.llvm_builder.build_ret(ret);
+                    },
+                },
+                EffectData::RouteGraph(ref graph) => {
+                    // TODO: for now, just use a dummy return value
+                    let ret = self.llvm_ctx.cons(20f32);
+                    self.llvm_builder.build_ret(ret);
+                },
+                _ => panic!("Cannot JIT effect: {:?}", effect)
+            }
         }
 
         fname
@@ -266,7 +282,6 @@ impl SparkleRenderer {
                     let out_getter = self.get_func(fname);
                     out_getter.map(|getter| unsafe {
                         let f: extern "C" fn(u64, u32, *const CallbackType) -> f32 = mem::transmute(getter);
-                        println!("calling {:?}", f);
                         f(time, from_slot, &mem::transmute(get_input))
                     }).unwrap_or(0f32)
                 }
