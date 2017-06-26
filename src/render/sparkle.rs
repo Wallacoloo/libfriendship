@@ -262,19 +262,15 @@ impl SparkleRenderer {
     /// Get the output at a particular time and to a particular output slot.
     fn get_sample(&mut self, time: u64, slot: u32) -> f32 {
         let out_edge = self.nodes.output_edges.get(slot as usize);
-        self.get_maybe_edge_value(time, out_edge, &|time2, slot2| {
-            *self.inputs.get(slot2 as usize)
-                .and_then(|v| v.get(time2 as usize))
-                .unwrap_or(&0f32)
-        })
+        self.get_maybe_edge_value(time, out_edge)
     }
     /// Wrapper around `get_edge_value` that will return 0f32 if maybe_edge is not
     /// `Some(&Some(edge))`.
     fn get_maybe_edge_value(&self, time: u64,
-        maybe_edge: Option<&Option<Edge>>, get_input: &Fn(u64, u32) -> f32) -> f32
+        maybe_edge: Option<&Option<Edge>>) -> f32
     {
         if let Some(&Some(ref edge)) = maybe_edge {
-            self.get_edge_value(time, &edge, get_input)
+            self.get_edge_value(time, &edge)
         } else {
             // Edge doesn't exist; value is zero.
             0f32
@@ -282,15 +278,15 @@ impl SparkleRenderer {
     }
     /// Get the value on an edge at a specific time.
     /// This will recurse down, all the way to the input to this node itself.
-    /// `get_input(time, slot)` will be called (multiple times, with different args)
-    /// in order to query whatever is input to this node.
-    fn get_edge_value(&self, time: u64, edge: &Edge, get_input: &Fn(u64, u32) -> f32) -> f32 {
+    fn get_edge_value(&self, time: u64, edge: &Edge) -> f32 {
         let from = edge.from_full();
         let from_slot = edge.from_slot();
         if *from.node_handle() == None {
             println!("Read from input: {}, {}", time, from_slot);
             // reading from an input
-            get_input(time, from_slot)
+            *self.inputs.get(from_slot as usize)
+                .and_then(|v| v.get(time as usize))
+                .unwrap_or(&0f32)
         } else {
             // Reading from another node within the DAG
             let node = &self.nodes[&from];
@@ -301,7 +297,7 @@ impl SparkleRenderer {
                         let in_edge_getter = |time2: u64, slot2: u32| {
                             // get the input to this node.
                             let in_edge = node.inbound.get(slot2 as usize);
-                            self.get_maybe_edge_value(time2, in_edge, get_input)
+                            self.get_maybe_edge_value(time2, in_edge)
                         };
                         let f: extern "C" fn(u64, u32, *const CallbackType) -> f32 = mem::transmute(getter);
                         let callback = CallbackType {
