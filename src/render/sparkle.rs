@@ -175,6 +175,7 @@ impl SparkleRenderer {
             let mut func = self.open_get_sample_fn(&fname);
             // Open a basic block to begin appending instructions.
             let bb = self.llvm_ctx.append_basic_block(&mut func, &fname);
+            let mut bb_ret0: Option<LLVMBasicBlockRef> = None;
             let ref mut builder = self.llvm_builder;
             builder.position_at_end(bb);
             let time = func.get_param(0).unwrap();
@@ -187,84 +188,120 @@ impl SparkleRenderer {
             let f32_0 = self.llvm_ctx.cons(0f32);
             let f32_2pow64 = self.llvm_ctx.cons(18446744073709551616f32);
 
-            let load_getters = |builder: &mut Builder| -> (LLVMValueRef, LLVMValueRef) {
-                let in_getter_struct = builder.build_load(in_getter, "in_getter_struct");
-                let in_getter_fn = builder.build_extract_value(in_getter_struct, 0, "in_getter_fn");
-                let in_getter_arg = builder.build_extract_value(in_getter_struct, 1, "in_getter_arg");
-                (in_getter_fn, in_getter_arg)
-            };
+            {
+                let load_getters = |builder: &mut Builder| -> (LLVMValueRef, LLVMValueRef) {
+                    let in_getter_struct = builder.build_load(in_getter, "in_getter_struct");
+                    let in_getter_fn = builder.build_extract_value(in_getter_struct, 0, "in_getter_fn");
+                    let in_getter_arg = builder.build_extract_value(in_getter_struct, 1, "in_getter_arg");
+                    (in_getter_fn, in_getter_arg)
+                };
 
-            match *effect.data() {
-                EffectData::Primitive(prim) => match prim {
-                    PrimitiveEffect::F32Constant => {
-                        let f32_type = f32::get_type_in_context(&self.llvm_ctx);
-                        let slot_as_f32 = builder.build_bit_cast(slot, f32_type, "slot_as_f32");
-                        builder.build_ret(slot_as_f32);
+                // Implement code to return 0 if output slot != 0
+                let guard_slot_ne_0 = |ctx: &Context, func: &mut Function, builder: &mut Builder, bb_ret0: LLVMBasicBlockRef| {
+                    let bb_zero = ctx.append_basic_block(func, &(fname.clone() + "_slot_is_zero"));
+                    let is_slot_nonzero = builder.build_icmp(LLVMIntPredicate::LLVMIntNE, slot, u32_0, "is_slot_nonzero");
+                    builder.build_cond_br(is_slot_nonzero, bb_ret0, bb_zero);
+                    builder.position_at_end(bb_zero);
+                };
+
+                match *effect.data() {
+                    EffectData::Primitive(prim) => match prim {
+                        PrimitiveEffect::F32Constant => {
+                            let f32_type = f32::get_type_in_context(&self.llvm_ctx);
+                            let slot_as_f32 = builder.build_bit_cast(slot, f32_type, "slot_as_f32");
+                            builder.build_ret(slot_as_f32);
+                        },
+                        PrimitiveEffect::Delay => {
+                            bb_ret0 = Some(self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_ret0")));
+                            guard_slot_ne_0(&self.llvm_ctx, &mut func, builder, bb_ret0.unwrap());
+                            let bb_not_too_large = self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_not_too_large"));
+                            let bb_not_gt_time = self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_not_gt_time"));
+                            let (in_getter_fn, in_getter_arg) = load_getters(builder);
+                            let delay_frames = builder.build_call(Function::from_value_ref(in_getter_fn),
+                                vec![time, u32_1, in_getter_arg], "delay_frames");
+                            let is_too_large = builder.build_fcmp(LLVMRealPredicate::LLVMRealUGT,
+                                delay_frames,
+                                f32_2pow64,
+                                "is_too_large");
+                            builder.build_cond_br(is_too_large, bb_ret0.unwrap(), bb_not_too_large);
+
+
+                            // Impl the case where `delay_frames < 2^64`
+                            builder.position_at_end(bb_not_too_large);
+                            // Clamp delay_frames to [0, x) & cast to u64
+                            let is_lt_0 = builder.build_fcmp(LLVMRealPredicate::LLVMRealULT,
+                                delay_frames,
+                                f32_0,
+                                "is_lt_0");
+                            let unchecked_delay_iframes = builder.build_fp_to_ui(delay_frames,
+                                u64::get_type_in_context(&self.llvm_ctx),
+                                "unchecked_delay_iframes");
+                            let delay_iframes = builder.build_select(is_lt_0, u64_0, unchecked_delay_iframes, "delay_iframes");
+                            let is_gt_time = builder.build_icmp(LLVMIntPredicate::LLVMIntUGT,
+                                delay_iframes,
+                                time,
+                                "is_gt_time");
+                            builder.build_cond_br(is_gt_time, bb_ret0.unwrap(), bb_not_gt_time);
+
+                            // Impl the case where the delay amount is valid
+                            builder.position_at_end(bb_not_gt_time);
+                            let delayed_time = builder.build_sub(time, delay_iframes, "delayed_time");
+
+                            let delayed_input = builder.build_call(Function::from_value_ref(in_getter_fn),
+                                vec![delayed_time, u32_0, in_getter_arg], "delayed_input");
+                            builder.build_ret(delayed_input);
+                        },
+                        PrimitiveEffect::Multiply => {
+                            bb_ret0 = Some(self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_ret0")));
+                            guard_slot_ne_0(&self.llvm_ctx, &mut func, builder, bb_ret0.unwrap());
+                            let (in_getter_fn, in_getter_arg) = load_getters(builder);
+                            let input_slot0 = builder.build_call(Function::from_value_ref(in_getter_fn),
+                                vec![time, u32_0, in_getter_arg], "input_slot0");
+                            let input_slot1 = builder.build_call(Function::from_value_ref(in_getter_fn),
+                                vec![time, u32_1, in_getter_arg], "input_slot1");
+                            let result = builder.build_fmul(input_slot0, input_slot1, "result");
+                            builder.build_ret(result);
+                        },
+                        PrimitiveEffect::Sum2 => {
+                            bb_ret0 = Some(self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_ret0")));
+                            guard_slot_ne_0(&self.llvm_ctx, &mut func, builder, bb_ret0.unwrap());
+                            let (in_getter_fn, in_getter_arg) = load_getters(builder);
+                            let input_slot0 = builder.build_call(Function::from_value_ref(in_getter_fn),
+                                vec![time, u32_0, in_getter_arg], "input_slot0");
+                            let input_slot1 = builder.build_call(Function::from_value_ref(in_getter_fn),
+                                vec![time, u32_1, in_getter_arg], "input_slot1");
+                            let result = builder.build_fadd(input_slot0, input_slot1, "result");
+                            builder.build_ret(result);
+                        },
+                        PrimitiveEffect::Divide => {
+                            bb_ret0 = Some(self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_ret0")));
+                            guard_slot_ne_0(&self.llvm_ctx, &mut func, builder, bb_ret0.unwrap());
+                            let (in_getter_fn, in_getter_arg) = load_getters(builder);
+                            let input_slot0 = builder.build_call(Function::from_value_ref(in_getter_fn),
+                                vec![time, u32_0, in_getter_arg], "input_slot0");
+                            let input_slot1 = builder.build_call(Function::from_value_ref(in_getter_fn),
+                                vec![time, u32_1, in_getter_arg], "input_slot1");
+                            let result = builder.build_fdiv(input_slot0, input_slot1, "result");
+                            builder.build_ret(result);
+                        },
+                        _ => {
+                            let ret = self.llvm_ctx.cons(0f32);
+                            builder.build_ret(ret);
+                        },
                     },
-                    PrimitiveEffect::Delay => {
-                        let bb_ret0 = self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_ret0"));
-                        let bb_not_too_large = self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_not_too_large"));
-                        let bb_not_gt_time = self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_not_gt_time"));
-                        // TODO: guard against slot != 0
-                        let (in_getter_fn, in_getter_arg) = load_getters(builder);
-                        let delay_frames = builder.build_call(Function::from_value_ref(in_getter_fn),
-                            vec![time, u32_1, in_getter_arg], "delay_frames");
-                        let is_too_large = builder.build_fcmp(LLVMRealPredicate::LLVMRealUGT,
-                            delay_frames,
-                            f32_2pow64,
-                            "is_too_large");
-                        builder.build_cond_br(is_too_large, bb_ret0, bb_not_too_large);
-
-                        // Impl the case where `delay_frames` >= 2^64
-                        builder.position_at_end(bb_ret0);
-                        builder.build_ret(f32_0);
-
-                        // Impl the case where `delay_frames < 2^64`
-                        builder.position_at_end(bb_not_too_large);
-                        // Clamp delay_frames to [0, x) & cast to u64
-                        let is_lt_0 = builder.build_fcmp(LLVMRealPredicate::LLVMRealULT,
-                            delay_frames,
-                            f32_0,
-                            "is_lt_0");
-                        let unchecked_delay_iframes = builder.build_fp_to_ui(delay_frames,
-                            u64::get_type_in_context(&self.llvm_ctx),
-                            "unchecked_delay_iframes");
-                        let delay_iframes = builder.build_select(is_lt_0, u64_0, unchecked_delay_iframes, "delay_iframes");
-                        let is_gt_time = builder.build_icmp(LLVMIntPredicate::LLVMIntUGT,
-                            delay_iframes,
-                            time,
-                            "is_gt_time");
-                        builder.build_cond_br(is_gt_time, bb_ret0, bb_not_gt_time);
-
-                        // Impl the case where the delay amount is valid
-                        builder.position_at_end(bb_not_gt_time);
-                        let delayed_time = builder.build_sub(time, delay_iframes, "delayed_time");
-
-                        let delayed_input = builder.build_call(Function::from_value_ref(in_getter_fn),
-                            vec![delayed_time, u32_0, in_getter_arg], "delayed_input");
-                        builder.build_ret(delayed_input);
-                    },
-                    PrimitiveEffect::Sum2 => {
-                        // TODO: guard against slot != 0
-                        let (in_getter_fn, in_getter_arg) = load_getters(builder);
-                        let input_slot0 = builder.build_call(Function::from_value_ref(in_getter_fn),
-                            vec![time, u32_0, in_getter_arg], "input_slot0");
-                        let input_slot1 = builder.build_call(Function::from_value_ref(in_getter_fn),
-                            vec![time, u32_1, in_getter_arg], "input_slot1");
-                        let sum = builder.build_fadd(input_slot0, input_slot1, "sum");
-                        builder.build_ret(sum);
-                    },
-                    _ => {
-                        let ret = self.llvm_ctx.cons(0f32);
+                    EffectData::RouteGraph(ref graph) => {
+                        // TODO: for now, just use a dummy return value
+                        let ret = self.llvm_ctx.cons(20f32);
                         builder.build_ret(ret);
                     },
-                },
-                EffectData::RouteGraph(ref graph) => {
-                    // TODO: for now, just use a dummy return value
-                    let ret = self.llvm_ctx.cons(20f32);
-                    builder.build_ret(ret);
-                },
-                _ => panic!("Cannot JIT effect: {:?}", effect)
+                    _ => panic!("Cannot JIT effect: {:?}", effect)
+                }
+            }
+
+            // Implement `return 0f32` case.
+            if let Some(bb_ret0) = bb_ret0 {
+                builder.position_at_end(bb_ret0);
+                builder.build_ret(f32_0);
             }
         }
 
