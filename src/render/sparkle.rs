@@ -21,6 +21,10 @@ use llvm_sys::core::{
     LLVMStructCreateNamed,
     LLVMStructSetBody,
 };
+use llvm_sys::{
+    LLVMIntPredicate,
+    LLVMRealPredicate,
+};
 use llvm_sys::prelude::*;
 use llvm_sys::target::{LLVM_InitializeNativeTarget, LLVM_InitializeNativeAsmPrinter,
                    LLVM_InitializeNativeAsmParser};
@@ -176,9 +180,20 @@ impl SparkleRenderer {
             let time = func.get_param(0).unwrap();
             let slot = func.get_param(1).unwrap();
             let in_getter = func.get_param(2).unwrap();
+            // Common constants used across primitives
             let u32_0 = self.llvm_ctx.cons(0u32);
             let u32_1 = self.llvm_ctx.cons(1u32);
-            let i64_0 = self.llvm_ctx.cons(0i64);
+            let u64_0 = self.llvm_ctx.cons(0u64);
+            let f32_0 = self.llvm_ctx.cons(0f32);
+            let f32_2pow64 = self.llvm_ctx.cons(18446744073709551616f32);
+
+            let load_getters = |builder: &mut Builder| -> (LLVMValueRef, LLVMValueRef) {
+                let in_getter_struct = builder.build_load(in_getter, "in_getter_struct");
+                let in_getter_fn = builder.build_extract_value(in_getter_struct, 0, "in_getter_fn");
+                let in_getter_arg = builder.build_extract_value(in_getter_struct, 1, "in_getter_arg");
+                (in_getter_fn, in_getter_arg)
+            };
+
             match *effect.data() {
                 EffectData::Primitive(prim) => match prim {
                     PrimitiveEffect::F32Constant => {
@@ -186,11 +201,52 @@ impl SparkleRenderer {
                         let slot_as_f32 = builder.build_bit_cast(slot, f32_type, "slot_as_f32");
                         builder.build_ret(slot_as_f32);
                     },
+                    PrimitiveEffect::Delay => {
+                        let bb_ret0 = self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_ret0"));
+                        let bb_not_too_large = self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_not_too_large"));
+                        let bb_not_gt_time = self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_not_gt_time"));
+                        // TODO: guard against slot != 0
+                        let (in_getter_fn, in_getter_arg) = load_getters(builder);
+                        let delay_frames = builder.build_call(Function::from_value_ref(in_getter_fn),
+                            vec![time, u32_1, in_getter_arg], "delay_frames");
+                        let is_too_large = builder.build_fcmp(LLVMRealPredicate::LLVMRealUGT,
+                            delay_frames,
+                            f32_2pow64,
+                            "is_too_large");
+                        builder.build_cond_br(is_too_large, bb_ret0, bb_not_too_large);
+
+                        // Impl the case where `delay_frames` >= 2^64
+                        builder.position_at_end(bb_ret0);
+                        builder.build_ret(f32_0);
+
+                        // Impl the case where `delay_frames < 2^64`
+                        builder.position_at_end(bb_not_too_large);
+                        // Clamp delay_frames to [0, x) & cast to u64
+                        let is_lt_0 = builder.build_fcmp(LLVMRealPredicate::LLVMRealULT,
+                            delay_frames,
+                            f32_0,
+                            "is_lt_0");
+                        let unchecked_delay_iframes = builder.build_fp_to_ui(delay_frames,
+                            u64::get_type_in_context(&self.llvm_ctx),
+                            "unchecked_delay_iframes");
+                        let delay_iframes = builder.build_select(is_lt_0, u64_0, unchecked_delay_iframes, "delay_iframes");
+                        let is_gt_time = builder.build_icmp(LLVMIntPredicate::LLVMIntUGT,
+                            delay_iframes,
+                            time,
+                            "is_gt_time");
+                        builder.build_cond_br(is_gt_time, bb_ret0, bb_not_gt_time);
+
+                        // Impl the case where the delay amount is valid
+                        builder.position_at_end(bb_not_gt_time);
+                        let delayed_time = builder.build_sub(time, delay_iframes, "delayed_time");
+
+                        let delayed_input = builder.build_call(Function::from_value_ref(in_getter_fn),
+                            vec![delayed_time, u32_0, in_getter_arg], "delayed_input");
+                        builder.build_ret(delayed_input);
+                    },
                     PrimitiveEffect::Sum2 => {
                         // TODO: guard against slot != 0
-                        let in_getter_struct = builder.build_load(in_getter, "in_getter_struct");
-                        let in_getter_fn = builder.build_extract_value(in_getter_struct, 0, "in_getter_fn");
-                        let in_getter_arg = builder.build_extract_value(in_getter_struct, 1, "in_getter_arg");
+                        let (in_getter_fn, in_getter_arg) = load_getters(builder);
                         let input_slot0 = builder.build_call(Function::from_value_ref(in_getter_fn),
                             vec![time, u32_0, in_getter_arg], "input_slot0");
                         let input_slot1 = builder.build_call(Function::from_value_ref(in_getter_fn),
@@ -199,7 +255,7 @@ impl SparkleRenderer {
                         builder.build_ret(sum);
                     },
                     _ => {
-                        let ret = self.llvm_ctx.cons(20f32);
+                        let ret = self.llvm_ctx.cons(0f32);
                         builder.build_ret(ret);
                     },
                 },

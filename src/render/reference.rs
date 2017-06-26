@@ -206,14 +206,12 @@ impl NodeMap {
                         } else {
                             let delay_frames = self.get_maybe_edge_value(time, node.inbound.get(1), get_input);
                             // Clamp delay value to [0, u64::max]
+                            if delay_frames >= 18446744073709551616f32 {
+                                // delay is >= than 2^64; must be indexing from negative time.
+                                return 0f32;
+                            }
                             let delay_int = if delay_frames < 0f32 {
                                 0u64
-                            } else if delay_frames > u64::max_value() as f32 {
-                                // TODO: u64::max isn't precisely representable in f32;
-                                // will this cause issues?
-                                // TODO: this is technically incorrect when time=u64::max_value,
-                                // as this results in returning the value at t=0.
-                                u64::max_value()
                             } else {
                                 // Note: this conversion is flooring.
                                 delay_frames as u64
