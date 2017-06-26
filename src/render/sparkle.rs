@@ -85,6 +85,7 @@ enum MyNodeData {
     Buffer(AudioBuffer),
 }
 
+#[derive(Copy, Clone)]
 struct CallbackType {
     input_getter: *const fn(u64, u32, *const CallbackType) -> f32,
     userdata: *const CallbackType,
@@ -170,26 +171,42 @@ impl SparkleRenderer {
             let mut func = self.open_get_sample_fn(&fname);
             // Open a basic block to begin appending instructions.
             let bb = self.llvm_ctx.append_basic_block(&mut func, &fname);
-            self.llvm_builder.position_at_end(bb);
+            let ref mut builder = self.llvm_builder;
+            builder.position_at_end(bb);
             let time = func.get_param(0).unwrap();
             let slot = func.get_param(1).unwrap();
             let in_getter = func.get_param(2).unwrap();
+            let u32_0 = self.llvm_ctx.cons(0u32);
+            let u32_1 = self.llvm_ctx.cons(1u32);
+            let i64_0 = self.llvm_ctx.cons(0i64);
             match *effect.data() {
                 EffectData::Primitive(prim) => match prim {
                     PrimitiveEffect::F32Constant => {
                         let f32_type = f32::get_type_in_context(&self.llvm_ctx);
-                        let slot_as_f32 = self.llvm_builder.build_bit_cast(slot, f32_type, "slot_as_f32");
-                        self.llvm_builder.build_ret(slot_as_f32);
+                        let slot_as_f32 = builder.build_bit_cast(slot, f32_type, "slot_as_f32");
+                        builder.build_ret(slot_as_f32);
+                    },
+                    PrimitiveEffect::Sum2 => {
+                        // TODO: guard against slot != 0
+                        let in_getter_struct = builder.build_load(in_getter, "in_getter_struct");
+                        let in_getter_fn = builder.build_extract_value(in_getter_struct, 0, "in_getter_fn");
+                        let in_getter_arg = builder.build_extract_value(in_getter_struct, 1, "in_getter_arg");
+                        let input_slot0 = builder.build_call(Function::from_value_ref(in_getter_fn),
+                            vec![time, u32_0, in_getter_arg], "input_slot0");
+                        let input_slot1 = builder.build_call(Function::from_value_ref(in_getter_fn),
+                            vec![time, u32_1, in_getter_arg], "input_slot1");
+                        let sum = builder.build_fadd(input_slot0, input_slot1, "sum");
+                        builder.build_ret(sum);
                     },
                     _ => {
                         let ret = self.llvm_ctx.cons(20f32);
-                        self.llvm_builder.build_ret(ret);
+                        builder.build_ret(ret);
                     },
                 },
                 EffectData::RouteGraph(ref graph) => {
                     // TODO: for now, just use a dummy return value
                     let ret = self.llvm_ctx.cons(20f32);
-                    self.llvm_builder.build_ret(ret);
+                    builder.build_ret(ret);
                 },
                 _ => panic!("Cannot JIT effect: {:?}", effect)
             }
@@ -244,7 +261,6 @@ impl SparkleRenderer {
     }
     /// Get the output at a particular time and to a particular output slot.
     fn get_sample(&mut self, time: u64, slot: u32) -> f32 {
-        //20f32
         let out_edge = self.nodes.output_edges.get(slot as usize);
         self.get_maybe_edge_value(time, out_edge, &|time2, slot2| {
             *self.inputs.get(slot2 as usize)
@@ -272,6 +288,7 @@ impl SparkleRenderer {
         let from = edge.from_full();
         let from_slot = edge.from_slot();
         if *from.node_handle() == None {
+            println!("Read from input: {}, {}", time, from_slot);
             // reading from an input
             get_input(time, from_slot)
         } else {
@@ -281,13 +298,29 @@ impl SparkleRenderer {
                 MyNodeData::LlvmFunc(ref fname) => {
                     let out_getter = self.get_func(fname);
                     out_getter.map(|getter| unsafe {
+                        let in_edge_getter = |time2: u64, slot2: u32| {
+                            // get the input to this node.
+                            let in_edge = node.inbound.get(slot2 as usize);
+                            self.get_maybe_edge_value(time2, in_edge, get_input)
+                        };
                         let f: extern "C" fn(u64, u32, *const CallbackType) -> f32 = mem::transmute(getter);
-                        f(time, from_slot, &mem::transmute(get_input))
-                    }).unwrap_or(0f32)
+                        let callback = CallbackType {
+                            input_getter: call_closure_from_c as *const fn(u64, u32, *const CallbackType) -> f32,
+                            userdata: &mem::transmute(&in_edge_getter as &Fn(u64, u32) -> f32),
+                        };
+                        f(time, from_slot, &callback)
+                    }).unwrap()
                 }
                 MyNodeData::Buffer(ref buf) => buf.get(time, from_slot),
             }
         }
+    }
+}
+
+extern "C" fn call_closure_from_c(time: u64, slot: u32, closure_info: *const CallbackType) -> f32 {
+    unsafe {
+        let closure: &Fn(u64, u32) -> f32 = mem::transmute(*closure_info);
+        closure(time, slot)
     }
 }
 
@@ -325,7 +358,7 @@ impl Default for SparkleRenderer {
         /* is_var_arg */false);
 
         unsafe {
-            let mut element_types = vec![sample_getter_type, callback_type];
+            let mut element_types = vec![llvm::pointer_type(sample_getter_type, 0), llvm::pointer_type(callback_type, 0)];
             let is_packed = false;
             LLVMStructSetBody(callback_type, element_types.as_mut_ptr(),
                 element_types.len() as u32, is_packed as i32)
