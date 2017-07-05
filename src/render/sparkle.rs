@@ -176,9 +176,8 @@ impl SparkleRenderer {
     fn jit_effect(&mut self, effect: &Effect) -> String {
         let fname = format!("{}_get_output", effect.id().name());
         println!("jit: {}", fname);
-        if self.get_func(&fname).is_none() {
+        if self.get_fn(&fname).is_none() {
             // Effect hasn't been compiled yet; do so.
-            // TODO: this only checks the execution engines; not uncompiled modules!
             let func = self.open_get_sample_fn(&fname);
             let mut fnbuilder = FnBuilder::new(func, &self.llvm_ctx, &mut self.llvm_builder);
             match *effect.data() {
@@ -230,9 +229,15 @@ impl SparkleRenderer {
     }
     /// Return a pointer to the compiled function with the provided name.
     /// Search across all execution engines.
-    fn get_func(&self, name: &str) -> Option<extern "C" fn()> {
+    fn get_fn_ptr(&self, name: &str) -> Option<extern "C" fn()> {
         self.llvm_engines.iter().flat_map(|ee| {
             ee.get_function_address(name).into_iter()
+        }).next()
+    }
+    /// Return the LLVM handle to the function with the given name, if any such exists.
+    fn get_fn(&mut self, name: &str) -> Option<Function> {
+        self.open_module.iter_mut().chain(self.llvm_modules.iter_mut()).filter_map(|module| {
+            module.get_named_function(name)
         }).next()
     }
     /// Compile all outstanding functions.
@@ -289,7 +294,7 @@ impl SparkleRenderer {
             let node = &self.nodes[&from];
             match node.data {
                 MyNodeData::LlvmFunc(ref fname) => {
-                    let out_getter = self.get_func(fname);
+                    let out_getter = self.get_fn_ptr(fname);
                     out_getter.map(|getter| unsafe {
                         let in_edge_getter = |time2: u64, slot2: u32| {
                             // get the input to this node.
