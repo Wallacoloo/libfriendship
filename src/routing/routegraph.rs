@@ -86,6 +86,11 @@ impl RouteGraph {
     pub fn iter_edges<'a>(&'a self) -> impl Iterator<Item=&Edge> + 'a {
         self.edges.values().flat_map(|v_set| v_set.outbound.iter())
     }
+    pub fn iter_outbound_edges<'a>(&'a self) -> impl Iterator<Item=&Edge> + 'a {
+        self.iter_edges().filter(|e| {
+            e.to_full().is_toplevel()
+        })
+    }
     /// Retrieve the data associated with a node, or `None` if the node handle
     /// does not exist within this graph.
     pub fn get_data(&self, handle: &NodeHandle) -> Option<&NodeData> {
