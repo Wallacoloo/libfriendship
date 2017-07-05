@@ -284,6 +284,33 @@ impl SparkleRenderer {
                             let result = builder.build_fdiv(input_slot0, input_slot1, "result");
                             builder.build_ret(result);
                         },
+                        PrimitiveEffect::Minimum => {
+                            bb_ret0 = Some(self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_ret0")));
+                            guard_slot_ne_0(&self.llvm_ctx, &mut func, builder, bb_ret0.unwrap());
+                            let (in_getter_fn, in_getter_arg) = load_getters(builder);
+                            let input_slot0 = builder.build_call(Function::from_value_ref(in_getter_fn),
+                                vec![time, u32_0, in_getter_arg], "input_slot0");
+                            let input_slot1 = builder.build_call(Function::from_value_ref(in_getter_fn),
+                                vec![time, u32_1, in_getter_arg], "input_slot1");
+                            let is_0_lt_1 = builder.build_fcmp(LLVMRealPredicate::LLVMRealULT, input_slot0, input_slot1, "is_0_lt_1");
+                            let result = builder.build_select(is_0_lt_1, input_slot0, input_slot1, "result");
+                            builder.build_ret(result);
+                        }
+                        PrimitiveEffect::Modulo => {
+                            bb_ret0 = Some(self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_ret0")));
+                            guard_slot_ne_0(&self.llvm_ctx, &mut func, builder, bb_ret0.unwrap());
+                            let (in_getter_fn, in_getter_arg) = load_getters(builder);
+                            let input_slot0 = builder.build_call(Function::from_value_ref(in_getter_fn),
+                                vec![time, u32_0, in_getter_arg], "input_slot0");
+                            let input_slot1 = builder.build_call(Function::from_value_ref(in_getter_fn),
+                                vec![time, u32_1, in_getter_arg], "input_slot1");
+                            let signed_result = builder.build_frem(input_slot0, input_slot1, "signed_result");
+                            // Result has same sign as dividend. If negative, correct that.
+                            let result_if_neg = builder.build_fadd(signed_result, input_slot1, "result_if_neg");
+                            let is_result_neg = builder.build_fcmp(LLVMRealPredicate::LLVMRealULT, signed_result, f32_0, "is_result_neg");
+                            let result = builder.build_select(is_result_neg, result_if_neg, signed_result, "result");
+                            builder.build_ret(result);
+                        }
                         _ => {
                             let ret = self.llvm_ctx.cons(0f32);
                             builder.build_ret(ret);
