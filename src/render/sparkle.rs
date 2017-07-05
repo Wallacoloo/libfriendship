@@ -84,7 +84,6 @@ struct Node {
 /// Struct to help build LLVM code for primitive effects.
 struct FnBuilder<'a> {
     func: Function,
-    fname: String,
     ctx: &'a Context,
     builder: &'a mut Builder,
 }
@@ -181,7 +180,7 @@ impl SparkleRenderer {
             // Effect hasn't been compiled yet; do so.
             // TODO: this only checks the execution engines; not uncompiled modules!
             let func = self.open_get_sample_fn(&fname);
-            let mut fnbuilder = FnBuilder::new(func, fname.clone(), &self.llvm_ctx, &mut self.llvm_builder);
+            let mut fnbuilder = FnBuilder::new(func, &self.llvm_ctx, &mut self.llvm_builder);
             match *effect.data() {
                 EffectData::Primitive(prim) => match prim {
                     PrimitiveEffect::F32Constant => fnbuilder.build_f32constant(),
@@ -408,10 +407,10 @@ impl DerefMut for NodeMap {
 
 
 impl<'a> FnBuilder<'a> {
-    fn new(mut func: Function, fname: String, ctx: &'a Context, builder: &'a mut Builder) -> Self {
-        let bb = ctx.append_basic_block(&mut func, &fname);
+    fn new(mut func: Function, ctx: &'a Context, builder: &'a mut Builder) -> Self {
+        let bb = ctx.append_basic_block(&mut func, "entry_point");
         builder.position_at_end(bb);
-        Self{ func, fname, ctx, builder }
+        Self{ func, ctx, builder }
     }
     /// Perform the computations associated with PrimitiveEffect::F32Constant
     fn build_f32constant(&mut self) {
@@ -494,10 +493,8 @@ impl<'a> FnBuilder<'a> {
         let u32_0 = self.ctx.cons(0u32);
         let f32_0 = self.ctx.cons(0f32);
         let slot = self.slot();
-        let bb_nonzero = self.ctx.append_basic_block(&mut self.func,
-            &(self.fname.clone() + "_slot_ne_0"));
-        let bb_eqzero = self.ctx.append_basic_block(&mut self.func,
-            &(self.fname.clone() + "_slot_eq_0"));
+        let bb_nonzero = self.ctx.append_basic_block(&mut self.func, "slot_ne_0");
+        let bb_eqzero = self.ctx.append_basic_block(&mut self.func, "slot_eq_0");
         let is_slot_nonzero = self.builder.build_icmp(LLVMIntPredicate::LLVMIntNE, slot, u32_0, "is_slot_nonzero");
         self.builder.build_cond_br(is_slot_nonzero, bb_nonzero, bb_eqzero);
         self.builder.position_at_end(bb_nonzero);
@@ -509,12 +506,9 @@ impl<'a> FnBuilder<'a> {
     fn checked_fp_to_u64(&mut self, fp: LLVMValueRef, u64_name: &str) -> LLVMValueRef {
         let f32_0 = self.ctx.cons(0f32);
         let f32_2pow64 = self.ctx.cons(18446744073709551616f32);
-        let bb_out_of_range = self.ctx.append_basic_block(&mut self.func,
-            &(self.fname.clone() + "_to_u64_fail"));
-        let bb_gte_0 = self.ctx.append_basic_block(&mut self.func,
-            &(self.fname.clone() + "_to_u64_gte_0"));
-        let bb_good_cast = self.ctx.append_basic_block(&mut self.func,
-            &(self.fname.clone() + "_to_u64_success"));
+        let bb_out_of_range = self.ctx.append_basic_block(&mut self.func, "fp_to_u64_fail");
+        let bb_gte_0 = self.ctx.append_basic_block(&mut self.func, "fp_to_u64_gte_0");
+        let bb_good_cast = self.ctx.append_basic_block(&mut self.func, "fp_to_u64_success");
         // Guard fp < 0
         let is_lt_0 = self.builder.build_fcmp(LLVMRealPredicate::LLVMRealULT,
             fp, f32_0, "is_lt_0");
@@ -536,10 +530,8 @@ impl<'a> FnBuilder<'a> {
     /// if the value would underflow.
     fn checked_sub(&mut self, pos: LLVMValueRef, neg: LLVMValueRef, out_name: &str) -> LLVMValueRef {
         let f32_0 = self.ctx.cons(0f32);
-        let bb_underflow = self.ctx.append_basic_block(&mut self.func,
-            &(self.fname.clone() + "_checked_sub_underflow"));
-        let bb_normal = self.ctx.append_basic_block(&mut self.func,
-            &(self.fname.clone() + "_checked_sub_success"));
+        let bb_underflow = self.ctx.append_basic_block(&mut self.func, "checked_sub_undeflow");
+        let bb_normal = self.ctx.append_basic_block(&mut self.func, "checked_sub_success");
         let is_sub_neg = self.builder.build_icmp(LLVMIntPredicate::LLVMIntUGT, neg, pos, "is_sub_neg");
         self.builder.build_cond_br(is_sub_neg, bb_underflow, bb_normal);
         // Impl the underflow code path
