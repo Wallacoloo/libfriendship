@@ -81,6 +81,14 @@ struct Node {
     inbound: Vec<Option<Edge>>,
 }
 
+/// Struct to help build LLVM code for primitive effects.
+struct FnBuilder<'a> {
+    func: Function,
+    fname: String,
+    ctx: &'a Context,
+    builder: &'a mut Builder,
+}
+
 #[derive(Debug)]
 enum MyNodeData {
     /// The node corresponds to a LLVM function with the provided name.
@@ -172,163 +180,33 @@ impl SparkleRenderer {
         if self.get_func(&fname).is_none() {
             // Effect hasn't been compiled yet; do so.
             // TODO: this only checks the execution engines; not uncompiled modules!
-            let mut func = self.open_get_sample_fn(&fname);
-            // Open a basic block to begin appending instructions.
-            let bb = self.llvm_ctx.append_basic_block(&mut func, &fname);
-            let mut bb_ret0: Option<LLVMBasicBlockRef> = None;
-            let ref mut builder = self.llvm_builder;
-            builder.position_at_end(bb);
-            let time = func.get_param(0).unwrap();
-            let slot = func.get_param(1).unwrap();
-            let in_getter = func.get_param(2).unwrap();
-            // Common constants used across primitives
-            let u32_0 = self.llvm_ctx.cons(0u32);
-            let u32_1 = self.llvm_ctx.cons(1u32);
-            let u64_0 = self.llvm_ctx.cons(0u64);
-            let f32_0 = self.llvm_ctx.cons(0f32);
-            let f32_2pow64 = self.llvm_ctx.cons(18446744073709551616f32);
-
-            {
-                let load_getters = |builder: &mut Builder| -> (LLVMValueRef, LLVMValueRef) {
-                    let in_getter_struct = builder.build_load(in_getter, "in_getter_struct");
-                    let in_getter_fn = builder.build_extract_value(in_getter_struct, 0, "in_getter_fn");
-                    let in_getter_arg = builder.build_extract_value(in_getter_struct, 1, "in_getter_arg");
-                    (in_getter_fn, in_getter_arg)
-                };
-
-                // Implement code to return 0 if output slot != 0
-                let guard_slot_ne_0 = |ctx: &Context, func: &mut Function, builder: &mut Builder, bb_ret0: LLVMBasicBlockRef| {
-                    let bb_zero = ctx.append_basic_block(func, &(fname.clone() + "_slot_is_zero"));
-                    let is_slot_nonzero = builder.build_icmp(LLVMIntPredicate::LLVMIntNE, slot, u32_0, "is_slot_nonzero");
-                    builder.build_cond_br(is_slot_nonzero, bb_ret0, bb_zero);
-                    builder.position_at_end(bb_zero);
-                };
-
-                match *effect.data() {
-                    EffectData::Primitive(prim) => match prim {
-                        PrimitiveEffect::F32Constant => {
-                            let f32_type = f32::get_type_in_context(&self.llvm_ctx);
-                            let slot_as_f32 = builder.build_bit_cast(slot, f32_type, "slot_as_f32");
-                            builder.build_ret(slot_as_f32);
-                        },
-                        PrimitiveEffect::Delay => {
-                            bb_ret0 = Some(self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_ret0")));
-                            guard_slot_ne_0(&self.llvm_ctx, &mut func, builder, bb_ret0.unwrap());
-                            let bb_not_too_large = self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_not_too_large"));
-                            let bb_not_gt_time = self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_not_gt_time"));
-                            let (in_getter_fn, in_getter_arg) = load_getters(builder);
-                            let delay_frames = builder.build_call(Function::from_value_ref(in_getter_fn),
-                                vec![time, u32_1, in_getter_arg], "delay_frames");
-                            let is_too_large = builder.build_fcmp(LLVMRealPredicate::LLVMRealUGT,
-                                delay_frames,
-                                f32_2pow64,
-                                "is_too_large");
-                            builder.build_cond_br(is_too_large, bb_ret0.unwrap(), bb_not_too_large);
-
-
-                            // Impl the case where `delay_frames < 2^64`
-                            builder.position_at_end(bb_not_too_large);
-                            // Clamp delay_frames to [0, x) & cast to u64
-                            let is_lt_0 = builder.build_fcmp(LLVMRealPredicate::LLVMRealULT,
-                                delay_frames,
-                                f32_0,
-                                "is_lt_0");
-                            let unchecked_delay_iframes = builder.build_fp_to_ui(delay_frames,
-                                u64::get_type_in_context(&self.llvm_ctx),
-                                "unchecked_delay_iframes");
-                            let delay_iframes = builder.build_select(is_lt_0, u64_0, unchecked_delay_iframes, "delay_iframes");
-                            let is_gt_time = builder.build_icmp(LLVMIntPredicate::LLVMIntUGT,
-                                delay_iframes,
-                                time,
-                                "is_gt_time");
-                            builder.build_cond_br(is_gt_time, bb_ret0.unwrap(), bb_not_gt_time);
-
-                            // Impl the case where the delay amount is valid
-                            builder.position_at_end(bb_not_gt_time);
-                            let delayed_time = builder.build_sub(time, delay_iframes, "delayed_time");
-
-                            let delayed_input = builder.build_call(Function::from_value_ref(in_getter_fn),
-                                vec![delayed_time, u32_0, in_getter_arg], "delayed_input");
-                            builder.build_ret(delayed_input);
-                        },
-                        PrimitiveEffect::Multiply => {
-                            bb_ret0 = Some(self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_ret0")));
-                            guard_slot_ne_0(&self.llvm_ctx, &mut func, builder, bb_ret0.unwrap());
-                            let (in_getter_fn, in_getter_arg) = load_getters(builder);
-                            let input_slot0 = builder.build_call(Function::from_value_ref(in_getter_fn),
-                                vec![time, u32_0, in_getter_arg], "input_slot0");
-                            let input_slot1 = builder.build_call(Function::from_value_ref(in_getter_fn),
-                                vec![time, u32_1, in_getter_arg], "input_slot1");
-                            let result = builder.build_fmul(input_slot0, input_slot1, "result");
-                            builder.build_ret(result);
-                        },
-                        PrimitiveEffect::Sum2 => {
-                            bb_ret0 = Some(self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_ret0")));
-                            guard_slot_ne_0(&self.llvm_ctx, &mut func, builder, bb_ret0.unwrap());
-                            let (in_getter_fn, in_getter_arg) = load_getters(builder);
-                            let input_slot0 = builder.build_call(Function::from_value_ref(in_getter_fn),
-                                vec![time, u32_0, in_getter_arg], "input_slot0");
-                            let input_slot1 = builder.build_call(Function::from_value_ref(in_getter_fn),
-                                vec![time, u32_1, in_getter_arg], "input_slot1");
-                            let result = builder.build_fadd(input_slot0, input_slot1, "result");
-                            builder.build_ret(result);
-                        },
-                        PrimitiveEffect::Divide => {
-                            bb_ret0 = Some(self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_ret0")));
-                            guard_slot_ne_0(&self.llvm_ctx, &mut func, builder, bb_ret0.unwrap());
-                            let (in_getter_fn, in_getter_arg) = load_getters(builder);
-                            let input_slot0 = builder.build_call(Function::from_value_ref(in_getter_fn),
-                                vec![time, u32_0, in_getter_arg], "input_slot0");
-                            let input_slot1 = builder.build_call(Function::from_value_ref(in_getter_fn),
-                                vec![time, u32_1, in_getter_arg], "input_slot1");
-                            let result = builder.build_fdiv(input_slot0, input_slot1, "result");
-                            builder.build_ret(result);
-                        },
-                        PrimitiveEffect::Minimum => {
-                            bb_ret0 = Some(self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_ret0")));
-                            guard_slot_ne_0(&self.llvm_ctx, &mut func, builder, bb_ret0.unwrap());
-                            let (in_getter_fn, in_getter_arg) = load_getters(builder);
-                            let input_slot0 = builder.build_call(Function::from_value_ref(in_getter_fn),
-                                vec![time, u32_0, in_getter_arg], "input_slot0");
-                            let input_slot1 = builder.build_call(Function::from_value_ref(in_getter_fn),
-                                vec![time, u32_1, in_getter_arg], "input_slot1");
-                            let is_0_lt_1 = builder.build_fcmp(LLVMRealPredicate::LLVMRealULT, input_slot0, input_slot1, "is_0_lt_1");
-                            let result = builder.build_select(is_0_lt_1, input_slot0, input_slot1, "result");
-                            builder.build_ret(result);
-                        }
-                        PrimitiveEffect::Modulo => {
-                            bb_ret0 = Some(self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_ret0")));
-                            guard_slot_ne_0(&self.llvm_ctx, &mut func, builder, bb_ret0.unwrap());
-                            let (in_getter_fn, in_getter_arg) = load_getters(builder);
-                            let input_slot0 = builder.build_call(Function::from_value_ref(in_getter_fn),
-                                vec![time, u32_0, in_getter_arg], "input_slot0");
-                            let input_slot1 = builder.build_call(Function::from_value_ref(in_getter_fn),
-                                vec![time, u32_1, in_getter_arg], "input_slot1");
-                            let signed_result = builder.build_frem(input_slot0, input_slot1, "signed_result");
-                            // Result has same sign as dividend. If negative, correct that.
-                            let result_if_neg = builder.build_fadd(signed_result, input_slot1, "result_if_neg");
-                            let is_result_neg = builder.build_fcmp(LLVMRealPredicate::LLVMRealULT, signed_result, f32_0, "is_result_neg");
-                            let result = builder.build_select(is_result_neg, result_if_neg, signed_result, "result");
-                            builder.build_ret(result);
-                        }
-                        _ => {
-                            let ret = self.llvm_ctx.cons(0f32);
-                            builder.build_ret(ret);
-                        },
-                    },
-                    EffectData::RouteGraph(ref graph) => {
-                        // TODO: for now, just use a dummy return value
-                        let ret = self.llvm_ctx.cons(20f32);
-                        builder.build_ret(ret);
-                    },
-                    _ => panic!("Cannot JIT effect: {:?}", effect)
-                }
-            }
-
-            // Implement `return 0f32` case.
-            if let Some(bb_ret0) = bb_ret0 {
-                builder.position_at_end(bb_ret0);
-                builder.build_ret(f32_0);
+            let func = self.open_get_sample_fn(&fname);
+            let mut fnbuilder = FnBuilder::new(func, fname.clone(), &self.llvm_ctx, &mut self.llvm_builder);
+            match *effect.data() {
+                EffectData::Primitive(prim) => match prim {
+                    PrimitiveEffect::F32Constant => fnbuilder.build_f32constant(),
+                    PrimitiveEffect::Delay => fnbuilder.build_delay(),
+                    PrimitiveEffect::Multiply => fnbuilder.build_multiply(),
+                    PrimitiveEffect::Sum2 => fnbuilder.build_sum2(),
+                    PrimitiveEffect::Divide => fnbuilder.build_divide(),
+                    PrimitiveEffect::Minimum => fnbuilder.build_minimum(),
+                    PrimitiveEffect::Modulo => fnbuilder.build_modulo(),
+                },
+                EffectData::RouteGraph(ref graph) => {
+                    // TODO: for now, just use a dummy return value
+                    //let ret = self.llvm_ctx.cons(20f32);
+                    //builder.build_ret(ret);
+                    /*bb_ret0 = Some(self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_ret0")));
+                    let blocks: Vec<_> = graph.iter_outbound_edges().map(|edge| {
+                        let br_name = format!("{}_edge_n{}s{}_n{}s{}", &fname.clone(),
+                            edge.from_full(), edge.from_slot(), edge.to_full(), edge.to_slot());
+                        let edgematch_bb = self.llvm_ctx.append_basic_block(&mut func, &br_name);
+                        let desired_slot = self.llvm_ctx.cons(edge.to_slot());
+                        (desired_slot, edgematch_bb)
+                    }).collect();
+                    builder.build_switch(slot, bb_ret0.unwrap(), blocks);*/
+                },
+                _ => panic!("Cannot JIT effect: {:?}", effect)
             }
         }
 
@@ -525,5 +403,169 @@ impl Deref for NodeMap {
 impl DerefMut for NodeMap {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.nodes
+    }
+}
+
+
+impl<'a> FnBuilder<'a> {
+    fn new(mut func: Function, fname: String, ctx: &'a Context, builder: &'a mut Builder) -> Self {
+        let bb = ctx.append_basic_block(&mut func, &fname);
+        builder.position_at_end(bb);
+        Self{ func, fname, ctx, builder }
+    }
+    /// Perform the computations associated with PrimitiveEffect::F32Constant
+    fn build_f32constant(&mut self) {
+        let f32_type = f32::get_type_in_context(&self.ctx);
+        let slot = self.slot();
+        let slot_as_f32 = self.builder.build_bit_cast(slot, f32_type, "slot_as_f32");
+        self.builder.build_ret(slot_as_f32);
+    }
+    /// Perform the computations associated with PrimitiveEffect::Delay
+    fn build_delay(&mut self) {
+        self.guard_slot_ne_0();
+        let time = self.time();
+        // Amount to delay input by
+        let delay_frames = self.read_input(time, 1);
+        let delay_frames_u64 = self.checked_fp_to_u64(delay_frames, "delay_frames_u64");
+        let delayed_time = self.checked_sub(time, delay_frames_u64, "delayed_time");
+        let result = self.read_input(delayed_time, 0);
+        self.builder.build_ret(result);
+    }
+    /// Perform the computations associated with PrimitiveEffect::Multiply
+    fn build_multiply(&mut self) {
+        self.guard_slot_ne_0();
+        let time = self.time();
+        let (input0, input1) = self.read_inputs(time);
+        let result = self.builder.build_fmul(input0, input1, "result");
+        self.builder.build_ret(result);
+    }
+    /// Perform the computations associated with PrimitiveEffect::Sum2
+    fn build_sum2(&mut self) {
+        self.guard_slot_ne_0();
+        let time = self.time();
+        let (input0, input1) = self.read_inputs(time);
+        let result = self.builder.build_fadd(input0, input1, "result");
+        self.builder.build_ret(result);
+    }
+    /// Perform the computations associated with PrimitiveEffect::Divide
+    fn build_divide(&mut self) {
+        self.guard_slot_ne_0();
+        let time = self.time();
+        let (input0, input1) = self.read_inputs(time);
+        let result = self.builder.build_fdiv(input0, input1, "result");
+        self.builder.build_ret(result);
+    }
+    /// Perform the computations associated with PrimitiveEffect::Minimum
+    fn build_minimum(&mut self) {
+        self.guard_slot_ne_0();
+        let time = self.time();
+        let (input0, input1) = self.read_inputs(time);
+        let is_s0_lt_s1 = self.builder.build_fcmp(LLVMRealPredicate::LLVMRealULT, input0, input1, "is_s0_lt_s1");
+        let result = self.builder.build_select(is_s0_lt_s1, input0, input1, "result");
+        self.builder.build_ret(result);
+    }
+    /// Perform the computations associated with PrimitiveEffect::Modulo
+    fn build_modulo(&mut self) {
+        let f32_0 = self.ctx.cons(0f32);
+        self.guard_slot_ne_0();
+        let time = self.time();
+        let (input0, input1) = self.read_inputs(time);
+        let signed_result = self.builder.build_frem(input0, input1, "signed_result");
+        // `signed_result` has same sign as dividend. If negative, correct that.
+        let result_if_neg = self.builder.build_fadd(signed_result, input1, "result_if_neg");
+        let is_result_neg = self.builder.build_fcmp(LLVMRealPredicate::LLVMRealULT, signed_result, f32_0, "is_result_neg");
+        let result = self.builder.build_select(is_result_neg, result_if_neg, signed_result, "result");
+        self.builder.build_ret(result);
+    }
+    /// Unpack the function's `time` argument.
+    fn time(&self) -> LLVMValueRef {
+        self.func.get_param(0).unwrap()
+    }
+    /// Unpack the function's `slot` argument.
+    fn slot(&self) -> LLVMValueRef {
+        self.func.get_param(1).unwrap()
+    }
+    /// Unpack the function's callback ptr/data argument.
+    fn in_getter(&self) -> LLVMValueRef {
+        self.func.get_param(2).unwrap()
+    }
+    /// Insert code to test if slot != 0 and return 0f32 if true.
+    fn guard_slot_ne_0(&mut self) {
+        let u32_0 = self.ctx.cons(0u32);
+        let f32_0 = self.ctx.cons(0f32);
+        let slot = self.slot();
+        let bb_nonzero = self.ctx.append_basic_block(&mut self.func,
+            &(self.fname.clone() + "_slot_ne_0"));
+        let bb_eqzero = self.ctx.append_basic_block(&mut self.func,
+            &(self.fname.clone() + "_slot_eq_0"));
+        let is_slot_nonzero = self.builder.build_icmp(LLVMIntPredicate::LLVMIntNE, slot, u32_0, "is_slot_nonzero");
+        self.builder.build_cond_br(is_slot_nonzero, bb_nonzero, bb_eqzero);
+        self.builder.position_at_end(bb_nonzero);
+        self.builder.build_ret(f32_0);
+        self.builder.position_at_end(bb_eqzero);
+    }
+    /// Casts the value to a u64, or returns 0f32 from the function
+    /// if the value doesn't fit in a u64.
+    fn checked_fp_to_u64(&mut self, fp: LLVMValueRef, u64_name: &str) -> LLVMValueRef {
+        let f32_0 = self.ctx.cons(0f32);
+        let f32_2pow64 = self.ctx.cons(18446744073709551616f32);
+        let bb_out_of_range = self.ctx.append_basic_block(&mut self.func,
+            &(self.fname.clone() + "_to_u64_fail"));
+        let bb_gte_0 = self.ctx.append_basic_block(&mut self.func,
+            &(self.fname.clone() + "_to_u64_gte_0"));
+        let bb_good_cast = self.ctx.append_basic_block(&mut self.func,
+            &(self.fname.clone() + "_to_u64_success"));
+        // Guard fp < 0
+        let is_lt_0 = self.builder.build_fcmp(LLVMRealPredicate::LLVMRealULT,
+            fp, f32_0, "is_lt_0");
+        self.builder.build_cond_br(is_lt_0, bb_out_of_range, bb_gte_0);
+        // Guard fp >= 2^64
+        self.builder.position_at_end(bb_gte_0);
+        let is_gte_2pow64 = self.builder.build_fcmp(LLVMRealPredicate::LLVMRealUGE,
+            fp, f32_2pow64, "is_gte_2pow64");
+        self.builder.build_cond_br(is_gte_2pow64, bb_out_of_range, bb_good_cast);
+        // Impl the out_of_range code path
+        self.builder.position_at_end(bb_out_of_range);
+        self.builder.build_ret(f32_0);
+        // Perform the cast
+        self.builder.position_at_end(bb_good_cast);
+        self.builder.build_fp_to_ui(fp,
+            u64::get_type_in_context(self.ctx), u64_name)
+    }
+    /// Subtracts `neg` from `pos`, but returns 0f32 from the function
+    /// if the value would underflow.
+    fn checked_sub(&mut self, pos: LLVMValueRef, neg: LLVMValueRef, out_name: &str) -> LLVMValueRef {
+        let f32_0 = self.ctx.cons(0f32);
+        let bb_underflow = self.ctx.append_basic_block(&mut self.func,
+            &(self.fname.clone() + "_checked_sub_underflow"));
+        let bb_normal = self.ctx.append_basic_block(&mut self.func,
+            &(self.fname.clone() + "_checked_sub_success"));
+        let is_sub_neg = self.builder.build_icmp(LLVMIntPredicate::LLVMIntUGT, neg, pos, "is_sub_neg");
+        self.builder.build_cond_br(is_sub_neg, bb_underflow, bb_normal);
+        // Impl the underflow code path
+        self.builder.position_at_end(bb_underflow);
+        self.builder.build_ret(f32_0);
+        // Perform the subtraction
+        self.builder.position_at_end(bb_normal);
+        self.builder.build_sub(pos, neg, out_name)
+
+    }
+    /// Call the `in_getter` callback with the provided time/slot.
+    fn read_input(&mut self, time: LLVMValueRef, slot: u32) -> LLVMValueRef {
+        let (in_getter_fn, in_getter_arg) = self.load_getters();
+        self.builder.build_call(Function::from_value_ref(in_getter_fn),
+            vec![time, self.ctx.cons(slot), in_getter_arg], &format!("input_slot{}", slot))
+    }
+    /// Read the inputs to slot 0 and slot 1 at the given time.
+    fn read_inputs(&mut self, time: LLVMValueRef) -> (LLVMValueRef, LLVMValueRef) {
+        (self.read_input(time, 0), self.read_input(time, 1))
+    }
+    /// Unpack the callback function and its argument.
+    fn load_getters(&mut self) -> (LLVMValueRef, LLVMValueRef) {
+        let in_getter = self.in_getter();
+        let in_getter_struct = self.builder.build_load(in_getter, "in_getter_struct");
+        let in_getter_fn = self.builder.build_extract_value(in_getter_struct, 0, "in_getter_fn");
+        let in_getter_arg = self.builder.build_extract_value(in_getter_struct, 1, "in_getter_arg");
+        (in_getter_fn, in_getter_arg)
     }
 }
