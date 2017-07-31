@@ -80,13 +80,42 @@ impl RouteGraph {
     pub fn new() -> Self {
         Default::default()
     }
+    /// Iterate over the nodes in an unordered way.
     pub fn iter_nodes<'a>(&'a self) -> impl Iterator<Item=(&NodeHandle, &NodeData)> + 'a {
         self.node_data.iter()
     }
+    /// Iterate over the nodes in such an order that by the time each node it
+    /// visited, all of the nodes that have edges going *into* it have already
+    /// been visited.
+    pub fn iter_nodes_dep_first<'a>(&'a self) -> impl Iterator<Item=NodeHandle> + 'a {
+        let mut visited = HashSet::new();
+        let mut ordered = Vec::new();
+        for (node, _data) in self.iter_nodes() {
+            self.dep_first_helper(&mut visited, &mut ordered, *node);
+        }
+        ordered.into_iter()
+    }
+    fn dep_first_helper(&self, visited: &mut HashSet<NodeHandle>, ordered: &mut Vec<NodeHandle>, node_hnd: NodeHandle) {
+        if !node_hnd.is_toplevel() {
+            if let Some(edge_set) = self.edges.get(&node_hnd) {
+                // ensure all dependencies have been visited
+                for dep_edge in edge_set.inbound.iter() {
+                    self.dep_first_helper(visited, ordered, dep_edge.from_full());
+                }
+            }
+            if visited.insert(node_hnd) {
+                // Node hasn't been seen
+                ordered.push(node_hnd);
+            }
+        }
+    }
+    /// Iterate over all edges in an unordered way.
     pub fn iter_edges<'a>(&'a self) -> impl Iterator<Item=&Edge> + 'a {
         self.edges.values().flat_map(|v_set| v_set.outbound.iter())
     }
+    /// Iterate over the edges that point into outputs, in an unordered way.
     pub fn iter_outbound_edges<'a>(&'a self) -> impl Iterator<Item=&Edge> + 'a {
+        // TODO: the graph is bidirectional - can we just look at the inputs to NULL?
         self.iter_edges().filter(|e| {
             e.to_full().is_toplevel()
         })
@@ -95,6 +124,12 @@ impl RouteGraph {
     /// does not exist within this graph.
     pub fn get_data(&self, handle: &NodeHandle) -> Option<&NodeData> {
         self.node_data.get(handle)
+    }
+    /// Iterate over all the edges leading directly into the given node.
+    pub fn iter_edges_to<'a>(&'a self, handle: &NodeHandle) -> impl Iterator<Item=&Edge> + 'a {
+        self.edges.get(handle).map(|edgeset| {
+            edgeset.inbound.iter()
+        }).into_iter().flat_map(|i| i)
     }
     /// Try to create a node with the given handle/data.
     /// Will error if the handle is already in use.

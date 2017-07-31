@@ -19,7 +19,7 @@ use url::Url;
 
 use libfriendship::{Dispatch, Client};
 use libfriendship::dispatch::{OscRouteGraph, OscRenderer, OscResMan};
-use libfriendship::render::RefRenderer;
+use libfriendship::render::SparkleRenderer;
 use libfriendship::routing::{NodeHandle, Edge, EdgeWeight, EffectId, EffectDesc, EffectMeta, EffectInput, EffectOutput};
 use libfriendship::routing::AdjList;
 use libfriendship::util::pack_f32;
@@ -34,9 +34,9 @@ impl Client for MyClient {
     }
 }
 
-fn test_setup() -> (Dispatch<RefRenderer, MyClient>, Receiver<Array2<f32>>) {
+fn test_setup() -> (Dispatch<SparkleRenderer, MyClient>, Receiver<Array2<f32>>) {
     let (tx, rx) = channel();
-    let dispatch = Dispatch::new(RefRenderer::default(), MyClient{ tx });
+    let dispatch = Dispatch::new(SparkleRenderer::default(), MyClient{ tx });
     (dispatch, rx)
 }
 

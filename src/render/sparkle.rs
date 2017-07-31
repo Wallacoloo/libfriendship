@@ -7,17 +7,13 @@ use std::collections::HashMap;
 use std::ffi::CString;
 use std::mem;
 use std::ops::{Deref, DerefMut};
-use std::ptr;
 
 use jagged_array::Jagged2;
 use llvm;
 use llvm::{Builder, Context, ContextType, ExecutionEngine, Function, Module};
 use llvm_sys;
 use llvm_sys::core::{
-    LLVMContextCreate,
-    LLVMContextDispose,
-    LLVMDisposeModule,
-    LLVMModuleCreateWithNameInContext,
+    LLVMGetUndef,
     LLVMStructCreateNamed,
     LLVMStructSetBody,
 };
@@ -26,8 +22,6 @@ use llvm_sys::{
     LLVMRealPredicate,
 };
 use llvm_sys::prelude::*;
-use llvm_sys::target::{LLVM_InitializeNativeTarget, LLVM_InitializeNativeAsmPrinter,
-                   LLVM_InitializeNativeAsmParser};
 use ndarray::Array2;
 use streaming_iterator::StreamingIterator;
 
@@ -60,8 +54,6 @@ pub struct SparkleRenderer {
     callback_type: LLVMTypeRef,
     /// LLVM type for fn(time, slot, input_getter: callback_type*) -> f32
     sample_getter_type: LLVMTypeRef,
-    /// Object that lets us build IR into basic blocks.
-    llvm_builder: Builder,
     // NOTE: LLVM Context must be last member, otherwise jemalloc will try dropping
     // llvm-owned data
     /// Object that provides a context for LLVM calls.
@@ -82,10 +74,16 @@ struct Node {
 }
 
 /// Struct to help build LLVM code for primitive effects.
-struct FnBuilder<'a> {
+struct FnBuilder<'ctx> {
+    /// Function being built
     func: Function,
-    ctx: &'a Context,
-    builder: &'a mut Builder,
+    /// Handle into LLVM API
+    ctx: &'ctx Context,
+    /// Handle to the LLVM Builder, which creates the asm instructions
+    builder: &'ctx mut Builder,
+    /// LLVM struct { fn(time, slot, callback_type*)->f32, callback_type* }
+    /// Used to pass callbak functions into get_output() to allow effects to access their inputs.
+    callback_type: LLVMTypeRef,
 }
 
 #[derive(Debug)]
@@ -173,58 +171,90 @@ impl SparkleRenderer {
     /// fn get_sample(time: u64, slot: u32, input_getter: &callback_type) -> f32) -> f32
     /// callback_type should be { input_getter, userdata },
     /// Returns the name of the function that can be used to get the effect's output.
-    fn jit_effect(&mut self, effect: &Effect) -> String {
+    fn jit_effect(&mut self, module: &mut Module, effect: &Effect) -> (Function, String) {
         let fname = format!("{}_get_output", effect.id().name());
         println!("jit: {}", fname);
-        if self.get_fn(&fname).is_none() {
-            // Effect hasn't been compiled yet; do so.
-            let func = self.open_get_sample_fn(&fname);
-            let mut fnbuilder = FnBuilder::new(func, &self.llvm_ctx, &mut self.llvm_builder);
-            match *effect.data() {
-                EffectData::Primitive(prim) => match prim {
-                    PrimitiveEffect::F32Constant => fnbuilder.build_f32constant(),
-                    PrimitiveEffect::Delay => fnbuilder.build_delay(),
-                    PrimitiveEffect::Multiply => fnbuilder.build_multiply(),
-                    PrimitiveEffect::Sum2 => fnbuilder.build_sum2(),
-                    PrimitiveEffect::Divide => fnbuilder.build_divide(),
-                    PrimitiveEffect::Minimum => fnbuilder.build_minimum(),
-                    PrimitiveEffect::Modulo => fnbuilder.build_modulo(),
-                },
-                EffectData::RouteGraph(ref graph) => {
-                    // TODO: for now, just use a dummy return value
-                    //let ret = self.llvm_ctx.cons(20f32);
-                    //builder.build_ret(ret);
-                    /*bb_ret0 = Some(self.llvm_ctx.append_basic_block(&mut func, &(fname.clone() + "_ret0")));
-                    let blocks: Vec<_> = graph.iter_outbound_edges().map(|edge| {
-                        let br_name = format!("{}_edge_n{}s{}_n{}s{}", &fname.clone(),
-                            edge.from_full(), edge.from_slot(), edge.to_full(), edge.to_slot());
-                        let edgematch_bb = self.llvm_ctx.append_basic_block(&mut func, &br_name);
-                        let desired_slot = self.llvm_ctx.cons(edge.to_slot());
-                        (desired_slot, edgematch_bb)
-                    }).collect();
-                    builder.build_switch(slot, bb_ret0.unwrap(), blocks);*/
-                },
-                _ => panic!("Cannot JIT effect: {:?}", effect)
+        let llvm_ctx = Context{ ptr: self.llvm_ctx.ptr };
+        let func = match self.get_fn(&fname) {
+            Some(func) => func,
+            None => {
+                // Effect hasn't been compiled yet; do so.
+                let sample_getter_type = self.sample_getter_type;
+                let func = module.add_function(sample_getter_type, &fname);
+                let mut builder = llvm_ctx.create_builder();
+                let mut fnbuilder = FnBuilder::new(func, &llvm_ctx, &mut builder, &self);
+                match *effect.data() {
+                    EffectData::Primitive(prim) => match prim {
+                        PrimitiveEffect::F32Constant => fnbuilder.build_f32constant(),
+                        PrimitiveEffect::Delay => fnbuilder.build_delay(),
+                        PrimitiveEffect::Multiply => fnbuilder.build_multiply(),
+                        PrimitiveEffect::Sum2 => fnbuilder.build_sum2(),
+                        PrimitiveEffect::Divide => fnbuilder.build_divide(),
+                        PrimitiveEffect::Minimum => fnbuilder.build_minimum(),
+                        PrimitiveEffect::Modulo => fnbuilder.build_modulo(),
+                    },
+                    EffectData::RouteGraph(ref graph) => {
+                        // Plan: walk the graph depth-first s.t. the inputs to any
+                        // node are processed before the node itself.
+                        // Then, we can greate a function `node_get_input(in_time, in_slot, userdata:
+                        // *const CallbackType) for each node trivially.
+                        let build_inp_getter = |active_fnbuilder: &mut FnBuilder,
+                            node_hnd: &NodeHandle,
+                            input_getters: &HashMap<NodeHandle, Function>,
+                            module: &mut Module,
+                            me: &mut Self
+                        | {
+                            active_fnbuilder.build_slotswitch(graph.iter_edges_to(node_hnd).map(|edge| {
+                                if edge.from_full().is_toplevel() {
+                                    // Reading from the toplevel input
+                                    (   edge.to_slot(),
+                                        edge.from_slot(),
+                                        None
+                                    )
+                                } else {
+                                    let from_data = graph.get_data(&edge.from_full()).unwrap();
+                                    (   edge.to_slot(),
+                                        edge.from_slot(),
+                                        Some((
+                                            me.jit_effect(module, &from_data).0,
+                                            &input_getters[&edge.from_full()]
+                                        ))
+                                    )
+                                }
+                            }).collect());
+                        };
+                        let mut input_getters: HashMap<NodeHandle, Function> = Default::default();
+                        for ref node_hnd in graph.iter_nodes_dep_first() {
+                            // Create a switch statement that branches on the requested slot (i.e.
+                            // to_slot) and maps to from_slot and the appropriate getter function.
+                            let input_get_fname = format!("{}_n{}_get_input", effect.id().name(), node_hnd);
+                            let input_get_fn = module.add_function(sample_getter_type, &input_get_fname);
+                            let mut input_builder = llvm_ctx.create_builder();
+                            let mut input_fnbuilder = FnBuilder::new(input_get_fn, &llvm_ctx, &mut input_builder, &self);
+                            build_inp_getter(&mut input_fnbuilder, node_hnd, &input_getters, module, self);
+                            input_getters.insert(*node_hnd, input_fnbuilder.func);
+                        }
+                        // Build the toplevel getter directly into the main function
+                        build_inp_getter(&mut fnbuilder, &NodeHandle::toplevel(), &input_getters, module, self)
+                    },
+                    _ => panic!("Cannot JIT effect: {:?}", effect)
+                }
+                fnbuilder.func
             }
-        }
+        };
+        // due to a bad API, we created two owners of the llvm_ctx earlier.
+        mem::forget(llvm_ctx);
 
-        fname
-    }
-    fn open_get_sample_fn(&mut self, fname: &str) -> Function {
-        let ty = self.sample_getter_type;
-        self.get_open_module().add_function(ty, fname)
+        (func, fname)
     }
     /// Get or create an editable module
-    fn get_open_module(&mut self) -> &mut Module {
+    fn take_open_module(&mut self) -> Module {
         // TODO: use entry API
-        if let Some(ref mut module) = self.open_module {
+        if let Some(module) = self.open_module.take() {
             module
         } else {
-            self.open_module = Some(
-                self.llvm_ctx.module_create_with_name(
-                    &format!("mod{}", self.llvm_modules.len()))
-            );
-            self.open_module.as_mut().unwrap()
+            self.llvm_ctx.module_create_with_name(
+                &format!("mod{}", self.llvm_modules.len()))
         }
     }
     /// Return a pointer to the compiled function with the provided name.
@@ -255,10 +285,14 @@ impl SparkleRenderer {
     fn make_node(&mut self, effect: &NodeData) -> MyNodeData {
         match *effect.data() {
             EffectData::Buffer(ref buff) => MyNodeData::Buffer(buff.clone()),
-            EffectData::Primitive(_e) =>
-                MyNodeData::LlvmFunc(self.jit_effect(effect)),
-            EffectData::RouteGraph(ref _graph) =>
-                MyNodeData::LlvmFunc(self.jit_effect(effect)),
+            EffectData::Primitive(_) | EffectData::RouteGraph(_) => {
+                // Jit the effect into an open module
+                let mut module = self.take_open_module();
+
+                let ret = MyNodeData::LlvmFunc(self.jit_effect(&mut module, effect).1);
+                self.open_module = Some(module);
+                ret
+            }
         }
     }
     /// Get the output at a particular time and to a particular output slot.
@@ -331,7 +365,6 @@ impl Default for SparkleRenderer {
         llvm::initialize_native_asm_printer();
 
         let llvm_ctx = Context::new();
-        let llvm_builder = llvm_ctx.create_builder();
         let llvm_modules = Default::default();
         let llvm_engines = Default::default();
         let open_module = None;
@@ -366,7 +399,7 @@ impl Default for SparkleRenderer {
 
         SparkleRenderer {
             head, inputs, nodes,
-            llvm_ctx, llvm_builder, llvm_modules, llvm_engines, open_module, callback_type, sample_getter_type
+            llvm_ctx, llvm_modules, llvm_engines, open_module, callback_type, sample_getter_type
         }
     }
 }
@@ -411,11 +444,11 @@ impl DerefMut for NodeMap {
 }
 
 
-impl<'a> FnBuilder<'a> {
-    fn new(mut func: Function, ctx: &'a Context, builder: &'a mut Builder) -> Self {
+impl<'ctx> FnBuilder<'ctx> {
+    fn new(mut func: Function, ctx: &'ctx Context, builder: &'ctx mut Builder, renderer: &SparkleRenderer) -> Self {
         let bb = ctx.append_basic_block(&mut func, "entry_point");
         builder.position_at_end(bb);
-        Self{ func, ctx, builder }
+        Self{ func, ctx, builder, callback_type: renderer.callback_type }
     }
     /// Perform the computations associated with PrimitiveEffect::F32Constant
     fn build_f32constant(&mut self) {
@@ -564,5 +597,88 @@ impl<'a> FnBuilder<'a> {
         let in_getter_fn = self.builder.build_extract_value(in_getter_struct, 0, "in_getter_fn");
         let in_getter_arg = self.builder.build_extract_value(in_getter_struct, 1, "in_getter_arg");
         (in_getter_fn, in_getter_arg)
+    }
+    /// Branch based on the output slot being queried.
+    /// Each case entry is as follows: (slot_to_match, slot_to_query, (node_fn,
+    /// get_input_to_node_fn))
+    /// 
+    /// That is, each case generates code like
+    /// ```
+    /// if slot == slot_to_match {
+    ///     return node_fn(time, slot_to_query, (get_input_to_node_fn, &in_getter))
+    /// }
+    /// ```
+    /// If only the first two arguments are provided, then that branch represents
+    /// reading from the toplevel input.
+    fn build_slotswitch<'a>(&'a mut self, cases: Vec<(u32, u32, Option<(Function, &'a Function)>)>) {
+        let f32_0 = self.ctx.cons(0f32);
+        let bb_nomatch = self.ctx.append_basic_block(&mut self.func, "match_slot_none");
+        // First, generate the basic blocks for each branch option
+        let blocks = cases.iter().map(|&(ref match_slot, ref _source_slot, ref _source_info)| {
+            let bb_name = format!("match_slot_{}", match_slot);
+            (self.ctx.cons(*match_slot), self.ctx.append_basic_block(&mut self.func, &bb_name))
+        }).collect();
+        self.build_switch(self.slot(), bb_nomatch, &blocks);
+
+        // populate each branch of the switch statement
+        self.builder.position_at_end(bb_nomatch);
+        self.builder.build_ret(f32_0);
+        for ((_cond, bb), (__cond, source_slot, source_info)) in blocks.into_iter().zip(cases.into_iter()) {
+            self.builder.position_at_end(bb);
+            let in_getter = self.in_getter();
+            let time = self.time();
+            match source_info {
+                // Reading from a toplevel input
+                None => {
+                    let (in_getter_fn, in_getter_arg) = self.load_getters();
+                    // Need to wrap the pointer to be able to treat it as a function.
+                    let pseudo_in_getter = Function{ ptr: in_getter_fn };
+                    let result = self.builder.build_call(pseudo_in_getter,
+                        vec![time, self.ctx.cons(source_slot), in_getter_arg],
+                        "result");
+                    self.builder.build_ret(result);
+                    //mem::forget(pseudo_in_getter);
+                }
+                // Reading from another node with its own input getter
+                Some((node_fn, new_in_getter)) => {
+                    let u32_0 = self.ctx.cons(0u32);
+                    let u32_1 = self.ctx.cons(1u32);
+                    let wrapped_in_getter = self.builder.build_alloca(
+                        self.callback_type, "wrapped_in_getter");
+                    let addr_of_in_getter_0 = self.builder.build_gep(
+                        wrapped_in_getter, vec![u32_0, u32_0], "addr_of_in_getter_0");
+                    let store_in_getter_0 = self.builder.build_store(
+                        new_in_getter.ptr, addr_of_in_getter_0);
+                    let addr_of_in_getter_1 = self.builder.build_gep(
+                        wrapped_in_getter, vec![u32_0, u32_1], "addr_of_in_getter_1");
+                    let store_in_getter_1 = self.builder.build_store(
+                        in_getter, addr_of_in_getter_1);
+                    let result = self.builder.build_call(node_fn,
+                        vec![time, self.ctx.cons(source_slot), wrapped_in_getter],
+                        "result");
+                    self.builder.build_ret(result);
+                }
+            }
+        }
+    }
+    /// Build a switch statement.
+    /// ```
+    /// switch `value` {
+    ///     `cases`[0].0:
+    ///         `cases`[0].1
+    ///         break
+    ///     [...]
+    ///     default: `default`
+    /// }
+    /// ```
+    fn build_switch(&self, value: LLVMValueRef, default: LLVMBasicBlockRef,
+                        cases: &Vec<(LLVMValueRef, LLVMBasicBlockRef)>) -> LLVMValueRef {
+        unsafe {
+            let switch = llvm_sys::core::LLVMBuildSwitch(self.builder.ptr, value, default, cases.len() as u32);
+            for case in cases {
+                llvm_sys::core::LLVMAddCase(switch, case.0, case.1);
+            }
+            switch
+        }
     }
 }
