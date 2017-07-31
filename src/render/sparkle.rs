@@ -175,7 +175,7 @@ impl SparkleRenderer {
         let fname = format!("{}_get_output", effect.id().name());
         println!("jit: {}", fname);
         let llvm_ctx = Context{ ptr: self.llvm_ctx.ptr };
-        let func = match self.get_fn(&fname) {
+        let func = match self.get_fn(&fname, Some(module)) {
             Some(func) => func,
             None => {
                 // Effect hasn't been compiled yet; do so.
@@ -265,8 +265,11 @@ impl SparkleRenderer {
         }).next()
     }
     /// Return the LLVM handle to the function with the given name, if any such exists.
-    fn get_fn(&mut self, name: &str) -> Option<Function> {
-        self.open_module.iter_mut().chain(self.llvm_modules.iter_mut()).filter_map(|module| {
+    fn get_fn(&mut self, name: &str, additional_mod: Option<&mut Module>) -> Option<Function> {
+        additional_mod.into_iter()
+            .chain(self.open_module.iter_mut())
+            .chain(self.llvm_modules.iter_mut()).filter_map(|module|
+        {
             module.get_named_function(name)
         }).next()
     }
