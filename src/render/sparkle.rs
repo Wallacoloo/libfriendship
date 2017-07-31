@@ -461,11 +461,12 @@ impl<'ctx> FnBuilder<'ctx> {
     fn build_delay(&mut self) {
         self.guard_slot_ne_0();
         let time = self.time();
+        let in_getter = self.load_getters();
         // Amount to delay input by
-        let delay_frames = self.read_input(time, 1);
+        let delay_frames = self.read_input(time, 1, in_getter);
         let delay_frames_u64 = self.checked_fp_to_u64(delay_frames, "delay_frames_u64");
         let delayed_time = self.checked_sub(time, delay_frames_u64, "delayed_time");
-        let result = self.read_input(delayed_time, 0);
+        let result = self.read_input(delayed_time, 0, in_getter);
         self.builder.build_ret(result);
     }
     /// Perform the computations associated with PrimitiveEffect::Multiply
@@ -581,14 +582,16 @@ impl<'ctx> FnBuilder<'ctx> {
 
     }
     /// Call the `in_getter` callback with the provided time/slot.
-    fn read_input(&mut self, time: LLVMValueRef, slot: u32) -> LLVMValueRef {
-        let (in_getter_fn, in_getter_arg) = self.load_getters();
+    /// use `load_getters()` to generate the input for `in_getter`
+    fn read_input(&mut self, time: LLVMValueRef, slot: u32, in_getter: (LLVMValueRef, LLVMValueRef)) -> LLVMValueRef {
+        let (in_getter_fn, in_getter_arg) = in_getter;
         self.builder.build_call(Function::from_value_ref(in_getter_fn),
             vec![time, self.ctx.cons(slot), in_getter_arg], &format!("input_slot{}", slot))
     }
     /// Read the inputs to slot 0 and slot 1 at the given time.
     fn read_inputs(&mut self, time: LLVMValueRef) -> (LLVMValueRef, LLVMValueRef) {
-        (self.read_input(time, 0), self.read_input(time, 1))
+        let in_getter = self.load_getters();
+        (self.read_input(time, 0, in_getter), self.read_input(time, 1, in_getter))
     }
     /// Unpack the callback function and its argument.
     fn load_getters(&mut self) -> (LLVMValueRef, LLVMValueRef) {
@@ -647,12 +650,10 @@ impl<'ctx> FnBuilder<'ctx> {
                         self.callback_type, "wrapped_in_getter");
                     let addr_of_in_getter_0 = self.builder.build_gep(
                         wrapped_in_getter, vec![u32_0, u32_0], "addr_of_in_getter_0");
-                    let store_in_getter_0 = self.builder.build_store(
-                        new_in_getter.ptr, addr_of_in_getter_0);
+                    self.builder.build_store(new_in_getter.ptr, addr_of_in_getter_0);
                     let addr_of_in_getter_1 = self.builder.build_gep(
                         wrapped_in_getter, vec![u32_0, u32_1], "addr_of_in_getter_1");
-                    let store_in_getter_1 = self.builder.build_store(
-                        in_getter, addr_of_in_getter_1);
+                    self.builder.build_store(in_getter, addr_of_in_getter_1);
                     let result = self.builder.build_call(node_fn,
                         vec![time, self.ctx.cons(source_slot), wrapped_in_getter],
                         "result");
