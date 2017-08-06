@@ -196,27 +196,23 @@ impl NodeMap {
                     // Output = sum of all inputs to slot 0.
                     PrimitiveEffect::Delay => {
                         // The only nonzero output is slot=0.
-                        if from_slot != 0 {
-                            warn!("Attempt to read from Delay slot != 0");
-                            0f32
-                        } else {
-                            let delay_frames = self.get_maybe_edge_value(time, node.inbound.get(1), get_input);
-                            // Clamp delay value to [0, u64::max]
-                            if delay_frames >= 18446744073709551616f32 {
-                                // delay is >= than 2^64; must be indexing from negative time.
-                                return 0f32;
-                            }
-                            let delay_int = if delay_frames < 0f32 {
-                                0u64
-                            } else {
-                                // Note: this conversion is flooring.
-                                delay_frames as u64
-                            };
-                            // t<0 -> value is 0.
-                            time.checked_sub(delay_int).map_or(0f32, |origin_time| {
-                                self.get_maybe_edge_value(origin_time, node.inbound.get(0), get_input)
-                            })
+                        assert!(from_slot == 0);
+                        let delay_frames = self.get_maybe_edge_value(time, node.inbound.get(1), get_input);
+                        // Clamp delay value to [0, u64::max]
+                        if delay_frames >= 18446744073709551616f32 {
+                            // delay is >= than 2^64; must be indexing from negative time.
+                            return 0f32;
                         }
+                        let delay_int = if delay_frames < 0f32 {
+                            0u64
+                        } else {
+                            // Note: this conversion is flooring.
+                            delay_frames as u64
+                        };
+                        // t<0 -> value is 0.
+                        time.checked_sub(delay_int).map_or(0f32, |origin_time| {
+                            self.get_maybe_edge_value(origin_time, node.inbound.get(0), get_input)
+                        })
                     },
                     PrimitiveEffect::F32Constant => {
                         // Float value is encoded via the slot.
@@ -224,64 +220,44 @@ impl NodeMap {
                     },
                     PrimitiveEffect::Multiply => {
                         // The only nonzero output is slot=0.
-                        if from_slot != 0 {
-                            warn!("Attempt to read from Multiply slot != 0");
-                            0f32
-                        } else {
-                            let input_left = self.get_maybe_edge_value(time, node.inbound.get(0), get_input);
-                            let input_right = self.get_maybe_edge_value(time, node.inbound.get(1), get_input);
-                            input_left * input_right
-                        }
+                        assert!(from_slot == 0);
+                        let input_left = self.get_maybe_edge_value(time, node.inbound.get(0), get_input);
+                        let input_right = self.get_maybe_edge_value(time, node.inbound.get(1), get_input);
+                        input_left * input_right
                     },
                     PrimitiveEffect::Sum2 => {
                         // The only nonzero output is slot=0.
-                        if from_slot != 0 {
-                            warn!("Attempt to read from Sum2 slot != 0");
-                            0f32
-                        } else {
-                            let input_left = self.get_maybe_edge_value(time, node.inbound.get(0), get_input);
-                            let input_right = self.get_maybe_edge_value(time, node.inbound.get(1), get_input);
-                            input_left + input_right
-                        }
+                        assert!(from_slot == 0);
+                        let input_left = self.get_maybe_edge_value(time, node.inbound.get(0), get_input);
+                        let input_right = self.get_maybe_edge_value(time, node.inbound.get(1), get_input);
+                        input_left + input_right
                     },
                     PrimitiveEffect::Divide => {
                         // The only nonzero output is slot=0.
-                        if from_slot != 0 {
-                            warn!("Attempt to read from Divide slot != 0");
-                            0f32
-                        } else {
-                            let dividend = self.get_maybe_edge_value(time, node.inbound.get(0), get_input);
-                            let divisor = self.get_maybe_edge_value(time, node.inbound.get(1), get_input);
-                            dividend / divisor
-                        }
+                        assert!(from_slot == 0);
+                        let dividend = self.get_maybe_edge_value(time, node.inbound.get(0), get_input);
+                        let divisor = self.get_maybe_edge_value(time, node.inbound.get(1), get_input);
+                        dividend / divisor
                     },
                     PrimitiveEffect::Minimum => {
                         // The only nonzero output is slot=0.
-                        if from_slot != 0 {
-                            warn!("Attempt to read from Minimum slot != 0");
-                            0f32
-                        } else {
-                            let input_left = self.get_maybe_edge_value(time, node.inbound.get(0), get_input);
-                            let input_right = self.get_maybe_edge_value(time, node.inbound.get(1), get_input);
-                            input_left.min(input_right)
-                        }
-                    }
+                        assert!(from_slot == 0);
+                        let input_left = self.get_maybe_edge_value(time, node.inbound.get(0), get_input);
+                        let input_right = self.get_maybe_edge_value(time, node.inbound.get(1), get_input);
+                        input_left.min(input_right)
+                    },
                     PrimitiveEffect::Modulo => {
                         // The only nonzero output is slot=0.
-                        if from_slot != 0 {
-                            warn!("Attempt to read from Modulo slot != 0");
-                            0f32
+                        assert!(from_slot == 0);
+                        let dividend = self.get_maybe_edge_value(time, node.inbound.get(0), get_input);
+                        let divisor = self.get_maybe_edge_value(time, node.inbound.get(1), get_input);
+                        let rem = dividend % divisor;
+                        if rem < 0f32 {
+                            // TODO: We may be losing precision here, if rem is small.
+                            // We should find a way to do true modulus.
+                            rem + divisor
                         } else {
-                            let dividend = self.get_maybe_edge_value(time, node.inbound.get(0), get_input);
-                            let divisor = self.get_maybe_edge_value(time, node.inbound.get(1), get_input);
-                            let rem = dividend % divisor;
-                            if rem < 0f32 {
-                                // TODO: We may be losing precision here, if rem is small.
-                                // We should find a way to do true modulus.
-                                rem + divisor
-                            } else {
-                                rem
-                            }
+                            rem
                         }
                     },
                 }
