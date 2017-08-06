@@ -255,7 +255,7 @@ impl EffectMeta {
     pub fn name(&self) -> &str {
         self.id.name()
     }
-    fn inputs<'a>(&'a self) -> Box<Iterator<Item=EffectInput> + 'a> {
+    pub fn inputs<'a>(&'a self) -> Box<Iterator<Item=EffectInput> + 'a> {
         match self.prim_effect() {
             Some(PrimitiveEffect::Delay) => Box::new(vec![
                     EffectInput::new("source".into(), 0),
@@ -273,7 +273,7 @@ impl EffectMeta {
             _ => Box::new(self.inputs.iter().cloned())
         }
     }
-    fn outputs<'a>(&'a self) -> Box<Iterator<Item=EffectOutput> + 'a> {
+    pub fn outputs<'a>(&'a self) -> Box<Iterator<Item=EffectOutput> + 'a> {
         match self.prim_effect() {
             Some(PrimitiveEffect::F32Constant) => Box::new(F32ConstIterator::new()),
             Some(_) => Box::new(Some(EffectOutput::new("result".into(), 0)).into_iter()),
