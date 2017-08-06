@@ -53,6 +53,10 @@ pub enum Error {
     NodeExists,
     /// Raised on attempt to wire two edges to the same input slot (i.e. many-to-one).
     SlotAlreadyConnected,
+    /// Raised on attempt to connect an edge to/from a nonexistant node.
+    NoSuchNode,
+    /// Raised on attempt to connect an edge to/from a nonexistent slot.
+    NoSuchSlot,
     /// Error inside some Effect:: method
     EffectError(effect::Error),
 }
@@ -61,28 +65,39 @@ pub enum Error {
 pub type ResultE<T> = Result<T, Error>;
 
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct RouteGraph {
-    /// Maps nodes to a set of ALL edges directly connected to them (either inbound or outbound).
-    edges: HashMap<NodeHandle, EdgeSet>,
     /// Associate node handles with their data.
-    node_data: HashMap<NodeHandle, NodeData>,
+    nodes: HashMap<NodeHandle, Node>,
 }
 
 #[derive(Debug)]
-struct EdgeSet {
+struct Node {
     outbound: HashSet<Edge>,
     inbound: HashSet<Edge>,
+    node_data: Option<NodeData>,
 }
 
 
+impl Default for RouteGraph {
+    fn default() -> Self {
+        let mut nodes = HashMap::new();
+        // allocate space for toplevel I/Os
+        nodes.insert(NodeHandle::toplevel(), Node::null());
+        Self { nodes }
+    }
+}
 impl RouteGraph {
     pub fn new() -> Self {
         Default::default()
     }
     /// Iterate over the nodes in an unordered way.
     pub fn iter_nodes<'a>(&'a self) -> impl Iterator<Item=(&NodeHandle, &NodeData)> + 'a {
-        self.node_data.iter()
+        self.nodes.iter().filter_map(|(hnd, node)| {
+            node.node_data.as_ref().map(|data| {
+                (hnd, data)
+            })
+        })
     }
     /// Iterate over the nodes in such an order that by the time each node it
     /// visited, all of the nodes that have edges going *into* it have already
@@ -97,9 +112,9 @@ impl RouteGraph {
     }
     fn dep_first_helper(&self, visited: &mut HashSet<NodeHandle>, ordered: &mut Vec<NodeHandle>, node_hnd: NodeHandle) {
         if !node_hnd.is_toplevel() {
-            if let Some(edge_set) = self.edges.get(&node_hnd) {
+            if let Some(node) = self.nodes.get(&node_hnd) {
                 // ensure all dependencies have been visited
-                for dep_edge in edge_set.inbound.iter() {
+                for dep_edge in node.inbound.iter() {
                     self.dep_first_helper(visited, ordered, dep_edge.from_full());
                 }
             }
@@ -111,7 +126,7 @@ impl RouteGraph {
     }
     /// Iterate over all edges in an unordered way.
     pub fn iter_edges<'a>(&'a self) -> impl Iterator<Item=&Edge> + 'a {
-        self.edges.values().flat_map(|v_set| v_set.outbound.iter())
+        self.nodes.values().flat_map(|v_set| v_set.outbound.iter())
     }
     /// Iterate over the edges that point into outputs, in an unordered way.
     pub fn iter_outbound_edges<'a>(&'a self) -> impl Iterator<Item=&Edge> + 'a {
@@ -123,31 +138,31 @@ impl RouteGraph {
     /// Retrieve the data associated with a node, or `None` if the node handle
     /// does not exist within this graph.
     pub fn get_data(&self, handle: &NodeHandle) -> Option<&NodeData> {
-        self.node_data.get(handle)
+        self.nodes.get(handle).and_then(|node| node.node_data.as_ref())
     }
     /// Iterate over all the edges leading directly into the given node.
     pub fn iter_edges_to<'a>(&'a self, handle: &NodeHandle) -> impl Iterator<Item=&Edge> + 'a {
-        self.edges.get(handle).map(|edgeset| {
-            edgeset.inbound.iter()
+        self.nodes.get(handle).map(|node| {
+            node.inbound.iter()
         }).into_iter().flat_map(|i| i)
     }
     /// Try to create a node with the given handle/data.
     /// Will error if the handle is already in use.
     pub fn add_node(&mut self, handle: NodeHandle, node_data: NodeData) -> ResultE<()> {
         // Create storage for the node's outgoing edges
-        match self.edges.entry(handle) {
+        match self.nodes.entry(handle) {
             hash_map::Entry::Occupied(_) => Err(Error::NodeExists),
-            hash_map::Entry::Vacant(entry) => { entry.insert(EdgeSet::new()); Ok(()) },
-        }?;
-        // Store the node's data
-        assert!(self.node_data.insert(handle, node_data.clone()).is_none());
-        Ok(())
+            hash_map::Entry::Vacant(entry) => {
+                entry.insert(Node::new(Some(node_data)));
+                Ok(())
+            },
+        }
     }
     /// Connect two nodes with an edge.
     /// Will return an error if the connection would violate any of the DAGs constraints.
     pub fn add_edge(&mut self, edge: Edge) -> ResultE<()> {
         // Each node input may only have one inbound edge.
-        if let hash_map::Entry::Occupied(entry) = self.edges.entry(edge.to_full()) {
+        if let hash_map::Entry::Occupied(entry) = self.nodes.entry(edge.to_full()) {
             let is_slot_in_use = entry.get().inbound.iter()
                 .filter(|in_edge| in_edge.to_slot() == edge.to_slot())
                 .next().is_some();
@@ -171,9 +186,9 @@ impl RouteGraph {
     /// Functionally equivalent to the `add_edge` method, but does not validate DAG constraints.
     fn add_edge_unchecked(&mut self, edge: Edge) {
         // associate the edge with its origin.
-        self.edges.entry(edge.from_full()).or_insert_with(EdgeSet::new).outbound.insert(edge.clone());
+        self.nodes.get_mut(&edge.from_full()).unwrap().outbound.insert(edge.clone());
         // associate the edge with its destination.
-        self.edges.entry(edge.to_full()).or_insert_with(EdgeSet::new).inbound.insert(edge);
+        self.nodes.get_mut(&edge.to_full()).unwrap().inbound.insert(edge);
     }
     /// Returns true if there is some directed path the connects `from` to `target`.
     /// Note that neither edge need currently exist in the graph.
@@ -186,7 +201,7 @@ impl RouteGraph {
         if let Some(_to) = from.to.node_handle.get() {
             // The edge points to a NODE inside a DAG.
             // Consider all (reachable) outgoing edges of the node:
-            if let Some(node_data) = self.edges.get(&from.to_full()) {
+            if let Some(node_data) = self.nodes.get(&from.to_full()) {
                 for candidate_edge in &node_data.outbound {
                     if self.are_edges_internally_connected(from, candidate_edge) && 
                       self.is_edge_reachable(candidate_edge, target) {
@@ -200,18 +215,18 @@ impl RouteGraph {
     /// Assuming from.to() == to.from(), will return true if & only if
     /// from and to are internally connected within the node.
     fn are_edges_internally_connected(&self, from: &Edge, to: &Edge) -> bool {
-        self.node_data[&from.to_full()]
+        self.nodes[&from.to_full()].node_data.as_ref().unwrap()
             .are_slots_connected(from.weight.to_slot, to.weight.from_slot)
     }
     /// Returns true if there's a path from `in` to `out` at the toplevel DAG.
     pub fn are_slots_connected(&self, in_slot: u32, out_slot: u32) -> bool {
         // Consider all edges from None paired with all edges to None:
         let root_dag = NodeHandle::toplevel();
-        let edges_from = self.edges[&root_dag].outbound.iter().filter(|&edge| {
+        let edges_from = self.nodes[&root_dag].outbound.iter().filter(|&edge| {
             edge.weight.from_slot == in_slot
         });
         for edge_from in edges_from {
-            let edges_to = self.edges[&root_dag].inbound.iter().filter(|&edge| {
+            let edges_to = self.nodes[&root_dag].inbound.iter().filter(|&edge| {
                 edge.weight.to_slot == out_slot
             });
             for edge_to in edges_to {
@@ -223,11 +238,11 @@ impl RouteGraph {
         false
     }
     pub fn del_node(&mut self, node: NodeHandle) -> ResultE<()> {
-        let ok_to_delete = match self.edges.entry(node) {
+        match self.nodes.entry(node) {
             // Already deleted
             hash_map::Entry::Vacant(_) => Ok(()),
             hash_map::Entry::Occupied(entry) => {
-                if entry.get().is_empty() {
+                if entry.get().has_no_edges() {
                     entry.remove();
                     Ok(())
                 } else {
@@ -235,30 +250,26 @@ impl RouteGraph {
                     Err(Error::NodeInUse)
                 }
             }
-        };
-        if ok_to_delete.is_ok() {
-            // delete the data associated with this node
-            self.node_data.remove(&node);
         }
-        ok_to_delete
     }
     pub fn del_edge(&mut self, edge: Edge) {
-        // TODO: garbage collect the edge sets.
-        if let Some(edge_set) = self.edges.get_mut(&edge.from_full()) {
+        if let Some(edge_set) = self.nodes.get_mut(&edge.from_full()) {
             edge_set.outbound.remove(&edge);
         }
-        if let Some(edge_set) = self.edges.get_mut(&edge.to_full()) {
+        if let Some(edge_set) = self.nodes.get_mut(&edge.to_full()) {
             edge_set.inbound.remove(&edge);
         }
     }
     // TODO: replace this with an implementation of `Into`
     pub fn to_adjlist(&self) -> AdjList {
         // Map Effect -> EffectId
-        let nodes = self.node_data.iter().map(|(handle, data)| {
-            (*handle, data.id().clone())
+        let nodes = self.nodes.iter().filter_map(|(handle, ref data)| {
+            data.node_data.as_ref().map(|node_data| {
+                (*handle, node_data.id().clone())
+            })
         }).collect();
         // Doubly-linked edges -> singly-linked
-        let edges = self.edges.iter().flat_map(|(_key, edgeset)| {
+        let edges = self.nodes.iter().flat_map(|(_key, edgeset)| {
             edgeset.outbound.clone().into_iter()
         }).collect();
 
@@ -273,18 +284,16 @@ impl RouteGraph {
         let (nodes, edges) = (adj.nodes, adj.edges);
 
         // Map EffectId -> Effect
-        let nodes: ResultE<HashMap<NodeHandle, NodeData>> = nodes.into_iter().map(|(handle, id)| {
+        let nodes: ResultE<HashMap<NodeHandle, Node>> = nodes.into_iter().map(|(handle, id)| {
             let decoded_data = Effect::from_id(id, res)?;
-            Ok((handle, decoded_data))
+            Ok((handle, Node::new(Some(decoded_data))))
         }).collect();
         // Type deduction isn't smart enough to unwrap nodes in above statement.
-        let nodes = nodes?;
+        let mut nodes = nodes?;
+        nodes.insert(NodeHandle::toplevel(), Node::null());
 
         // Build self with only nodes and no edges
-        let mut me = Self {
-            edges: HashMap::new(),
-            node_data: nodes,
-        };
+        let mut me = Self { nodes };
 
         // Add the edges one at a time, enforcing zero cycles
         for edge in &edges {
@@ -364,14 +373,18 @@ impl EdgeWeight {
 }
 
 
-impl EdgeSet {
-    fn new() -> Self {
-        EdgeSet {
+impl Node {
+    fn new(node_data: Option<NodeData>) -> Self {
+        Self {
+            node_data,
             outbound: HashSet::new(),
             inbound: HashSet::new(),
         }
     }
-    fn is_empty(&self) -> bool {
+    fn null() -> Self {
+        Self::new(None)
+    }
+    fn has_no_edges(&self) -> bool {
         self.outbound.is_empty() && self.inbound.is_empty()
     }
 }
