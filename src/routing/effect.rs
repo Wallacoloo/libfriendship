@@ -229,6 +229,12 @@ impl EffectDesc {
     pub fn meta(&self) -> &EffectMeta {
         &self.meta
     }
+    pub fn id(&self) -> &EffectId {
+        &self.meta.id
+    }
+    pub fn adjlist(&self) -> &AdjList {
+        &self.adjlist
+    }
     /// Make sure the id is fully populated with hashes, etc.
     fn update_id(&mut self) {
         if self.meta.id.sha256.is_none() {
