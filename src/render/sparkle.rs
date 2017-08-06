@@ -458,7 +458,6 @@ impl<'ctx> FnBuilder<'ctx> {
     }
     /// Perform the computations associated with PrimitiveEffect::Delay
     fn build_delay(&mut self) {
-        self.guard_slot_ne_0();
         let time = self.time();
         let in_getter = self.load_getters();
         // Amount to delay input by
@@ -470,7 +469,6 @@ impl<'ctx> FnBuilder<'ctx> {
     }
     /// Perform the computations associated with PrimitiveEffect::Multiply
     fn build_multiply(&mut self) {
-        self.guard_slot_ne_0();
         let time = self.time();
         let (input0, input1) = self.read_inputs(time);
         let result = self.builder.build_fmul(input0, input1, "result");
@@ -478,7 +476,6 @@ impl<'ctx> FnBuilder<'ctx> {
     }
     /// Perform the computations associated with PrimitiveEffect::Sum2
     fn build_sum2(&mut self) {
-        self.guard_slot_ne_0();
         let time = self.time();
         let (input0, input1) = self.read_inputs(time);
         let result = self.builder.build_fadd(input0, input1, "result");
@@ -486,7 +483,6 @@ impl<'ctx> FnBuilder<'ctx> {
     }
     /// Perform the computations associated with PrimitiveEffect::Divide
     fn build_divide(&mut self) {
-        self.guard_slot_ne_0();
         let time = self.time();
         let (input0, input1) = self.read_inputs(time);
         let result = self.builder.build_fdiv(input0, input1, "result");
@@ -494,7 +490,6 @@ impl<'ctx> FnBuilder<'ctx> {
     }
     /// Perform the computations associated with PrimitiveEffect::Minimum
     fn build_minimum(&mut self) {
-        self.guard_slot_ne_0();
         let time = self.time();
         let (input0, input1) = self.read_inputs(time);
         let is_s0_lt_s1 = self.builder.build_fcmp(LLVMRealPredicate::LLVMRealULT, input0, input1, "is_s0_lt_s1");
@@ -504,7 +499,6 @@ impl<'ctx> FnBuilder<'ctx> {
     /// Perform the computations associated with PrimitiveEffect::Modulo
     fn build_modulo(&mut self) {
         let f32_0 = self.ctx.cons(0f32);
-        self.guard_slot_ne_0();
         let time = self.time();
         let (input0, input1) = self.read_inputs(time);
         let signed_result = self.builder.build_frem(input0, input1, "signed_result");
@@ -525,19 +519,6 @@ impl<'ctx> FnBuilder<'ctx> {
     /// Unpack the function's callback ptr/data argument.
     fn in_getter(&self) -> LLVMValueRef {
         self.func.get_param(2).unwrap()
-    }
-    /// Insert code to test if slot != 0 and return 0f32 if true.
-    fn guard_slot_ne_0(&mut self) {
-        let u32_0 = self.ctx.cons(0u32);
-        let f32_0 = self.ctx.cons(0f32);
-        let slot = self.slot();
-        let bb_nonzero = self.ctx.append_basic_block(&mut self.func, "slot_ne_0");
-        let bb_eqzero = self.ctx.append_basic_block(&mut self.func, "slot_eq_0");
-        let is_slot_nonzero = self.builder.build_icmp(LLVMIntPredicate::LLVMIntNE, slot, u32_0, "is_slot_nonzero");
-        self.builder.build_cond_br(is_slot_nonzero, bb_nonzero, bb_eqzero);
-        self.builder.position_at_end(bb_nonzero);
-        self.builder.build_ret(f32_0);
-        self.builder.position_at_end(bb_eqzero);
     }
     /// Casts the value to a u64, or returns 0f32 from the function
     /// if the value doesn't fit in a u64.
