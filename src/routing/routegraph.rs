@@ -161,13 +161,34 @@ impl RouteGraph {
     /// Connect two nodes with an edge.
     /// Will return an error if the connection would violate any of the DAGs constraints.
     pub fn add_edge(&mut self, edge: Edge) -> ResultE<()> {
-        // Each node input may only have one inbound edge.
-        if let hash_map::Entry::Occupied(entry) = self.nodes.entry(edge.to_full()) {
-            let is_slot_in_use = entry.get().inbound.iter()
-                .filter(|in_edge| in_edge.to_slot() == edge.to_slot())
-                .next().is_some();
-            if is_slot_in_use {
-                return Err(Error::SlotAlreadyConnected);
+        // Validate inbound edge requirements:
+        //   * each slot can only have one inbound edge
+        //   * Edges can't go to nonexistant edges
+        match self.nodes.entry(edge.to_full()) {
+            hash_map::Entry::Vacant(_) => { return Err(Error::NoSuchNode); }
+            hash_map::Entry::Occupied(entry) => {
+                let is_slot_in_use = entry.get().inbound.iter()
+                    .filter(|in_edge| in_edge.to_slot() == edge.to_slot())
+                    .next().is_some();
+                if is_slot_in_use {
+                    return Err(Error::SlotAlreadyConnected);
+                }
+                if let Some(node) = entry.get().node_data.as_ref() {
+                    if !node.meta().is_valid_input(edge.to_slot()) {
+                        return Err(Error::NoSuchSlot);
+                    }
+                }
+            }
+        }
+        // Validate outbound edge requirements
+        match self.nodes.get(&edge.from_full()) {
+            None => { return Err(Error::NoSuchNode) },
+            Some(node) => {
+                if let Some(node) = node.node_data.as_ref() {
+                    if !node.meta().is_valid_output(edge.from_slot()) {
+                        return Err(Error::NoSuchSlot);
+                    }
+                }
             }
         }
         // Algorithm:

@@ -275,6 +275,9 @@ impl EffectMeta {
     pub fn name(&self) -> &str {
         self.name.as_str()
     }
+    /// Deprecated: will be replaced by an iterator which also works for
+    /// primitive effects.
+    /// TODO: remove.
     pub fn inputs(&self) -> &Vec<EffectInput> {
         &self.inputs
     }
@@ -286,6 +289,39 @@ impl EffectMeta {
     }
     pub fn outputs_by_name<'a>(&'a self, name: &'a str) -> impl Iterator<Item=&EffectOutput> + 'a {
         self.outputs.iter().filter(move |item| item.name() == name)
+    }
+    pub fn is_valid_input(&self, slotno: u32) -> bool {
+        (slotno as usize) < self.inputs.len() || {
+            match self.get_primitive_url().and_then(PrimitiveEffect::from_url) {
+                Some(PrimitiveEffect::F32Constant) => false,
+                Some(_) => slotno < 2,
+                None => false
+            }
+        }
+    }
+    pub fn is_valid_output(&self, slotno: u32) -> bool {
+        (slotno as usize) < self.outputs.len() || {
+            match self.get_primitive_url().and_then(PrimitiveEffect::from_url) {
+                Some(PrimitiveEffect::F32Constant) => true,
+                Some(_) => slotno < 1,
+                None => false
+            }
+        }
+    }
+    /// Returns true if the effect cannot be decomposed.
+    /// This is determined by the effect providing a SINGLE url, with the primitive:// Schema
+    fn is_primitive(&self) -> bool {
+        // TODO: Create a `UrlSet` type and move this common block of code there.
+        self.urls.len() == 1 && self.urls.iter().all(|url| {
+            url.scheme() == "primitive"
+        })
+    }
+    fn get_primitive_url(&self) -> Option<&Url> {
+        if self.is_primitive() {
+            self.urls.iter().next().map(|url| url.deref())
+        } else {
+            None
+        }
     }
 }
 
@@ -304,6 +340,28 @@ impl EffectIO {
     }
     pub fn is_result(&self) -> bool {
         self.name == "result"
+    }
+}
+
+impl PrimitiveEffect {
+    fn from_url(url: &Url) -> Option<Self> {
+        if url.scheme() == "primitive" {
+            match url.path() {
+                "/Delay"       => Some(PrimitiveEffect::Delay),
+                "/F32Constant" => Some(PrimitiveEffect::F32Constant),
+                "/Sum2"        => Some(PrimitiveEffect::Sum2),
+                "/Multiply"    => Some(PrimitiveEffect::Multiply),
+                "/Divide"      => Some(PrimitiveEffect::Divide),
+                "/Modulo"      => Some(PrimitiveEffect::Modulo),
+                "/Minimum"     => Some(PrimitiveEffect::Minimum),
+                _ => {
+                    warn!("Unrecognized primitive effect: {} (full url: {})", url.path(), url);
+                    None
+                }
+            }
+        } else {
+            None
+        }
     }
 }
 
