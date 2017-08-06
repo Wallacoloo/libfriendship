@@ -1,6 +1,8 @@
+use std;
 use std::collections::HashSet;
 use std::io::Cursor;
-use std::ops::Deref;
+use std::mem;
+use std::ops::{Deref, Range};
 use std::rc::Rc;
 
 use digest::Digest;
@@ -81,7 +83,7 @@ pub enum EffectData {
 
 /// Effects that cannot be decomposed; they have no implementation details and
 /// must be implemented directly by the renderer.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum PrimitiveEffect {
     /// Primitive Delay effect
     Delay,
@@ -107,6 +109,11 @@ pub enum PrimitiveEffect {
     /// and chosen because Min is more common in linear programming to avoid dealing
     /// with Inf.
     Minimum,
+}
+
+/// Iterator over the outputs of a F32Constant primitive effect
+pub struct F32ConstIterator {
+    loc: Range<u32>,
 }
 
 impl Effect {
@@ -248,38 +255,45 @@ impl EffectMeta {
     pub fn name(&self) -> &str {
         self.id.name()
     }
-    /// Deprecated: will be replaced by an iterator which also works for
-    /// primitive effects.
-    /// TODO: remove.
-    pub fn inputs(&self) -> &Vec<EffectInput> {
-        &self.inputs
+    fn inputs<'a>(&'a self) -> Box<Iterator<Item=EffectInput> + 'a> {
+        match self.prim_effect() {
+            Some(PrimitiveEffect::Delay) => Box::new(vec![
+                    EffectInput::new("source".into(), 0),
+                    EffectInput::new("frames".into(), 0)
+                ].into_iter()),
+            Some(PrimitiveEffect::F32Constant) => Box::new([].iter().cloned()),
+            Some(PrimitiveEffect::Sum2) | Some(PrimitiveEffect::Multiply) | Some(PrimitiveEffect::Minimum) => Box::new(vec![
+                    EffectInput::new("source".into(), 0),
+                    EffectInput::new("source2".into(), 0),
+                ].into_iter()),
+            Some(PrimitiveEffect::Divide) | Some(PrimitiveEffect::Modulo) => Box::new(vec![
+                    EffectInput::new("source".into(), 0),
+                    EffectInput::new("divisor".into(), 0),
+                ].into_iter()),
+            _ => Box::new(self.inputs.iter().cloned())
+        }
     }
-    pub fn outputs(&self) -> &Vec<EffectOutput> {
-        &self.outputs
+    fn outputs<'a>(&'a self) -> Box<Iterator<Item=EffectOutput> + 'a> {
+        match self.prim_effect() {
+            Some(PrimitiveEffect::F32Constant) => Box::new(F32ConstIterator::new()),
+            Some(_) => Box::new(Some(EffectOutput::new("result".into(), 0)).into_iter()),
+            None => Box::new(self.outputs.iter().cloned())
+        }
     }
-    pub fn inputs_by_name<'a>(&'a self, name: &'a str) -> impl Iterator<Item=&EffectInput> + 'a {
-        self.inputs.iter().filter(move |item| item.name() == name)
+    pub fn inputs_by_name<'a>(&'a self, name: &'a str) -> impl Iterator<Item=EffectInput> + 'a {
+        self.inputs().filter(move |item| item.name() == name)
     }
-    pub fn outputs_by_name<'a>(&'a self, name: &'a str) -> impl Iterator<Item=&EffectOutput> + 'a {
-        self.outputs.iter().filter(move |item| item.name() == name)
+    pub fn outputs_by_name<'a>(&'a self, name: &'a str) -> impl Iterator<Item=EffectOutput> + 'a {
+        self.outputs().filter(move |item| item.name() == name)
     }
     pub fn is_valid_input(&self, slotno: u32) -> bool {
-        (slotno as usize) < self.inputs.len() || {
-            match self.id.get_primitive_url().and_then(PrimitiveEffect::from_url) {
-                Some(PrimitiveEffect::F32Constant) => false,
-                Some(_) => slotno < 2,
-                None => false
-            }
-        }
+        self.inputs().nth(slotno as usize).is_some()
     }
     pub fn is_valid_output(&self, slotno: u32) -> bool {
-        (slotno as usize) < self.outputs.len() || {
-            match self.id.get_primitive_url().and_then(PrimitiveEffect::from_url) {
-                Some(PrimitiveEffect::F32Constant) => true,
-                Some(_) => slotno < 1,
-                None => false
-            }
-        }
+        self.outputs().nth(slotno as usize).is_some()
+    }
+    fn prim_effect(&self) -> Option<PrimitiveEffect> {
+        self.id.get_primitive_url().and_then(PrimitiveEffect::from_url)
     }
 }
 
@@ -333,3 +347,26 @@ impl PartialEq for EffectMeta {
 }
 impl Eq for EffectMeta {}
 
+
+impl F32ConstIterator {
+    fn new() -> Self {
+        Self{ loc: (0..std::u32::MAX) }
+    }
+    fn to_f32(v: u32) -> f32 {
+        unsafe { mem::transmute(v) }
+    }
+    fn to_output(v: u32) -> EffectOutput {
+        let name = format!("const{}", Self::to_f32(v));
+        EffectOutput::new(name, 0)
+    }
+}
+
+impl Iterator for F32ConstIterator {
+    type Item = EffectOutput;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.loc.next().map(Self::to_output)
+    }
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        self.loc.nth(n).map(Self::to_output)
+    }
+}
