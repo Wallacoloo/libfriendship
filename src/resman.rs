@@ -2,14 +2,9 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
-use std::io;
-use std::io::Cursor;
-use std::path::{Path, PathBuf};
-use std::rc::Rc;
+use std::path::PathBuf;
 
-use byteorder::{LittleEndian, ReadBytesExt};
 use digest::Digest;
-use filebuffer::FileBuffer;
 use sha2::Sha256;
 
 use routing::EffectId;
@@ -24,12 +19,6 @@ pub struct ResMan {
     dirs: Vec<PathBuf>,
     /// Object that handles indexing/caching files.
     cache: RefCell<ResCache>,
-}
-
-/// Audio that may be on-disk.
-#[derive(Clone, Debug)]
-pub struct AudioBuffer {
-    buffer: Rc<FileBuffer>,
 }
 
 #[derive(Default, Debug)]
@@ -105,30 +94,6 @@ impl ResMan {
             dir_entry.path()
         });
         prioritized.chain(all_files)
-    }
-}
-
-
-impl AudioBuffer {
-    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, io::Error> {
-        if path.as_ref().extension().map(|e| e == "f32").unwrap_or(false) {
-            // TODO: don't abort on failure; instead, treat as zero stream
-            Ok(Self {
-                buffer: Rc::new(FileBuffer::open(path)?)
-            })
-        } else {
-            Err(io::Error::new(io::ErrorKind::Other, format!("Unknown audio format for file: {:?}", path.as_ref())))
-        }
-    }
-    /// Read data from the buffer.
-    pub fn get(&self, idx: u64, ch: u32) -> f32 {
-        assert_eq!(ch, 0);
-        // TODO: this isn't very dependable for 32-bit OSes.
-        let idx = idx*4; // frame index -> byte index
-        let view = &self.buffer[idx as usize..idx as usize + 4];
-        let mut reader = Cursor::new(view);
-        // Read float or 0f32 if error (e.g. end of file?)
-        reader.read_f32::<LittleEndian>().unwrap_or(0f32)
     }
 }
 

@@ -9,7 +9,7 @@ use sha2::Sha256;
 use url::Url;
 use url_serde;
 
-use resman::{AudioBuffer, ResMan};
+use resman::ResMan;
 use super::routegraph::RouteGraph;
 use super::adjlist::AdjList;
 
@@ -82,7 +82,6 @@ pub type EffectOutput = EffectIO;
 pub enum EffectData {
     RouteGraph(RouteGraph),
     Primitive(PrimitiveEffect),
-    Buffer(AudioBuffer),
 }
 
 /// Effects that cannot be decomposed; they have no implementation details and
@@ -194,27 +193,7 @@ impl Effect {
                     }
                 },
                 Err(error) => {
-                    // Try parsing the file as an audio stream.
-                    if let Ok(buffer) = AudioBuffer::from_path(path.clone()) {
-                        let me = Self {
-                            meta: EffectMeta {
-                                name: id.name.clone(),
-                                urls: id.urls.clone(),
-                                // TODO: should be able to extract the number of outputs from the
-                                // audio buffer
-                                inputs: Default::default(),
-                                outputs: Default::default(),
-                            },
-                            // TODO: refactor to avoid this clone.
-                            // TODO: sha256 may need to be updated.
-                            id: id.clone(),
-                            data: EffectData::Buffer(buffer),
-                        };
-                        // TODO: implement some form of caching
-                        return Ok(Rc::new(me));
-                    } else {
-                        warn!("[{:?}] Unable to deserialize EffectDesc: {:?}", path, error)
-                    }
+                    warn!("[{:?}] Unable to deserialize EffectDesc: {:?}", path, error)
                 }
             }
         }

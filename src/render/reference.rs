@@ -5,7 +5,6 @@ use jagged_array::Jagged2;
 use ndarray::Array2;
 
 use render::Renderer;
-use resman::AudioBuffer;
 use routing::{Edge, GraphWatcher, NodeData, NodeHandle};
 use routing::effect::{PrimitiveEffect, EffectData};
 use streaming_iterator::StreamingIterator;
@@ -42,8 +41,6 @@ enum MyNodeData {
     UserNode(NodeMap),
     /// Primitive effect (delay, constant, etc).
     Primitive(PrimitiveEffect),
-    /// External audio.
-    Buffer(AudioBuffer),
 }
 
 impl Renderer for RefRenderer {
@@ -101,7 +98,6 @@ impl RefRenderer {
     fn make_node(&self, effect: &NodeData) -> MyNodeData {
         match *effect.data() {
             EffectData::Primitive(e) => MyNodeData::Primitive(e),
-            EffectData::Buffer(ref buff) => MyNodeData::Buffer(buff.clone()),
             EffectData::RouteGraph(ref graph) => {
                 let mut nodes: NodeMap = Default::default();
 
@@ -288,8 +284,7 @@ impl NodeMap {
                             }
                         }
                     },
-                },
-                MyNodeData::Buffer(ref buf) => buf.get(time, from_slot),
+                }
             }
         }
     }

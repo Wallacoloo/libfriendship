@@ -13,7 +13,6 @@ use llvm;
 use llvm::{Builder, Context, ContextType, ExecutionEngine, Function, Module};
 use llvm_sys;
 use llvm_sys::core::{
-    LLVMGetUndef,
     LLVMStructCreateNamed,
     LLVMStructSetBody,
 };
@@ -26,8 +25,7 @@ use ndarray::Array2;
 use streaming_iterator::StreamingIterator;
 
 use render::Renderer;
-use resman::AudioBuffer;
-use routing::{Edge, Effect, GraphWatcher, NodeData, NodeHandle, RouteGraph};
+use routing::{Edge, Effect, GraphWatcher, NodeData, NodeHandle};
 use routing::effect::{PrimitiveEffect, EffectData};
 
 
@@ -68,7 +66,10 @@ struct NodeMap {
 
 #[derive(Debug)]
 struct Node {
-    data: MyNodeData,
+    /// Pointer to in-memory function for computing this effect.
+    fnptr: Option<extern "C" fn(u64, u32, *const CallbackType) -> f32>,
+    /// Name of the LLVM function that corresponds to this effect
+    fnname: String,
     /// Inbound edges, indexed by slot idx.
     inbound: Vec<Option<Edge>>,
 }
@@ -86,15 +87,9 @@ struct FnBuilder<'ctx> {
     callback_type: LLVMTypeRef,
 }
 
-#[derive(Debug)]
-enum MyNodeData {
-    /// The node corresponds to a LLVM function with the provided name.
-    LlvmFunc(Option<extern "C" fn(u64, u32, *const CallbackType) -> f32>, String),
-    /// External audio.
-    Buffer(AudioBuffer),
-}
 
 #[derive(Copy, Clone)]
+#[allow(dead_code)]
 struct CallbackType {
     input_getter: *const fn(u64, u32, *const CallbackType) -> f32,
     userdata: *const CallbackType,
@@ -236,8 +231,7 @@ impl SparkleRenderer {
                         }
                         // Build the toplevel getter directly into the main function
                         build_inp_getter(&mut fnbuilder, &NodeHandle::toplevel(), &input_getters, module, self)
-                    },
-                    _ => panic!("Cannot JIT effect: {:?}", effect)
+                    }
                 }
                 fnbuilder.func
             }
@@ -288,21 +282,18 @@ impl SparkleRenderer {
         let mut nodes = HashMap::new();
         mem::swap(&mut nodes, &mut self.nodes.nodes);
         for node in nodes.values_mut() {
-            if let MyNodeData::LlvmFunc(ref mut fnptr, ref fnname) = node.data {
-                *fnptr = unsafe{ mem::transmute(self.get_fn_ptr(fnname)) };
-            }
+            node.fnptr = unsafe{ mem::transmute(self.get_fn_ptr(&node.fnname)) };
         }
         self.nodes.nodes = nodes;
     }
     /// Allocate renderer data based on data from a RouteGraph node.
-    fn make_node(&mut self, effect: &NodeData) -> MyNodeData {
+    fn make_node(&mut self, effect: &NodeData) -> String {
         match *effect.data() {
-            EffectData::Buffer(ref buff) => MyNodeData::Buffer(buff.clone()),
             EffectData::Primitive(_) | EffectData::RouteGraph(_) => {
                 // Jit the effect into an open module
                 let mut module = self.take_open_module();
 
-                let ret = MyNodeData::LlvmFunc(None, self.jit_effect(&mut module, effect).1);
+                let ret = self.jit_effect(&mut module, effect).1;
                 self.open_module = Some(module);
                 ret
             }
@@ -339,21 +330,18 @@ impl SparkleRenderer {
         } else {
             // Reading from another node within the DAG
             let node = &self.nodes[&from];
-            match node.data {
-                MyNodeData::LlvmFunc(ref getter, ref fname) => unsafe {
-                    let in_edge_getter = |time2: u64, slot2: u32| {
-                        // get the input to this node.
-                        let in_edge = node.inbound.get(slot2 as usize);
-                        self.get_maybe_edge_value(time2, in_edge)
-                    };
-                    let f = getter.unwrap();
-                    let callback = CallbackType {
-                        input_getter: call_closure_from_c as *const fn(u64, u32, *const CallbackType) -> f32,
-                        userdata: &mem::transmute(&in_edge_getter as &Fn(u64, u32) -> f32),
-                    };
-                    f(time, from_slot, &callback)
-                }
-                MyNodeData::Buffer(ref buf) => buf.get(time, from_slot),
+            let in_edge_getter = |time2: u64, slot2: u32| {
+                // get the input to this node.
+                let in_edge = node.inbound.get(slot2 as usize);
+                self.get_maybe_edge_value(time2, in_edge)
+            };
+            let f = node.fnptr.unwrap();
+            unsafe {
+                let callback = CallbackType {
+                    input_getter: call_closure_from_c as *const fn(u64, u32, *const CallbackType) -> f32,
+                    userdata: &mem::transmute(&in_edge_getter as &Fn(u64, u32) -> f32),
+                };
+                f(time, from_slot, &callback)
             }
         }
     }
@@ -432,9 +420,10 @@ impl NodeMap {
 }
 
 impl Node {
-    fn new(data: MyNodeData) -> Self {
+    fn new(fnname: String) -> Self {
         Node {
-            data: data,
+            fnptr: None,
+            fnname,
             inbound: Vec::new(),
         }
     }
