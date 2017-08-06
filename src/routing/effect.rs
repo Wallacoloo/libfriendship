@@ -48,11 +48,9 @@ pub struct EffectDesc {
 /// Validated version of `EffectDesc`. Guaranteed to be synthesizable.
 #[derive(Debug)]
 pub struct Effect {
-    id: EffectId,
     meta: EffectMeta,
     // TODO: Effects are immutable, so we can make this an AdjList and store
     // the connectivity information separately.
-    // option, because effect MAY be primitive.
     data: EffectData,
 }
 
@@ -120,7 +118,7 @@ impl Effect {
         }
     }
     pub fn id(&self) -> &EffectId {
-        &self.id
+        &self.meta.id
     }
     pub fn meta(&self) -> &EffectMeta {
         &self.meta
@@ -129,31 +127,18 @@ impl Effect {
     /// resources, return an actual Effect.
     pub fn from_id(id: EffectId, resman: &ResMan) -> ResultE<Rc<Self>> {
         // For primitive effects, don't attempt to locate their descriptions (they don't exist)
-        let prim_effect = id.get_primitive_url().and_then(|url| match url.path() {
-            "/Delay"       => Some(PrimitiveEffect::Delay),
-            "/F32Constant" => Some(PrimitiveEffect::F32Constant),
-            "/Sum2"        => Some(PrimitiveEffect::Sum2),
-            "/Multiply"    => Some(PrimitiveEffect::Multiply),
-            "/Divide"      => Some(PrimitiveEffect::Divide),
-            "/Modulo"      => Some(PrimitiveEffect::Modulo),
-            "/Minimum"     => Some(PrimitiveEffect::Minimum),
-            _ => {
-                warn!("Unrecognized primitive effect: {} (full url: {})", url.path(), url);
-                None
-            }
-        });
+        let prim_effect = id.get_primitive_url().and_then(PrimitiveEffect::from_url);
         // Attempt to instantiate a primitive effect, if the URL matched.
         if let Some(prim_effect) = prim_effect {
             if id.sha256 == None {
                 let me = Self {
                     meta: EffectMeta {
-                        id: id.clone(),
+                        // sha256 was already verified; no need to update it
+                        id: id,
                         // Primitive effects have undocumented I/O;
                         inputs: Default::default(),
                         outputs: Default::default(),
                     },
-                    // sha256 was already verified; no need to update it
-                    id: id,
                     data: EffectData::Primitive(prim_effect),
                 };
                 return Ok(Rc::new(me));
@@ -167,15 +152,12 @@ impl Effect {
             // Try to deserialize to an effect description
             let desc: Result<EffectDesc, serde_json::Error> = serde_json::from_reader(reader);
             match desc {
-                Ok(desc) => {
-                    if desc.id().name() == id.name() {
-                        // TODO: since we've matched the effect, we only need to recalculate
-                        // the id if the original search had missing hashes.
-                        let id = desc.id();
+                Ok(mut desc) => {
+                    if desc.meta.id.name() == id.name() {
+                        desc.update_id();
                         match RouteGraph::from_adjlist(desc.adjlist, resman) {
                             Ok(graph) => {
                                 let me = Self {
-                                    id,
                                     meta: desc.meta,
                                     data: EffectData::RouteGraph(graph),
                                 };
@@ -185,7 +167,7 @@ impl Effect {
                             Err(error) => warn!("[{:?}] RouteGraph::from_adjlist failed: {:?}", path, error)
                         }
                     } else {
-                        trace!("[{:?}] Effect names differ: wanted {:?} got {:?}", path, id.name(), desc.id().name());
+                        trace!("[{:?}] Effect names differ: wanted {:?} got {:?}", path, id.name(), desc.meta.id.name());
                     }
                 },
                 Err(error) => {
@@ -240,20 +222,16 @@ impl EffectDesc {
     pub fn meta(&self) -> &EffectMeta {
         &self.meta
     }
-    pub fn id(&self) -> EffectId {
-        // TODO: calculate sha using a smaller buffer
-        let as_vec = serde_json::to_vec(self).unwrap();
-        let result = Sha256::digest_reader(&mut Cursor::new(as_vec)).unwrap();
-        let mut hash: [u8; 32] = Default::default();
-        hash.copy_from_slice(result.as_slice());
-        EffectId {
-            name: self.meta.id.name.clone(),
-            sha256: Some(hash),
-            urls: self.meta.id.urls.clone(),
+    /// Make sure the id is fully populated with hashes, etc.
+    fn update_id(&mut self) {
+        if self.meta.id.sha256.is_none() {
+            // TODO: calculate sha using a smaller buffer
+            let as_vec = serde_json::to_vec(self).unwrap();
+            let result = Sha256::digest_reader(&mut Cursor::new(as_vec)).unwrap();
+            let mut hash: [u8; 32] = Default::default();
+            hash.copy_from_slice(result.as_slice());
+            self.meta.id.sha256 = Some(hash);
         }
-    }
-    pub fn adjlist(&self) -> &AdjList {
-        &self.adjlist
     }
 }
 
@@ -354,12 +332,4 @@ impl PartialEq for EffectMeta {
     }
 }
 impl Eq for EffectMeta {}
-
-
-impl PartialEq for Effect {
-    fn eq(&self, other: &Effect) -> bool {
-        self.meta == other.meta
-    }
-}
-impl Eq for Effect {}
 
