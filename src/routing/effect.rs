@@ -59,10 +59,7 @@ pub struct Effect {
 #[derive(Clone, Debug)]
 #[derive(Serialize, Deserialize)]
 pub struct EffectMeta {
-    /// Canonical name of the effect
-    name: String,
-    /// List of URLs where the Effect can be obtained
-    urls: HashSet<url_serde::Serde<Url>>,
+    id: EffectId,
     inputs: Vec<EffectInput>,
     outputs: Vec<EffectOutput>,
 }
@@ -150,8 +147,7 @@ impl Effect {
             if id.sha256 == None {
                 let me = Self {
                     meta: EffectMeta {
-                        name: id.name.clone(),
-                        urls: id.urls.clone(),
+                        id: id.clone(),
                         // Primitive effects have undocumented I/O;
                         inputs: Default::default(),
                         outputs: Default::default(),
@@ -251,9 +247,9 @@ impl EffectDesc {
         let mut hash: [u8; 32] = Default::default();
         hash.copy_from_slice(result.as_slice());
         EffectId {
-            name: self.meta.name.clone(),
+            name: self.meta.id.name.clone(),
             sha256: Some(hash),
-            urls: self.meta.urls.clone(),
+            urls: self.meta.id.urls.clone(),
         }
     }
     pub fn adjlist(&self) -> &AdjList {
@@ -266,14 +262,13 @@ impl EffectMeta {
         where U: IntoIterator<Item=Url>
     {
         Self {
-            name,
-            urls: urls.into_iter().map(url_serde::Serde).collect(),
+            id: EffectId::new(name, None, urls),
             inputs,
             outputs,
         }
     }
     pub fn name(&self) -> &str {
-        self.name.as_str()
+        self.id.name()
     }
     /// Deprecated: will be replaced by an iterator which also works for
     /// primitive effects.
@@ -292,7 +287,7 @@ impl EffectMeta {
     }
     pub fn is_valid_input(&self, slotno: u32) -> bool {
         (slotno as usize) < self.inputs.len() || {
-            match self.get_primitive_url().and_then(PrimitiveEffect::from_url) {
+            match self.id.get_primitive_url().and_then(PrimitiveEffect::from_url) {
                 Some(PrimitiveEffect::F32Constant) => false,
                 Some(_) => slotno < 2,
                 None => false
@@ -301,26 +296,11 @@ impl EffectMeta {
     }
     pub fn is_valid_output(&self, slotno: u32) -> bool {
         (slotno as usize) < self.outputs.len() || {
-            match self.get_primitive_url().and_then(PrimitiveEffect::from_url) {
+            match self.id.get_primitive_url().and_then(PrimitiveEffect::from_url) {
                 Some(PrimitiveEffect::F32Constant) => true,
                 Some(_) => slotno < 1,
                 None => false
             }
-        }
-    }
-    /// Returns true if the effect cannot be decomposed.
-    /// This is determined by the effect providing a SINGLE url, with the primitive:// Schema
-    fn is_primitive(&self) -> bool {
-        // TODO: Create a `UrlSet` type and move this common block of code there.
-        self.urls.len() == 1 && self.urls.iter().all(|url| {
-            url.scheme() == "primitive"
-        })
-    }
-    fn get_primitive_url(&self) -> Option<&Url> {
-        if self.is_primitive() {
-            self.urls.iter().next().map(|url| url.deref())
-        } else {
-            None
         }
     }
 }
@@ -369,8 +349,8 @@ impl PartialEq for EffectMeta {
     // Equality implemented in a way where we can easily check things like
     //   "Is this the same primitive Delay effect this renderer knows how to implement?"
     fn eq(&self, other: &EffectMeta) -> bool {
-        self.name == other.name &&
-            self.urls == other.urls
+        self.id.name == other.id.name &&
+            self.id.urls == other.id.urls
     }
 }
 impl Eq for EffectMeta {}

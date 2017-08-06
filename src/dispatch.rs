@@ -54,7 +54,7 @@ pub enum OscRouteGraph {
     DelNode((), (NodeHandle,)),
     #[osc_address(address="del_edge")]
     DelEdge((), (Edge,)),
-    /// Query a node's metadata: it's I/Os, etc.
+    /// Query a node's metadata: its I/Os, etc.
     #[osc_address(address="query_meta")]
     QueryMeta((), (NodeHandle,)),
     /// Query a node's id: it's SHA, name, etc.
