@@ -129,11 +129,15 @@ impl RouteGraph {
         self.nodes.values().flat_map(|v_set| v_set.outbound.iter())
     }
     /// Iterate over the edges that point into outputs, in an unordered way.
-    pub fn iter_outbound_edges<'a>(&'a self) -> impl Iterator<Item=&Edge> + 'a {
-        // TODO: the graph is bidirectional - can we just look at the inputs to NULL?
-        self.iter_edges().filter(|e| {
-            e.to_full().is_toplevel()
-        })
+    pub fn iter_outputs<'a>(&'a self) -> impl Iterator<Item=u32> + 'a {
+        // NB: .inbound instead of .outbound = intentional semantics quirk.
+        self.nodes[&NodeHandle::toplevel()].inbound.iter()
+            .map(Edge::to_slot)
+    }
+    /// Iterate over the edges that point from inputs, in an unordered way.
+    pub fn iter_inputs<'a>(&'a self) -> impl Iterator<Item=u32> + 'a {
+        self.nodes[&NodeHandle::toplevel()].outbound.iter()
+            .map(Edge::from_slot)
     }
     /// Retrieve the data associated with a node, or `None` if the node handle
     /// does not exist within this graph.

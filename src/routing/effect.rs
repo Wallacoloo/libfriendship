@@ -164,12 +164,28 @@ impl Effect {
                         desc.update_id();
                         match RouteGraph::from_adjlist(desc.adjlist, resman) {
                             Ok(graph) => {
-                                let me = Self {
-                                    meta: desc.meta,
-                                    data: EffectData::RouteGraph(graph),
+                                // Make sure there's a 1-to-1 mapping between I/O metadata
+                                //   and actual I/Os
+                                let are_io_eq = {
+                                    let mut real_inputs: Vec<u32> = graph.iter_inputs().collect();
+                                    real_inputs.sort();
+                                    let mut real_outputs: Vec<u32> = graph.iter_outputs().collect();
+                                    real_outputs.sort();
+
+                                    let exp_inputs = desc.meta.inputs().enumerate().map(|(i, _)| i as u32);
+                                    let exp_outputs = desc.meta.outputs().enumerate().map(|(i, _)| i as u32);
+                                    exp_inputs.eq(real_inputs) && exp_outputs.eq(real_outputs)
                                 };
-                                // TODO: implement some form of caching
-                                return Ok(Rc::new(me));
+                                if are_io_eq {
+                                    let me = Self {
+                                        meta: desc.meta,
+                                        data: EffectData::RouteGraph(graph),
+                                    };
+                                    // TODO: implement some form of caching
+                                    return Ok(Rc::new(me));
+                                } else {
+                                    warn!("[{:?}] RouteGraph I/Os disagree with metadata", path)
+                                }
                             },
                             Err(error) => warn!("[{:?}] RouteGraph::from_adjlist failed: {:?}", path, error)
                         }
