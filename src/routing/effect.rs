@@ -12,7 +12,7 @@ use url::Url;
 use url_serde;
 
 use resman::ResMan;
-use super::routegraph::RouteGraph;
+use super::routegraph::{Edge, RouteGraph};
 use super::adjlist::AdjList;
 
 #[derive(Debug)]
@@ -164,19 +164,29 @@ impl Effect {
                         desc.update_id();
                         match RouteGraph::from_adjlist(desc.adjlist, resman) {
                             Ok(graph) => {
-                                // Make sure there's a 1-to-1 mapping between I/O metadata
-                                //   and actual I/Os
-                                let are_io_eq = {
-                                    let mut real_inputs: Vec<u32> = graph.iter_inputs().collect();
-                                    real_inputs.sort();
-                                    let mut real_outputs: Vec<u32> = graph.iter_outputs().collect();
+                                // All outputs must be driven
+                                let are_outputs_driven = {
+                                    let mut real_outputs: Vec<u32> = graph.iter_outbound_edges()
+                                        .map(Edge::to_slot).collect();
                                     real_outputs.sort();
 
-                                    let exp_inputs = desc.meta.inputs().enumerate().map(|(i, _)| i as u32);
                                     let exp_outputs = desc.meta.outputs().enumerate().map(|(i, _)| i as u32);
-                                    exp_inputs.eq(real_inputs) && exp_outputs.eq(real_outputs)
+                                    exp_outputs.eq(real_outputs)
                                 };
-                                if are_io_eq {
+                                // All input edges must also be declared in the metadata.
+                                // It's ok if an input declared in the metadata isn't actually used
+                                // anywhere, though.
+                                let are_inputs_valid = {
+                                    let mut exp_inputs = desc.meta.inputs();
+                                    // we allow up to 2**32 I/O; so ext_inputs.len() could return
+                                    // 2**32, which can't fit within usize on a 32-bit platform!
+                                    let max_input = exp_inputs.next().map(|_|
+                                        (exp_inputs.len() as u64) + 1).unwrap_or(0);
+                                    graph.iter_inbound_edges().all(|edge| {
+                                        (edge.from_slot() as u64) < max_input
+                                    })
+                                };
+                                if are_inputs_valid && are_outputs_driven {
                                     let me = Self {
                                         meta: desc.meta,
                                         data: EffectData::RouteGraph(graph),
@@ -277,7 +287,7 @@ impl EffectMeta {
     pub fn name(&self) -> &str {
         self.id.name()
     }
-    pub fn inputs<'a>(&'a self) -> Box<Iterator<Item=EffectInput> + 'a> {
+    pub fn inputs<'a>(&'a self) -> Box<ExactSizeIterator<Item=EffectInput> + 'a> {
         match self.prim_effect() {
             Some(PrimitiveEffect::Delay) => Box::new(vec![
                     EffectInput::new("source".into(), 0),
@@ -295,7 +305,7 @@ impl EffectMeta {
             _ => Box::new(self.inputs.iter().cloned())
         }
     }
-    pub fn outputs<'a>(&'a self) -> Box<Iterator<Item=EffectOutput> + 'a> {
+    pub fn outputs<'a>(&'a self) -> Box<ExactSizeIterator<Item=EffectOutput> + 'a> {
         match self.prim_effect() {
             Some(PrimitiveEffect::F32Constant) => Box::new(F32ConstIterator::new()),
             Some(_) => Box::new(Some(EffectOutput::new("result".into(), 0)).into_iter()),
@@ -390,5 +400,11 @@ impl Iterator for F32ConstIterator {
     }
     fn nth(&mut self, n: usize) -> Option<Self::Item> {
         self.loc.nth(n).map(Self::to_output)
+    }
+}
+
+impl ExactSizeIterator for F32ConstIterator {
+    fn len(&self) -> usize {
+        self.loc.len()
     }
 }
