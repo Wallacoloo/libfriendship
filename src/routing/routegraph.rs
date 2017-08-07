@@ -144,9 +144,9 @@ impl RouteGraph {
     }
     /// Iterate over all the edges leading directly into the given node.
     pub fn iter_edges_to<'a>(&'a self, handle: &NodeHandle) -> impl Iterator<Item=&Edge> + 'a {
-        self.nodes.get(handle).map(|node| {
+        self.nodes.get(handle).into_iter().flat_map(|node| {
             node.inbound.iter()
-        }).into_iter().flat_map(|i| i)
+        })
     }
     /// Try to create a node with the given handle/data.
     /// Will error if the handle is already in use.

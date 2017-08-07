@@ -186,7 +186,14 @@ impl Effect {
                                         (edge.from_slot() as u64) < max_input
                                     })
                                 };
-                                if are_inputs_valid && are_outputs_driven {
+                                let are_all_subnodes_driven = graph.iter_nodes().all(|(handle, node)| {
+                                    let mut driven_inputs: Vec<u32> = graph.iter_edges_to(handle)
+                                        .map(Edge::to_slot).collect();
+                                    driven_inputs.sort();
+                                    let exp_inputs = node.meta.inputs().enumerate().map(|(i, _)| i as u32);
+                                    exp_inputs.eq(driven_inputs)
+                                });
+                                if are_inputs_valid && are_outputs_driven && are_all_subnodes_driven {
                                     let me = Self {
                                         meta: desc.meta,
                                         data: EffectData::RouteGraph(graph),
