@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::f32;
 use std::ops::{Deref, DerefMut};
 
 use jagged_array::Jagged2;
@@ -8,7 +9,6 @@ use render::Renderer;
 use routing::{Edge, GraphWatcher, NodeData, NodeHandle};
 use routing::effect::{PrimitiveEffect, EffectData};
 use streaming_iterator::StreamingIterator;
-use util::unpack_f32;
 
 
 #[derive(Debug, Default)]
@@ -216,7 +216,7 @@ impl NodeMap {
                     },
                     PrimitiveEffect::F32Constant => {
                         // Float value is encoded via the slot.
-                        unpack_f32(from_slot)
+                        f32::from_bits(from_slot)
                     },
                     PrimitiveEffect::Multiply => {
                         // The only nonzero output is slot=0.
