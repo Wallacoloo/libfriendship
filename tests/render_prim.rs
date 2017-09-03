@@ -13,7 +13,6 @@ use libfriendship::{Dispatch, Client};
 use libfriendship::dispatch::{OscRouteGraph, OscRenderer};
 use libfriendship::render::SparkleRenderer;
 use libfriendship::routing::{Edge, EdgeWeight, EffectId, NodeHandle};
-use libfriendship::util::pack_f32;
 
 
 struct MyClient {
@@ -87,7 +86,7 @@ fn render_const() {
     // Route a constant into ch=0.
     let handle = NodeHandle::new(1);
     dispatch.dispatch(OscRouteGraph::AddNode( (), (handle, const_id()) ).into()).unwrap();
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(handle, EdgeWeight::new(pack_f32(0.5f32), 0)),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new_to_null(handle, EdgeWeight::new((0.5f32).to_bits(), 0)),)).into()).unwrap();
     
     // Read some data from ch=0.
     // This should be all 0.5 because of the new node we added.
@@ -112,13 +111,13 @@ fn render_delay() {
     let const_hnd = NodeHandle::new(2);
     dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to delay input
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, delay_hnd, EdgeWeight::new(pack_f32(0.5f32), 0)),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, delay_hnd, EdgeWeight::new((0.5f32).to_bits(), 0)),)).into()).unwrap();
     
     // Create Constant node (id=3)
     let const_hnd = NodeHandle::new(3);
     dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to delay AMOUNT
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, delay_hnd, EdgeWeight::new(pack_f32(2f32), 1)),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, delay_hnd, EdgeWeight::new((2f32).to_bits(), 1)),)).into()).unwrap();
 
     // Read some data from ch=0.
     // This should be [0, 0, 0.5, 0.5]: constant but delayed by 2.
@@ -145,13 +144,13 @@ fn render_mult() {
     let const_hnd = NodeHandle::new(2);
     dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to multiply input (A)
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mult_hnd, EdgeWeight::new(pack_f32(0.5f32), 0)),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mult_hnd, EdgeWeight::new((0.5f32).to_bits(), 0)),)).into()).unwrap();
     
     // Create Constant node (id=3)
     let const_hnd = NodeHandle::new(3);
     dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to multiply input (B)
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mult_hnd, EdgeWeight::new(pack_f32(-3f32), 1)),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mult_hnd, EdgeWeight::new((-3f32).to_bits(), 1)),)).into()).unwrap();
     
     // Read some data from ch=0.
     // This should be 0.5 * -3.0 = -1.5
@@ -178,13 +177,13 @@ fn render_sum2() {
     let const_hnd = NodeHandle::new(2);
     dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to sum input (A)
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, sum_hnd, EdgeWeight::new(pack_f32(0.5f32), 0)),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, sum_hnd, EdgeWeight::new((0.5f32).to_bits(), 0)),)).into()).unwrap();
     
     // Create Constant node (id=3)
     let const_hnd = NodeHandle::new(3);
     dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to sum input (B)
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, sum_hnd, EdgeWeight::new(pack_f32(-3f32), 1)),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, sum_hnd, EdgeWeight::new((-3f32).to_bits(), 1)),)).into()).unwrap();
     
     // Read some data from ch=0.
     // This should be 0.5 + -3.0 = -2.5
@@ -209,13 +208,13 @@ fn render_div() {
     let const_hnd = NodeHandle::new(2);
     dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to divide input (A)
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, div_hnd, EdgeWeight::new(pack_f32(0.5f32), 0)),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, div_hnd, EdgeWeight::new((0.5f32).to_bits(), 0)),)).into()).unwrap();
     
     // Create Constant node (id=3)
     let const_hnd = NodeHandle::new(3);
     dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to divide input (B)
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, div_hnd, EdgeWeight::new(pack_f32(-3f32), 1)),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, div_hnd, EdgeWeight::new((-3f32).to_bits(), 1)),)).into()).unwrap();
     
     // Read some data from ch=0.
     // This should be 0.5 / -3.0 = -0.1666...
@@ -241,13 +240,13 @@ fn render_mod() {
     let const_hnd = NodeHandle::new(2);
     dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to modulo input (A)
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mod_hnd, EdgeWeight::new(pack_f32(-3.5f32), 0)),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mod_hnd, EdgeWeight::new((-3.5f32).to_bits(), 0)),)).into()).unwrap();
     
     // Create Constant node (id=3)
     let const_hnd = NodeHandle::new(3);
     dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to modulo input (B)
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mod_hnd, EdgeWeight::new(pack_f32(2f32), 1)),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, mod_hnd, EdgeWeight::new((2f32).to_bits(), 1)),)).into()).unwrap();
     
     // Read some data from ch=0.
     // This should be -3.5 % 2.0 = 0.5
@@ -273,13 +272,13 @@ fn render_min() {
     let const_hnd = NodeHandle::new(2);
     dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to modulo input (A)
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, min_hnd, EdgeWeight::new(pack_f32(-3.5f32), 0)),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, min_hnd, EdgeWeight::new((-3.5f32).to_bits(), 0)),)).into()).unwrap();
     
     // Create Constant node (id=3)
     let const_hnd = NodeHandle::new(3);
     dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to modulo input (B)
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, min_hnd, EdgeWeight::new(pack_f32(2f32), 1)),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, min_hnd, EdgeWeight::new((2f32).to_bits(), 1)),)).into()).unwrap();
     
     // Read some data from ch=0.
     // This should be min(-3.5, 2.0) = -3.5

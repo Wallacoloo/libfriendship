@@ -15,7 +15,6 @@ use libfriendship::{Dispatch, Client};
 use libfriendship::dispatch::{OscRouteGraph, OscRenderer};
 use libfriendship::render::SparkleRenderer;
 use libfriendship::routing::{Edge, EdgeWeight, EffectId, NodeHandle};
-use libfriendship::util::pack_f32;
 
 
 struct MyClient {
@@ -111,7 +110,7 @@ fn render_delay() {
     let const_hnd = NodeHandle::new(2);
     dispatch.dispatch(OscRouteGraph::AddNode( (), (const_hnd, const_id()) ).into()).unwrap();
     // Route constant output to delay input
-    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, delay_hnd, EdgeWeight::new(pack_f32(1f32), 1)),)).into()).unwrap();
+    dispatch.dispatch(OscRouteGraph::AddEdge((), (Edge::new(const_hnd, delay_hnd, EdgeWeight::new((1f32).to_bits(), 1)),)).into()).unwrap();
     // Read some data from ch=0.
     let mut builder = Jagged2Builder::new();
     builder.extend(&[1f32, 2f32, 3f32, 4f32]);
